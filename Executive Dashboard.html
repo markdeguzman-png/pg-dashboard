@@ -1,0 +1,1362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Performance Golf — Phone Team Executive Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  /* ── PG Brand Tokens ─────────────────────────────────────────────────────── */
+  :root {
+    --pg-orange:    #FD3300;
+    --pg-d-orange:  #DB2C00;
+    --pg-black:     #1D1A1A;
+    --pg-gray-text: #7B726C;
+    --pg-stone:     #B3AAA3;
+    --pg-pebble:    #DFD9D5;
+    --pg-sand:      #ECE9E4;
+    --pg-fog:       #F4F2F0;
+    --pg-mist:      #FCFAFA;
+    --green:        #2D7D46;
+    --green-bg:     #D4EDDA;
+    --yellow:       #856404;
+    --yellow-bg:    #FFF3CD;
+    --red:          #842029;
+    --red-bg:       #F8D7DA;
+  }
+
+  /* ── Reset / Base ────────────────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Arial', 'Helvetica Neue', sans-serif;
+    background: var(--pg-fog);
+    color: var(--pg-black);
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  /* ── Top Bar ─────────────────────────────────────────────────────────────── */
+  .topbar {
+    background: var(--pg-black);
+    padding: 0 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    border-bottom: 3px solid var(--pg-orange);
+  }
+  .topbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .pg-logo {
+    width: 36px;
+    height: 36px;
+    background: var(--pg-orange);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 900;
+    color: white;
+    letter-spacing: -1px;
+  }
+  .topbar-title {
+    color: white;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .topbar-sub {
+    color: var(--pg-stone);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .topbar-meta {
+    text-align: right;
+  }
+  .topbar-date {
+    color: var(--pg-stone);
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .topbar-date span {
+    color: var(--pg-orange);
+    font-weight: 700;
+  }
+
+  /* ── Navigation Tabs ─────────────────────────────────────────────────────── */
+  .tabs {
+    background: var(--pg-black);
+    padding: 0 32px;
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid #333;
+  }
+  .tab {
+    padding: 10px 20px;
+    color: var(--pg-stone);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .tab:hover { color: white; }
+  .tab.active {
+    color: var(--pg-orange);
+    border-bottom-color: var(--pg-orange);
+  }
+
+  /* ── Layout ──────────────────────────────────────────────────────────────── */
+  .page { display: none; }
+  .page.active { display: block; }
+  .content { padding: 28px 32px; max-width: 1400px; margin: 0 auto; }
+
+  /* ── Section Headers ─────────────────────────────────────────────────────── */
+  .section-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--pg-gray-text);
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--pg-pebble);
+  }
+  .section-title span {
+    color: var(--pg-orange);
+  }
+
+  /* ── KPI Cards ───────────────────────────────────────────────────────────── */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .kpi-card {
+    background: white;
+    border-radius: 8px;
+    padding: 20px 22px;
+    border: 1px solid var(--pg-pebble);
+    border-top: 3px solid var(--pg-pebble);
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi-card.orange { border-top-color: var(--pg-orange); }
+  .kpi-card.green  { border-top-color: var(--green); }
+  .kpi-card.yellow { border-top-color: #E9A900; }
+  .kpi-card.red    { border-top-color: #C0392B; }
+  .kpi-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--pg-gray-text);
+    margin-bottom: 6px;
+  }
+  .kpi-value {
+    font-size: 32px;
+    font-weight: 900;
+    color: var(--pg-black);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .kpi-target {
+    font-size: 11px;
+    color: var(--pg-stone);
+    margin-bottom: 10px;
+  }
+  .kpi-target strong { color: var(--pg-gray-text); }
+  .kpi-bar-bg {
+    background: var(--pg-sand);
+    border-radius: 4px;
+    height: 6px;
+    width: 100%;
+    overflow: hidden;
+  }
+  .kpi-bar {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.6s ease;
+  }
+  .kpi-pct {
+    font-size: 11px;
+    font-weight: 700;
+    margin-top: 5px;
+  }
+
+  /* ── Period Selector ─────────────────────────────────────────────────────── */
+  .period-selector {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .period-btn {
+    padding: 6px 16px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border: 1.5px solid var(--pg-pebble);
+    background: white;
+    color: var(--pg-gray-text);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .period-btn:hover { border-color: var(--pg-orange); color: var(--pg-orange); }
+  .period-btn.active {
+    background: var(--pg-orange);
+    border-color: var(--pg-orange);
+    color: white;
+  }
+
+  /* ── Sub-selector (date / week / team) ───────────────────────────────────── */
+  .sub-selector {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    background: var(--pg-sand);
+    border: 1px solid var(--pg-pebble);
+    border-radius: 6px;
+    padding: 8px 14px;
+    flex-wrap: wrap;
+  }
+  .sub-selector label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--pg-gray-text);
+    white-space: nowrap;
+  }
+  .sub-selector select {
+    font-family: 'Arial', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--pg-black);
+    background: white;
+    border: 1.5px solid var(--pg-pebble);
+    border-radius: 4px;
+    padding: 5px 10px;
+    cursor: pointer;
+    outline: none;
+    min-width: 140px;
+  }
+  .sub-selector select:focus { border-color: var(--pg-orange); }
+
+  /* ── Team selector buttons ───────────────────────────────────────────────── */
+  .team-selector {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .team-btn {
+    padding: 5px 14px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    border: 1.5px solid var(--pg-pebble);
+    background: white;
+    color: var(--pg-gray-text);
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .team-btn:hover { border-color: var(--pg-orange); color: var(--pg-orange); }
+  .team-btn.active {
+    background: var(--pg-black);
+    border-color: var(--pg-black);
+    color: white;
+  }
+
+  /* ── Tables ──────────────────────────────────────────────────────────────── */
+  .table-card {
+    background: white;
+    border-radius: 8px;
+    border: 1px solid var(--pg-pebble);
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+  .table-card-header {
+    padding: 14px 20px;
+    background: var(--pg-black);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .table-card-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: white;
+  }
+  .table-card-badge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--pg-orange);
+    background: rgba(253,51,0,0.12);
+    padding: 3px 10px;
+    border-radius: 20px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  th {
+    background: var(--pg-fog);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--pg-gray-text);
+    padding: 10px 16px;
+    text-align: right;
+    border-bottom: 1px solid var(--pg-pebble);
+  }
+  th:first-child { text-align: left; }
+  td {
+    padding: 10px 16px;
+    text-align: right;
+    border-bottom: 1px solid var(--pg-fog);
+    font-size: 12px;
+    color: var(--pg-black);
+    font-variant-numeric: tabular-nums;
+  }
+  td:first-child { text-align: left; font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--pg-fog); }
+
+  .pill {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .pill-green  { background: var(--green-bg);  color: var(--green); }
+  .pill-yellow { background: var(--yellow-bg); color: var(--yellow); }
+  .pill-red    { background: var(--red-bg);    color: var(--red); }
+
+  .bar-cell { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+  .mini-bar-bg { width: 80px; height: 6px; background: var(--pg-sand); border-radius: 3px; overflow: hidden; flex-shrink: 0; }
+  .mini-bar { height: 100%; border-radius: 3px; }
+
+  /* ── Chart Grid ──────────────────────────────────────────────────────────── */
+  .chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 24px;
+  }
+  .chart-grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 24px;
+  }
+  .chart-card {
+    background: white;
+    border-radius: 8px;
+    border: 1px solid var(--pg-pebble);
+    padding: 20px;
+  }
+  .chart-card-full {
+    background: white;
+    border-radius: 8px;
+    border: 1px solid var(--pg-pebble);
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+  .chart-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--pg-gray-text);
+    margin-bottom: 14px;
+  }
+  .chart-title span { color: var(--pg-orange); }
+
+  /* ── Target Legend ───────────────────────────────────────────────────────── */
+  .target-legend {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--pg-gray-text);
+    font-weight: 600;
+  }
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* ── Conversion Table ────────────────────────────────────────────────────── */
+  .conv-team-row td {
+    background: var(--pg-sand);
+    font-weight: 700;
+    color: var(--pg-black);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .conv-team-badge {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 8px;
+  }
+
+  /* ── Responsive ──────────────────────────────────────────────────────────── */
+  @media (max-width: 900px) {
+    .kpi-row { grid-template-columns: 1fr 1fr; }
+    .chart-grid { grid-template-columns: 1fr; }
+    .chart-grid-3 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Top Bar ──────────────────────────────────────────────────────────── -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <div class="pg-logo">PG</div>
+    <div>
+      <div class="topbar-title">Performance Golf</div>
+      <div class="topbar-sub">Phone Team Executive Dashboard</div>
+    </div>
+  </div>
+  <div class="topbar-meta">
+    <div class="topbar-date">As of <span>June 5, 2026</span></div>
+    <div class="topbar-date" style="margin-top:2px;">38 Active Reps &nbsp;|&nbsp; 6 Teams</div>
+  </div>
+</div>
+
+<!-- ── Tabs ─────────────────────────────────────────────────────────────── -->
+<div class="tabs">
+  <div class="tab active" onclick="showPage('overview', this)">Overview</div>
+  <div class="tab" onclick="showPage('pg1vip', this)">PG1 &amp; VIP Trends</div>
+  <div class="tab" onclick="showPage('clubs', this)">Clubs Trends</div>
+  <div class="tab" onclick="showPage('teams', this)">Team Performance</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- PAGE 1 — OVERVIEW                                                       -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="page active" id="page-overview">
+<div class="content">
+
+  <div class="section-title"><span>Enterprise</span> — Current Performance vs Targets</div>
+
+  <!-- Period Selector -->
+  <div class="period-selector">
+    <div class="period-btn active" onclick="switchPeriod('daily', this)">Daily</div>
+    <div class="period-btn" onclick="switchPeriod('weekly', this)">Weekly</div>
+    <div class="period-btn" onclick="switchPeriod('monthly', this)">Monthly (MTD + Projection)</div>
+  </div>
+
+  <!-- Date sub-selector -->
+  <div class="sub-selector" id="date-sub-selector">
+    <label>Select Date:</label>
+    <select id="date-picker" onchange="onDateChange(this.value)"></select>
+  </div>
+
+  <!-- Week sub-selector -->
+  <div class="sub-selector" id="week-sub-selector" style="display:none;">
+    <label>Select Week Beginning:</label>
+    <select id="week-picker" onchange="onWeekChange(this.value)"></select>
+  </div>
+
+  <!-- Projection info bar — only visible in monthly mode -->
+  <div id="proj-info-bar" style="display:none;background:#FFF3CD;border:1px solid #BF9000;border-left:4px solid #BF9000;border-radius:6px;padding:10px 16px;margin-bottom:16px;font-size:11px;color:#5C4400;">
+    <strong style="font-size:12px;">EOM Projection</strong> &nbsp;·&nbsp;
+    Based on <strong>5 days worked</strong> (Jun 1–5) &nbsp;·&nbsp;
+    <strong>17 working days remaining</strong> (Jun 8–12, 15–19, 22–26, 29–30) &nbsp;·&nbsp;
+    <strong>22 total working days in June</strong> &nbsp;·&nbsp;
+    Formula: <em>MTD Actual + (Daily Avg &times; Remaining Days)</em>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="kpi-row" id="kpi-cards">
+    <!-- injected by JS -->
+  </div>
+
+  <!-- Summary Table -->
+  <div class="table-card">
+    <div class="table-card-header">
+      <div class="table-card-title" id="summary-table-title">Daily Summary — June 5, 2026</div>
+      <div class="table-card-badge">Enterprise</div>
+    </div>
+    <table id="summary-table">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Target</th>
+          <th>Actual</th>
+          <th>% to Goal</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="summary-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- Monthly History Chart -->
+  <div class="chart-card-full">
+    <div class="chart-title"><span>Historical</span> — Monthly PG1, VIP &amp; Clubs</div>
+    <canvas id="overviewChart" height="90"></canvas>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- PAGE 2 — PG1 & VIP TRENDS                                               -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-pg1vip">
+<div class="content">
+
+  <div class="section-title"><span>PG1 &amp; VIP</span> — Monthly · Weekly · Daily Trends</div>
+
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title"><span>Monthly</span> — PG1 &amp; VIP vs Target (2,400)</div>
+      <canvas id="monthlyPGVIPChart" height="200"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><span>Weekly</span> — PG1 &amp; VIP vs Target (600)</div>
+      <canvas id="weeklyPGVIPChart" height="200"></canvas>
+    </div>
+  </div>
+
+  <div class="chart-card-full">
+    <div class="chart-title"><span>Daily</span> — PG1 &amp; VIP vs Target (150 each)</div>
+    <canvas id="dailyPGVIPChart" height="80"></canvas>
+  </div>
+
+  <!-- Monthly Table -->
+  <div class="table-card">
+    <div class="table-card-header">
+      <div class="table-card-title">Monthly PG1 &amp; VIP Data</div>
+      <div class="table-card-badge">Target: 2,400 each</div>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Month</th><th>PG1</th><th>% to Tgt</th><th>VIP</th><th>% to Tgt</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Jan 2026</td><td>2,938</td><td><div class="bar-cell"><div class="mini-bar-bg"><div class="mini-bar" style="width:100%;background:var(--green)"></div></div><span class="pill pill-green">122.4%</span></div></td><td>3,055</td><td><div class="bar-cell"><div class="mini-bar-bg"><div class="mini-bar" style="width:100%;background:var(--green)"></div></div><span class="pill pill-green">127.3%</span></div></td></tr>
+        <tr><td>Feb 2026</td><td>1,842</td><td><div class="bar-cell"><div class="mini-bar-bg"><div class="mini-bar" style="width:76.8%;background:#E9A900"></div></div><span class="pill pill-yellow">76.8%</span></div></td><td>1,859</td><td><div class="bar-cell"><div class="mini-bar-bg"><div class="mini-bar" style="width:77.5%;background:#E9A900"></div></div><span class="pill pill-yellow">77.5%</span></div></td></tr>
+        <tr><td>Mar 2026</td><td>2,615</td><td><div class="bar-cell"><div class="mini-bar-bg"><div class="mini-bar" style="width:100%;background:var(--green)"></div></div><span class="pill pill-green">109.0%</span></div></td><td>2,338</td><td><div class="bar-cell"><div class="mini-bar-bg"><div class="mini-bar" style="width:97.4%;background:var(--green)"></div></div><span class="pill pill-green">97.4%</span></div></td></tr>
+        <tr><td>Apr 2026</td><td>2,069</td><td><div class="bar-cell"><div class="mini-bar-bg"><div class="mini-bar" style="width:86.2%;background:#E9A900"></div></div><span class="pill pill-yellow">86.2%</span></div></td><td>1,966</td><td><div class="bar-cell"><div class="mini-bar-bg"><div class="mini-bar" style="width:81.9%;background:#E9A900"></div></div><span class="pill pill-yellow">81.9%</span></div></td></tr>
+        <tr><td>May 2026</td><td>1,707</td><td><div class="bar-cell"><div class="mini-bar-bg"><div class="mini-bar" style="width:71.1%;background:#E9A900"></div></div><span class="pill pill-yellow">71.1%</span></div></td><td>710</td><td><div class="bar-cell"><div class="mini-bar-bg"><div class="mini-bar" style="width:29.6%;background:var(--red)"></div></div><span class="pill pill-red">29.6%</span></div></td></tr>
+        <tr><td>Jun 2026 (MTD)</td><td>554</td><td><div class="bar-cell"><div class="mini-bar-bg"><div class="mini-bar" style="width:23.1%;background:var(--red)"></div></div><span class="pill pill-red">23.1%</span></div></td><td>387</td><td><div class="bar-cell"><div class="mini-bar-bg"><div class="mini-bar" style="width:16.1%;background:var(--red)"></div></div><span class="pill pill-red">16.1%</span></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Weekly Table -->
+  <div class="table-card">
+    <div class="table-card-header">
+      <div class="table-card-title">Weekly PG1 &amp; VIP Data</div>
+      <div class="table-card-badge">Target: 600 each</div>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Week Beginning</th><th>PG1</th><th>% to Tgt</th><th>VIP</th><th>% to Tgt</th></tr>
+      </thead>
+      <tbody id="weekly-pvtbody"></tbody>
+    </table>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- PAGE 3 — CLUBS TRENDS                                                   -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-clubs">
+<div class="content">
+
+  <div class="section-title"><span>Clubs</span> — Monthly · Weekly · Daily Trends</div>
+
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title"><span>Monthly</span> — Clubs vs Target (1,600)</div>
+      <canvas id="monthlyClubsChart" height="200"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><span>Weekly</span> — Clubs vs Target (400)</div>
+      <canvas id="weeklyClubsChart" height="200"></canvas>
+    </div>
+  </div>
+
+  <div class="chart-card-full">
+    <div class="chart-title"><span>Daily</span> — Clubs vs Target (100)</div>
+    <canvas id="dailyClubsChart" height="80"></canvas>
+  </div>
+
+  <!-- Monthly Table -->
+  <div class="table-card">
+    <div class="table-card-header">
+      <div class="table-card-title">Monthly Clubs Data</div>
+      <div class="table-card-badge">Target: 1,600/month</div>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Month</th><th>Clubs</th><th>Target</th><th>% to Target</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Jan 2026</td><td>1,399</td><td>1,600</td><td><div class="bar-cell"><div class="mini-bar-bg"><div class="mini-bar" style="width:87.4%;background:#E9A900"></div></div>87.4%</div></td><td><span class="pill pill-yellow">Near Target</span></td></tr>
+        <tr><td>Feb 2026</td><td>1,539</td><td>1,600</td><td><div class="bar-cell"><div class="mini-bar-bg"><div class="mini-bar" style="width:96.2%;background:var(--green)"></div></div>96.2%</div></td><td><span class="pill pill-green">On Track</span></td></tr>
+        <tr><td>Mar 2026</td><td>2,120</td><td>1,600</td><td><div class="bar-cell"><div class="mini-bar-bg"><div class="mini-bar" style="width:100%;background:var(--green)"></div></div>132.5%</div></td><td><span class="pill pill-green">Exceeded</span></td></tr>
+        <tr><td>Apr 2026</td><td>2,037</td><td>1,600</td><td><div class="bar-cell"><div class="mini-bar-bg"><div class="mini-bar" style="width:100%;background:var(--green)"></div></div>127.3%</div></td><td><span class="pill pill-green">Exceeded</span></td></tr>
+        <tr><td>May 2026</td><td>1,187</td><td>1,600</td><td><div class="bar-cell"><div class="mini-bar-bg"><div class="mini-bar" style="width:74.2%;background:#E9A900"></div></div>74.2%</div></td><td><span class="pill pill-yellow">Near Target</span></td></tr>
+        <tr><td>Jun 2026 (MTD)</td><td>296</td><td>1,600</td><td><div class="bar-cell"><div class="mini-bar-bg"><div class="mini-bar" style="width:18.5%;background:var(--red)"></div></div>18.5%</div></td><td><span class="pill pill-red">Below Target</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Weekly Table -->
+  <div class="table-card">
+    <div class="table-card-header">
+      <div class="table-card-title">Weekly Clubs Data</div>
+      <div class="table-card-badge">Target: 400/week</div>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Week Beginning</th><th>Clubs</th><th>Target</th><th>% to Target</th><th>Status</th></tr>
+      </thead>
+      <tbody id="weekly-clubs-tbody"></tbody>
+    </table>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- PAGE 4 — TEAM PERFORMANCE                                               -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-teams">
+<div class="content">
+
+  <div class="section-title"><span>Teams</span> — Daily · Weekly · Monthly Performance</div>
+
+  <!-- Team Selector -->
+  <div class="team-selector" id="team-selector">
+    <button class="team-btn active" onclick="selectTeam('Enterprise', this)">Enterprise</button>
+    <button class="team-btn" onclick="selectTeam('Team Anne', this)">Team Anne</button>
+    <button class="team-btn" onclick="selectTeam('Team Jen', this)">Team Jen</button>
+    <button class="team-btn" onclick="selectTeam('Team Lee', this)">Team Lee</button>
+    <button class="team-btn" onclick="selectTeam('Team Mark', this)">Team Mark</button>
+    <button class="team-btn" onclick="selectTeam('Team Philip', this)">Team Philip</button>
+    <button class="team-btn" onclick="selectTeam('Team Remen', this)">Team Remen</button>
+  </div>
+
+  <!-- Period Selector -->
+  <div class="period-selector">
+    <div class="period-btn active" onclick="switchTeamPeriod('daily', this)">Daily (Jun 5)</div>
+    <div class="period-btn" onclick="switchTeamPeriod('weekly', this)">Weekly (WB Jun 1)</div>
+    <div class="period-btn" onclick="switchTeamPeriod('monthly', this)">Monthly (Jun MTD)</div>
+  </div>
+
+  <!-- Team Scoreboard -->
+  <div class="table-card">
+    <div class="table-card-header">
+      <div class="table-card-title" id="team-table-title">Team Scoreboard — Daily (Jun 5, 2026)</div>
+      <div class="table-card-badge">6 Teams</div>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Team</th><th>Reps</th><th>PG1</th><th>PG1 Tgt</th><th>PG1 %</th><th>VIP</th><th>VIP Tgt</th><th>VIP %</th><th>Clubs</th><th>Clubs Tgt</th><th>Clubs %</th><th>PS Sold</th><th>3-Min Calls</th><th>Conv %</th></tr>
+      </thead>
+      <tbody id="team-scoreboard-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- Team note (shown for teams with limited data) -->
+  <div id="team-note" style="display:none;background:#FFF3CD;border-left:4px solid #BF9000;border-radius:4px;padding:10px 14px;margin-bottom:12px;font-size:11px;color:#5C4400;font-weight:600;"></div>
+
+  <!-- Team Trend Section (Anne & Enterprise only) -->
+  <div id="team-trend-section">
+  <div class="section-title" style="margin-top:8px;"><span>Team Anne</span> — Full Trend (13 Reps)</div>
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title"><span>Monthly</span> — Team Anne PG1, VIP &amp; Clubs</div>
+      <canvas id="anneMonthlyChart" height="200"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><span>Weekly</span> — Team Anne PG1, VIP &amp; Clubs</div>
+      <canvas id="anneWeeklyChart" height="200"></canvas>
+    </div>
+  </div>
+
+  </div><!-- /team-trend-section -->
+
+  <!-- Conversion Rates -->
+  <div class="table-card">
+    <div class="table-card-header">
+      <div class="table-card-title">Conversion Rate — by Rep</div>
+      <div class="table-card-badge" id="conv-badge">All Teams</div>
+    </div>
+    <table id="conv-table">
+      <thead>
+        <tr><th>Team</th><th>Rep Name</th><th>Conversion Rate</th><th></th></tr>
+      </thead>
+      <tbody id="conv-tbody"></tbody>
+    </table>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SCRIPTS                                                                  -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<script>
+// ── Brand Colors ─────────────────────────────────────────────────────────
+const ORANGE = '#FD3300';
+const D_ORANGE = '#DB2C00';
+const BLACK = '#1D1A1A';
+const STONE = '#B3AAA3';
+const PEBBLE = '#DFD9D5';
+const SAND = '#ECE9E4';
+const FOG = '#F4F2F0';
+const GREEN_C = '#2D7D46';
+
+// ── Per-team definitions ──────────────────────────────────────────────────
+// PTG source: Jun 5 snapshot (daily), WB 6/1 (weekly), Jun MTD (monthly)
+const TEAM_PROFILES = {
+  'Enterprise': {
+    reps: 38, color: ORANGE,
+    periods: {
+      daily:   { act:{pg1:44, vip:31, clubs:41}, tgt:{pg1:150, vip:150, clubs:100} },
+      weekly:  { act:{pg1:554,vip:387,clubs:297}, tgt:{pg1:600, vip:600, clubs:400} },
+      monthly: { act:{pg1:554,vip:387,clubs:297}, tgt:{pg1:2400,vip:2400,clubs:1600} },
+    },
+    conv: { sold:716, calls:2961 },
+    hasTrend: true,
+    note: null,
+  },
+  'Team Anne': {
+    reps: 13, color: ORANGE,
+    periods: {
+      daily:   { act:{pg1:15,vip:14,clubs:14}, tgt:{pg1:52, vip:52, clubs:35} },
+      weekly:  { act:{pg1:179,vip:165,clubs:71}, tgt:{pg1:206,vip:206,clubs:137} },
+      monthly: { act:{pg1:179,vip:165,clubs:71}, tgt:{pg1:822,vip:822,clubs:548} },
+    },
+    hasTrend: true,
+    note: null,
+  },
+  'Team Jen': {
+    reps: 8, color: D_ORANGE,
+    periods: {
+      daily:   { act:{pg1:3, vip:3, clubs:5},  tgt:{pg1:32, vip:32, clubs:22} },
+      weekly:  { act:{pg1:78,vip:67,clubs:40},  tgt:{pg1:127,vip:127,clubs:85} },
+      monthly: { act:{pg1:78,vip:67,clubs:40},  tgt:{pg1:506,vip:506,clubs:337} },
+    },
+    hasTrend: false,
+    note: null,
+  },
+  'Team Lee': {
+    reps: 12, color: STONE,
+    periods: null,
+    hasTrend: false,
+    note: 'PTG breakdown not available in current source — showing conversion rates',
+  },
+  'Team Mark': {
+    reps: 9, color: '#7B726C',
+    periods: {
+      daily:   { act:{pg1:8, vip:7, clubs:11}, tgt:{pg1:32, vip:32, clubs:22} },
+      weekly:  { act:{pg1:80,vip:62,clubs:65},  tgt:{pg1:127,vip:127,clubs:85} },
+      monthly: { act:{pg1:80,vip:62,clubs:65},  tgt:{pg1:506,vip:506,clubs:337} },
+    },
+    hasTrend: false,
+    note: null,
+  },
+  'Team Philip': {
+    reps: 10, color: PEBBLE,
+    periods: {
+      daily:   { act:{pg1:11,vip:0, clubs:7},  tgt:{pg1:9,  vip:9,  clubs:9} },
+      weekly:  { act:{pg1:128,vip:4,clubs:93},  tgt:{pg1:45, vip:45, clubs:45} },
+      monthly: { act:{pg1:128,vip:4,clubs:93},  tgt:{pg1:200,vip:200,clubs:200} },
+    },
+    hasTrend: false,
+    note: 'Targets reflect training-tier rep structure',
+  },
+  'Team Remen': {
+    reps: 9, color: '#ECE9E4',
+    periods: {
+      daily:   { act:{pg1:7, vip:7, clubs:2},  tgt:{pg1:36, vip:36, clubs:24} },
+      weekly:  { act:{pg1:85,vip:82,clubs:19},  tgt:{pg1:143,vip:143,clubs:95} },
+      monthly: { act:{pg1:85,vip:82,clubs:19},  tgt:{pg1:569,vip:569,clubs:379} },
+    },
+    hasTrend: false,
+    note: null,
+  },
+};
+
+// ── Data ──────────────────────────────────────────────────────────────────
+
+// Targets for enterprise daily/weekly/monthly
+const ENTERPRISE_TARGETS = {
+  daily:   { pg1:150, vip:150, clubs:100 },
+  weekly:  { pg1:600, vip:600, clubs:400 },
+  monthly: { pg1:2400,vip:2400,clubs:1600 },
+};
+
+const MONTHLY = {
+  labels: ['Jan','Feb','Mar','Apr','May','Jun MTD'],
+  pg1:    [2938, 1842, 2615, 2069, 1707, 554],
+  vip:    [3055, 1859, 2338, 1966,  710, 387],
+  clubs:  [1399, 1539, 2120, 2037, 1187, 296],
+};
+
+const WEEKLY = {
+  labels: ['4/13','4/20','4/27','5/4','5/11','5/18','5/25','6/1'],
+  pg1:    [459, 559, 327, 298, 401, 415, 556, 554],
+  vip:    [518, 420, 195,   0,   9, 296, 405, 387],
+  clubs:  [502, 406, 377, 280, 345, 241, 239, 296],
+};
+
+const DAILY = {
+  labels: ['5/9','5/10','5/11','5/12','5/13','5/14','5/15','5/18','5/19','5/20','5/21','5/22','5/25','5/26','5/27','5/28','5/29','5/30','5/31','6/1','6/2','6/3','6/4','6/5'],
+  pg1:    [14,4,85,70,86,80,70,101,83,89,77,65,100,102,116,103,91,29,15,139,124,137,110,44],
+  vip:    [0,0,0,0,0,8,1,58,73,73,55,37,84,80,75,76,65,17,8,102,86,92,76,31],
+  clubs:  [14,13,61,73,68,62,63,45,57,54,42,43,36,43,51,40,48,12,9,62,61,72,61,40],
+};
+
+const TEAMS = {
+  daily: [
+    { name:'Team Anne',   reps:13, pg1:15,  vip:14,  clubs:14,  pg1t:52,  vipt:52,  clubst:35,  sold:null, calls:null },
+    { name:'Enterprise',  reps:38, pg1:44,  vip:31,  clubs:41,  pg1t:150, vipt:150, clubst:100, sold:67,   calls:0   },
+  ],
+  weekly: [
+    { name:'Team Anne',   reps:13, pg1:179, vip:165, clubs:71,  pg1t:206, vipt:206, clubst:137, sold:null, calls:null },
+    { name:'Enterprise',  reps:38, pg1:554, vip:387, clubs:297, pg1t:600, vipt:600, clubst:400, sold:716,  calls:2961 },
+  ],
+  monthly: [
+    { name:'Team Anne',   reps:13, pg1:179, vip:165, clubs:71,  pg1t:822,  vipt:822,  clubst:548,  sold:null, calls:null },
+    { name:'Enterprise',  reps:38, pg1:554, vip:387, clubs:297, pg1t:2400, vipt:2400, clubst:1600, sold:716,  calls:2961 },
+  ],
+};
+
+const CONVERSIONS = [
+  { team:'Team Anne',   color:'#FD3300', reps:[
+    ['Jesica Jumao-as','65.8%',0.658],['Romuel Sabile','50.0%',0.500],
+    ['Kenneth Semira','47.4%',0.474],['Christian Buceron','43.2%',0.432],
+    ['Rubilyn Estrada','41.5%',0.415],['Jemar Namora','40.0%',0.400],
+    ['Andrea Isabel Balon','38.3%',0.383],['Prince Wendell De Luna','38.1%',0.381],
+    ['Ian Ashley Sarmiento','36.0%',0.360],['Sitti Besas','35.7%',0.357],
+    ['Chelei Bago','35.3%',0.353],['Laurice Pentinio','33.3%',0.333],
+    ['Audrey Banares','28.3%',0.283],
+  ]},
+  { team:'Team Jen', color:'#DB2C00', reps:[
+    ['Belle Diaz','51.4%',0.514],['Nezy Kea Buenaventura','48.3%',0.483],
+    ['Kuh-Kuh Doringo','37.0%',0.370],['Elbrando Tibon','35.5%',0.355],
+    ['Mayzelyn Revuelto','27.0%',0.270],['Adrian Bundalian Gabriel','14.3%',0.143],
+    ['Mark Ryan Francis','11.1%',0.111],['Charlyn Baylon','10.7%',0.107],
+  ]},
+  { team:'Team Lee', color:'#7B726C', reps:[
+    ['Lucky Sardia','20.6%',0.206],['Melody Tubio Libradilla','19.5%',0.195],
+    ['Kikumi Keeshia Matsuo','18.7%',0.187],['Thomas John Lommen','17.7%',0.177],
+    ['Rheena Jayne Tomakin','13.3%',0.133],['Jacinto Jr Basada','12.5%',0.125],
+    ['Micha Aborquez','9.7%',0.097],['Majan Perez','9.4%',0.094],
+    ['Marvin Tingin','8.8%',0.088],['Houda Ashraf Sayyed','6.4%',0.064],
+    ['Kathlene Tiampo','5.2%',0.052],['Reynaldo Calde Jr','3.1%',0.031],
+  ]},
+  { team:'Team Mark', color:'#B3AAA3', reps:[
+    ['Alvin Alan Comia','47.8%',0.478],['Dan Dominique Arizala Casem','42.3%',0.423],
+    ['Reynan Sularan','41.7%',0.417],['Gerald Mark Lee Rabonza','40.6%',0.406],
+    ['Aldrin Jay Leones','36.7%',0.367],['Rose Shamae Morica','35.6%',0.356],
+    ['Monette Soltes','34.5%',0.345],['Dexter Cagas Arbas','22.7%',0.227],
+    ['Marc Bryan Paguinto','16.0%',0.160],
+  ]},
+  { team:'Team Philip', color:'#DFD9D5', reps:[
+    ['Phoebe Estel Ymil Collado','12.0%',0.120],['Julius Vizcayno','7.7%',0.077],
+    ['Rafael John Abayan','4.0%',0.040],['Jhaziel Gonzales','2.7%',0.027],
+    ['Vian Perez','0.0%',0],['Tommy Tecson','0.0%',0],
+    ['Richard Ian Alvarez','0.0%',0],['Jessika Elliott','0.0%',0],
+    ['Heinrich Abarquez','0.0%',0],['Dan Emmanuel Nicolas','0.0%',0],
+  ]},
+  { team:'Team Remen', color:'#ECE9E4', reps:[
+    ['Daniel Aliyu','88.0%',0.880],['Jho-May Acosta','57.1%',0.571],
+    ['Venus Marie Cartalla','51.5%',0.515],['Jackie Rose Paet','40.3%',0.403],
+    ['Aileen Mendez','34.8%',0.348],['Martin Lorenzo Savellano','33.3%',0.333],
+    ['Romalyn Magallon','18.6%',0.186],['Kevin Jabagat','5.0%',0.050],
+    ['John Kevin Morales','0.0%',0],
+  ]},
+];
+
+// ── Projection constants ──────────────────────────────────────────────────
+const DAYS_WORKED = 5;
+const DAYS_REMAINING = 17;
+const DAYS_TOTAL = 22;
+
+function projEOM(mtd){ return Math.round(mtd + (mtd/DAYS_WORKED)*DAYS_REMAINING); }
+
+// ── Helpers ──────────────────────────────────────────────────────────────
+function fmt(n){ return Math.round(n).toLocaleString(); }
+function fmtD(n){ return n.toFixed(1); }
+function pct(act,tgt){ return ((act/tgt)*100).toFixed(1)+'%'; }
+function pillClass(act,tgt){
+  const r=act/tgt;
+  return r>=0.9?'pill pill-green':r>=0.7?'pill pill-yellow':'pill pill-red';
+}
+function pillLabel(act,tgt){
+  const r=act/tgt;
+  return r>=0.9?'On Track':r>=0.7?'Near Target':'Below Target';
+}
+function barColor(act,tgt){
+  const r=act/tgt;
+  return r>=0.9?'#2D7D46':r>=0.7?'#E9A900':'#C0392B';
+}
+function capPct(act,tgt){ return Math.min((act/tgt)*100,100)+'%'; }
+
+// ── State ─────────────────────────────────────────────────────────────────
+let currentPeriod = 'daily';
+let currentTeam   = 'Enterprise';
+let currentTeamPeriod = 'daily';
+
+// ── Tab Navigation ────────────────────────────────────────────────────────
+function showPage(id, el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  el.classList.add('active');
+}
+
+// ── Overview: Date & Week Pickers ─────────────────────────────────────────
+function initPickers(){
+  const dp = document.getElementById('date-picker');
+  DAILY.labels.forEach((d,i)=>{
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = d + (i===DAILY.labels.length-1?' (latest)':'');
+    dp.appendChild(opt);
+  });
+  dp.value = DAILY.labels.length - 1;
+
+  const wp = document.getElementById('week-picker');
+  WEEKLY.labels.forEach((w,i)=>{
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = 'WB ' + w + (i===WEEKLY.labels.length-1?' (latest)':'');
+    wp.appendChild(opt);
+  });
+  wp.value = WEEKLY.labels.length - 1;
+}
+
+function onDateChange(idx){
+  idx = parseInt(idx);
+  const tgt = ENTERPRISE_TARGETS.daily;
+  const rows = [
+    {label:'PG1',   tgt:tgt.pg1,   act:DAILY.pg1[idx]},
+    {label:'VIP',   tgt:tgt.vip,   act:DAILY.vip[idx]},
+    {label:'Clubs', tgt:tgt.clubs, act:DAILY.clubs[idx]},
+  ];
+  const title = 'Daily — ' + DAILY.labels[idx] + ', 2026';
+  renderKPICards(rows, 'daily');
+  renderTable(rows, title, 'daily');
+}
+
+function onWeekChange(idx){
+  idx = parseInt(idx);
+  const tgt = ENTERPRISE_TARGETS.weekly;
+  const rows = [
+    {label:'PG1',   tgt:tgt.pg1,   act:WEEKLY.pg1[idx]},
+    {label:'VIP',   tgt:tgt.vip,   act:WEEKLY.vip[idx]},
+    {label:'Clubs', tgt:tgt.clubs, act:WEEKLY.clubs[idx]},
+  ];
+  const title = 'Weekly — WB ' + WEEKLY.labels[idx];
+  renderKPICards(rows, 'weekly');
+  renderTable(rows, title, 'weekly');
+}
+
+// ── Overview Period Switch ────────────────────────────────────────────────
+function switchPeriod(period, el){
+  currentPeriod = period;
+  document.querySelectorAll('#page-overview .period-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+
+  // Show/hide sub-selectors
+  document.getElementById('date-sub-selector').style.display  = period==='daily'   ? 'flex' : 'none';
+  document.getElementById('week-sub-selector').style.display  = period==='weekly'  ? 'flex' : 'none';
+  document.getElementById('proj-info-bar').style.display      = period==='monthly' ? 'block': 'none';
+
+  if(period==='daily'){
+    onDateChange(document.getElementById('date-picker').value);
+  } else if(period==='weekly'){
+    onWeekChange(document.getElementById('week-picker').value);
+  } else {
+    // Monthly: use Jun MTD enterprise data
+    const tgt = ENTERPRISE_TARGETS.monthly;
+    const rows = [
+      {label:'PG1',   tgt:tgt.pg1,   act:554},
+      {label:'VIP',   tgt:tgt.vip,   act:387},
+      {label:'Clubs', tgt:tgt.clubs, act:297},
+    ];
+    renderKPICards(rows, 'monthly');
+    renderTable(rows, 'Monthly Summary — June 2026 MTD', 'monthly');
+  }
+}
+
+function renderKPICards(rows, period){
+  const isMonthly = period==='monthly';
+  document.getElementById('kpi-cards').innerHTML = rows.map(({label,tgt,act})=>{
+    const ratio = act/tgt;
+    const color = ratio>=0.9?'green':ratio>=0.7?'yellow':'red';
+    const bColor = barColor(act,tgt);
+    const eom = projEOM(act);
+    const eomColor = barColor(eom,tgt);
+    const projBadge = isMonthly ? `
+      <div style="margin-top:8px;padding:6px 8px;background:#FFF3CD;border-radius:4px;border-left:3px solid #BF9000;">
+        <div style="font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#856404;margin-bottom:2px;">Proj EOM</div>
+        <div style="font-size:18px;font-weight:900;color:#5C4400;">${fmt(eom)}</div>
+        <div class="kpi-bar-bg" style="margin-top:4px;"><div class="kpi-bar" style="width:${capPct(eom,tgt)};background:${eomColor}"></div></div>
+        <div style="font-size:11px;font-weight:700;color:${eomColor};margin-top:3px;">${((eom/tgt)*100).toFixed(1)}% proj</div>
+      </div>` : '';
+    return `<div class="kpi-card ${color}">
+      <div class="kpi-label">${label}</div>
+      <div class="kpi-value">${fmt(act)}</div>
+      <div class="kpi-target">Target: <strong>${fmt(tgt)}</strong></div>
+      <div class="kpi-bar-bg"><div class="kpi-bar" style="width:${capPct(act,tgt)};background:${bColor}"></div></div>
+      <div class="kpi-pct" style="color:${bColor}">${pct(act,tgt)} to goal${isMonthly?' (MTD)':''}</div>
+      ${projBadge}
+    </div>`;
+  }).join('');
+}
+
+function renderTable(rows, title, period){
+  const isMonthly = period==='monthly';
+  document.getElementById('summary-table-title').textContent = title;
+  const projH = isMonthly
+    ? `<th style="background:#BF9000;color:#fff;">Daily Avg</th><th style="background:#BF9000;color:#fff;">Proj EOM</th><th style="background:#BF9000;color:#fff;">Proj %</th><th style="background:#BF9000;color:#fff;">Proj Status</th>`
+    : '';
+  document.querySelector('#summary-table thead tr').innerHTML =
+    `<th>Metric</th><th>Target</th><th>Actual</th><th>% to Goal</th><th>Status</th>${projH}`;
+  document.getElementById('summary-tbody').innerHTML = rows.map(({label,tgt,act})=>{
+    const eom = projEOM(act);
+    const projCols = isMonthly ? `
+      <td style="background:#FFF3CD;color:#5C4400;font-style:italic;font-weight:700;">${fmtD(act/DAYS_WORKED)}</td>
+      <td style="background:#FFF3CD;color:#5C4400;font-style:italic;font-weight:700;">${fmt(eom)}</td>
+      <td style="background:#FFF3CD;color:#5C4400;font-style:italic;font-weight:700;">
+        <div class="bar-cell"><div class="mini-bar-bg"><div class="mini-bar" style="width:${capPct(eom,tgt)};background:${barColor(eom,tgt)}"></div></div>${((eom/tgt)*100).toFixed(1)}%</div>
+      </td>
+      <td style="background:#FFF3CD;"><span class="${pillClass(eom,tgt)}">${pillLabel(eom,tgt)}</span></td>` : '';
+    return `<tr>
+      <td>${label}</td><td>${fmt(tgt)}</td><td>${fmt(act)}</td>
+      <td><div class="bar-cell"><div class="mini-bar-bg"><div class="mini-bar" style="width:${capPct(act,tgt)};background:${barColor(act,tgt)}"></div></div>${pct(act,tgt)}</div></td>
+      <td><span class="${pillClass(act,tgt)}">${pillLabel(act,tgt)}</span></td>
+      ${projCols}
+    </tr>`;
+  }).join('');
+}
+
+// ── Team Selector ─────────────────────────────────────────────────────────
+function selectTeam(name, el){
+  currentTeam = name;
+  document.querySelectorAll('.team-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  renderTeamView();
+}
+
+function renderTeamView(){
+  const profile = TEAM_PROFILES[currentTeam];
+  renderTeamScoreboard(currentTeamPeriod);
+  renderConversions(currentTeam);
+
+  // Badge
+  const badge = document.getElementById('conv-badge');
+  if(badge) badge.textContent = currentTeam==='Enterprise' ? 'All Teams' : currentTeam;
+
+  // Show/hide trend section
+  const trendSection = document.getElementById('team-trend-section');
+  if(trendSection) trendSection.style.display = profile.hasTrend ? 'block':'none';
+
+  // Note
+  const noteEl = document.getElementById('team-note');
+  if(noteEl){
+    noteEl.style.display = profile.note ? 'block':'none';
+    if(profile.note) noteEl.textContent = '⚠ ' + profile.note;
+  }
+}
+
+// ── Team Period Switch ────────────────────────────────────────────────────
+function switchTeamPeriod(period, el){
+  currentTeamPeriod = period;
+  document.querySelectorAll('#page-teams .period-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  renderTeamScoreboard(period);
+  const labels = {daily:'Daily (Jun 5, 2026)', weekly:'Weekly (WB Jun 1, 2026)', monthly:'Monthly (Jun MTD)'};
+  document.getElementById('team-table-title').textContent =
+    currentTeam + ' Scoreboard — ' + labels[period];
+}
+
+function renderTeamScoreboard(period){
+  const profile = TEAM_PROFILES[currentTeam];
+  const labels = {daily:'Daily (Jun 5, 2026)', weekly:'Weekly (WB Jun 1, 2026)', monthly:'Monthly (Jun MTD)'};
+  document.getElementById('team-table-title').textContent =
+    currentTeam + ' Scoreboard — ' + labels[period];
+
+  if(!profile.periods){
+    document.getElementById('team-scoreboard-tbody').innerHTML = `
+      <tr><td colspan="11" style="text-align:center;padding:20px;color:#7B726C;font-style:italic;">
+        PTG data not available for ${currentTeam} — see conversion rates below.
+      </td></tr>`;
+    return;
+  }
+
+  const {act, tgt} = profile.periods[period];
+  // If Enterprise, also show conv data
+  const convCell = (currentTeam==='Enterprise' && profile.conv)
+    ? `<td>${fmt(profile.conv.sold)}</td><td>${fmt(profile.conv.calls)}</td>
+       <td><span class="${pillClass(profile.conv.sold/profile.conv.calls,0.24)}">${((profile.conv.sold/profile.conv.calls)*100).toFixed(1)}%</span></td>`
+    : `<td colspan="3" style="color:#999;text-align:center;">—</td>`;
+
+  document.getElementById('team-scoreboard-tbody').innerHTML = `
+    <tr>
+      <td>${currentTeam}</td>
+      <td>${profile.reps}</td>
+      <td>${fmt(act.pg1)}</td><td>${fmt(tgt.pg1)}</td>
+      <td><span class="${pillClass(act.pg1,tgt.pg1)}">${pct(act.pg1,tgt.pg1)}</span></td>
+      <td>${fmt(act.vip)}</td><td>${fmt(tgt.vip)}</td>
+      <td><span class="${pillClass(act.vip,tgt.vip)}">${pct(act.vip,tgt.vip)}</span></td>
+      <td>${fmt(act.clubs)}</td><td>${fmt(tgt.clubs)}</td>
+      <td><span class="${pillClass(act.clubs,tgt.clubs)}">${pct(act.clubs,tgt.clubs)}</span></td>
+      ${convCell}
+    </tr>`;
+}
+
+// ── Weekly Tables ─────────────────────────────────────────────────────────
+function renderWeeklyTables(){
+  document.getElementById('weekly-pvtbody').innerHTML = WEEKLY.labels.map((lbl,i)=>{
+    const pg1=WEEKLY.pg1[i], vip=WEEKLY.vip[i];
+    return `<tr>
+      <td>${lbl}</td>
+      <td>${fmt(pg1)}</td>
+      <td><div class="bar-cell"><div class="mini-bar-bg"><div class="mini-bar" style="width:${capPct(pg1,600)};background:${barColor(pg1,600)}"></div></div><span class="${pillClass(pg1,600)}">${pct(pg1,600)}</span></div></td>
+      <td>${fmt(vip)}</td>
+      <td><div class="bar-cell"><div class="mini-bar-bg"><div class="mini-bar" style="width:${capPct(vip,600)};background:${barColor(vip,600)}"></div></div><span class="${pillClass(vip,600)}">${pct(vip,600)}</span></div></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('weekly-clubs-tbody').innerHTML = WEEKLY.labels.map((lbl,i)=>{
+    const c=WEEKLY.clubs[i];
+    return `<tr>
+      <td>${lbl}</td><td>${fmt(c)}</td><td>400</td>
+      <td><div class="bar-cell"><div class="mini-bar-bg"><div class="mini-bar" style="width:${capPct(c,400)};background:${barColor(c,400)}"></div></div>${pct(c,400)}</div></td>
+      <td><span class="${pillClass(c,400)}">${pillLabel(c,400)}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Conversion Table (filterable by team) ─────────────────────────────────
+function renderConversions(filterTeam){
+  let html = '';
+  CONVERSIONS.forEach(({team, color, reps})=>{
+    if(filterTeam && filterTeam!=='Enterprise' && team!==filterTeam) return;
+    html += `<tr class="conv-team-row"><td colspan="4">
+      <span class="conv-team-badge" style="background:${color}"></span>${team}
+    </td></tr>`;
+    reps.forEach(([name, pctVal, ratio])=>{
+      const cls = ratio>=0.4?'pill-green':ratio>=0.2?'pill-yellow':'pill-red';
+      html += `<tr>
+        <td></td><td>${name}</td>
+        <td><div class="bar-cell">
+          <div class="mini-bar-bg"><div class="mini-bar" style="width:${Math.min(ratio*100,100)}%;background:${barColor(ratio,0.4)}"></div></div>
+          <span class="pill ${cls}">${pctVal}</span>
+        </div></td><td></td>
+      </tr>`;
+    });
+  });
+  if(!html) html = `<tr><td colspan="4" style="text-align:center;padding:20px;color:#999;font-style:italic;">No reps found for ${filterTeam}</td></tr>`;
+  document.getElementById('conv-tbody').innerHTML = html;
+}
+
+// ── Charts ────────────────────────────────────────────────────────────────
+const chartDefaults = {
+  plugins: { legend:{ labels:{ font:{ family:'Arial', size:11 }, color:BLACK, boxWidth:12, padding:16 } } },
+  scales: {
+    x:{ grid:{ color:PEBBLE }, ticks:{ color:'#7B726C', font:{family:'Arial',size:10} } },
+    y:{ grid:{ color:PEBBLE }, ticks:{ color:'#7B726C', font:{family:'Arial',size:10} } }
+  }
+};
+
+function targetLine(data, val, label, color){
+  return { label, data: data.map(()=>val), borderColor:color||STONE,
+    borderDash:[6,4], borderWidth:2, pointRadius:0, type:'line', order:0 };
+}
+
+// Overview Chart
+new Chart(document.getElementById('overviewChart'), {
+  type:'bar',
+  data:{
+    labels: MONTHLY.labels,
+    datasets:[
+      { label:'PG1', data:MONTHLY.pg1, backgroundColor:ORANGE+'CC', borderRadius:3 },
+      { label:'VIP', data:MONTHLY.vip, backgroundColor:D_ORANGE+'CC', borderRadius:3 },
+      { label:'Clubs', data:MONTHLY.clubs, backgroundColor:'#7B726C'+'BB', borderRadius:3 },
+      targetLine(MONTHLY.labels, 2400, 'PG1/VIP Target', '#FD3300'),
+      targetLine(MONTHLY.labels, 1600, 'Clubs Target', '#7B726C'),
+    ]
+  },
+  options:{ ...chartDefaults, responsive:true }
+});
+
+// Monthly PG1+VIP
+new Chart(document.getElementById('monthlyPGVIPChart'), {
+  type:'bar',
+  data:{
+    labels: MONTHLY.labels,
+    datasets:[
+      { label:'PG1', data:MONTHLY.pg1, backgroundColor:ORANGE+'CC', borderRadius:3 },
+      { label:'VIP', data:MONTHLY.vip, backgroundColor:D_ORANGE+'CC', borderRadius:3 },
+      targetLine(MONTHLY.labels, 2400, 'Target (2,400)', STONE),
+    ]
+  },
+  options:{ ...chartDefaults, responsive:true }
+});
+
+// Weekly PG1+VIP
+new Chart(document.getElementById('weeklyPGVIPChart'), {
+  type:'bar',
+  data:{
+    labels: WEEKLY.labels,
+    datasets:[
+      { label:'PG1', data:WEEKLY.pg1, backgroundColor:ORANGE+'CC', borderRadius:3 },
+      { label:'VIP', data:WEEKLY.vip, backgroundColor:D_ORANGE+'CC', borderRadius:3 },
+      targetLine(WEEKLY.labels, 600, 'Target (600)', STONE),
+    ]
+  },
+  options:{ ...chartDefaults, responsive:true }
+});
+
+// Daily PG1+VIP
+new Chart(document.getElementById('dailyPGVIPChart'), {
+  type:'line',
+  data:{
+    labels: DAILY.labels,
+    datasets:[
+      { label:'PG1', data:DAILY.pg1, borderColor:ORANGE, backgroundColor:ORANGE+'22',
+        borderWidth:2, pointRadius:3, fill:false, tension:0.3 },
+      { label:'VIP', data:DAILY.vip, borderColor:D_ORANGE, backgroundColor:D_ORANGE+'22',
+        borderWidth:2, pointRadius:3, fill:false, tension:0.3 },
+      targetLine(DAILY.labels, 150, 'Target (150)', STONE),
+    ]
+  },
+  options:{ ...chartDefaults, responsive:true }
+});
+
+// Monthly Clubs
+new Chart(document.getElementById('monthlyClubsChart'), {
+  type:'bar',
+  data:{
+    labels: MONTHLY.labels,
+    datasets:[
+      { label:'Clubs', data:MONTHLY.clubs, backgroundColor:'#7B726C'+'BB', borderRadius:3 },
+      targetLine(MONTHLY.labels, 1600, 'Target (1,600)', D_ORANGE),
+    ]
+  },
+  options:{ ...chartDefaults, responsive:true }
+});
+
+// Weekly Clubs
+new Chart(document.getElementById('weeklyClubsChart'), {
+  type:'bar',
+  data:{
+    labels: WEEKLY.labels,
+    datasets:[
+      { label:'Clubs', data:WEEKLY.clubs, backgroundColor:'#7B726C'+'BB', borderRadius:3 },
+      targetLine(WEEKLY.labels, 400, 'Target (400)', D_ORANGE),
+    ]
+  },
+  options:{ ...chartDefaults, responsive:true }
+});
+
+// Daily Clubs
+new Chart(document.getElementById('dailyClubsChart'), {
+  type:'line',
+  data:{
+    labels: DAILY.labels,
+    datasets:[
+      { label:'Clubs', data:DAILY.clubs, borderColor:'#7B726C', backgroundColor:'#7B726C22',
+        borderWidth:2, pointRadius:3, fill:false, tension:0.3 },
+      targetLine(DAILY.labels, 100, 'Target (100)', D_ORANGE),
+    ]
+  },
+  options:{ ...chartDefaults, responsive:true }
+});
+
+// Team Anne Monthly
+new Chart(document.getElementById('anneMonthlyChart'), {
+  type:'bar',
+  data:{
+    labels:['Feb','Mar','Apr','May','Jun MTD'],
+    datasets:[
+      { label:'PG1', data:[546,1113,944,609,179], backgroundColor:ORANGE+'CC', borderRadius:3 },
+      { label:'VIP', data:[408,910,721,289,165], backgroundColor:D_ORANGE+'CC', borderRadius:3 },
+      { label:'Clubs', data:[240,305,287,353,70], backgroundColor:'#7B726C'+'BB', borderRadius:3 },
+    ]
+  },
+  options:{ ...chartDefaults, responsive:true }
+});
+
+// Team Anne Weekly
+new Chart(document.getElementById('anneWeeklyChart'), {
+  type:'bar',
+  data:{
+    labels:['4/13','4/20','4/27','5/4','5/11','5/18','5/25','6/1'],
+    datasets:[
+      { label:'PG1', data:[225,244,137,94,131,156,213,179], backgroundColor:ORANGE+'CC', borderRadius:3 },
+      { label:'VIP', data:[184,167,80,0,1,110,178,165], backgroundColor:D_ORANGE+'CC', borderRadius:3 },
+      { label:'Clubs', data:[84,70,74,98,74,72,77,70], backgroundColor:'#7B726C'+'BB', borderRadius:3 },
+    ]
+  },
+  options:{ ...chartDefaults, responsive:true }
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────
+initPickers();
+// Trigger initial daily render using latest date
+onDateChange(document.getElementById('date-picker').value);
+renderWeeklyTables();
+renderTeamScoreboard('daily');
+renderConversions('Enterprise');
+</script>
+</body>
+</html>

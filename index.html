@@ -736,7 +736,7 @@
     </div>
     <table id="conv-table">
       <thead>
-        <tr><th>Team</th><th>Rep Name</th><th>Conversion Rate</th><th></th></tr>
+        <tr><th>Team</th><th>Rep Name</th><th>PG1 PTG</th><th>VIP PTG</th><th>Clubs PTG</th><th>Conversion Rate</th></tr>
       </thead>
       <tbody id="conv-tbody"></tbody>
     </table>
@@ -1185,25 +1185,45 @@ function renderWeeklyTables(){
 }
 
 // ── Conversion Table (filterable by team) ─────────────────────────────────
+function ptgPill(act, tgt){
+  const r = act / tgt;
+  const p = (r * 100).toFixed(1) + '%';
+  const cls = r >= 0.9 ? 'pill-green' : r >= 0.7 ? 'pill-yellow' : 'pill-red';
+  return `<span class="pill ${cls}">${p}</span>`;
+}
+
 function renderConversions(filterTeam){
   let html = '';
   CONVERSIONS.forEach(({team, color, reps})=>{
     if(filterTeam && filterTeam!=='Enterprise' && team!==filterTeam) return;
-    html += `<tr class="conv-team-row"><td colspan="4">
+    html += `<tr class="conv-team-row"><td colspan="6">
       <span class="conv-team-badge" style="background:${color}"></span>${team}
     </td></tr>`;
+    const profile = TEAM_PROFILES[team];
+    const periods = profile && profile.periods ? profile.periods.monthly : null;
     reps.forEach(([name, pctVal, ratio])=>{
       const cls = ratio>=0.4?'pill-green':ratio>=0.2?'pill-yellow':'pill-red';
+      let pg1Cell, vipCell, clubsCell;
+      if(periods){
+        pg1Cell   = ptgPill(periods.act.pg1,   periods.tgt.pg1);
+        vipCell   = ptgPill(periods.act.vip,   periods.tgt.vip);
+        clubsCell = ptgPill(periods.act.clubs, periods.tgt.clubs);
+      } else {
+        pg1Cell = vipCell = clubsCell = `<span style="color:#999;">—</span>`;
+      }
       html += `<tr>
         <td></td><td>${name}</td>
+        <td style="text-align:right;">${pg1Cell}</td>
+        <td style="text-align:right;">${vipCell}</td>
+        <td style="text-align:right;">${clubsCell}</td>
         <td><div class="bar-cell">
           <div class="mini-bar-bg"><div class="mini-bar" style="width:${Math.min(ratio*100,100)}%;background:${barColor(ratio,0.4)}"></div></div>
           <span class="pill ${cls}">${pctVal}</span>
-        </div></td><td></td>
+        </div></td>
       </tr>`;
     });
   });
-  if(!html) html = `<tr><td colspan="4" style="text-align:center;padding:20px;color:#999;font-style:italic;">No reps found for ${filterTeam}</td></tr>`;
+  if(!html) html = `<tr><td colspan="6" style="text-align:center;padding:20px;color:#999;font-style:italic;">No reps found for ${filterTeam}</td></tr>`;
   document.getElementById('conv-tbody').innerHTML = html;
 }
 

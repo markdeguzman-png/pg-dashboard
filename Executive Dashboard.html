@@ -535,7 +535,7 @@
 
   <!-- Monthly History Chart -->
   <div class="chart-card-full">
-    <div class="chart-title"><span>Historical</span> — Monthly PG1, VIP &amp; Clubs</div>
+    <div class="chart-title" id="overview-chart-title"><span>Historical</span> — Monthly PG1, VIP &amp; Clubs</div>
     <canvas id="overviewChart" height="90"></canvas>
   </div>
 
@@ -858,8 +858,12 @@ function sliceLast(arr, n){ return arr.slice(Math.max(0, arr.length - n)); }
 let currentPeriod = 'daily';
 let currentTeam   = 'Enterprise';
 let currentTeamPeriod = 'daily';
-let settersPeriod = 'weekly';
-let ccPeriod      = 'monthly';
+let settersPeriod  = 'weekly';
+let ccPeriod       = 'monthly';
+let overviewChart  = null;
+let pg1TrendChart  = null;
+let settersChart   = null;
+let ccChart        = null;
 let pg1TrendChart = null;
 let settersChart  = null;
 let ccChart       = null;
@@ -919,28 +923,74 @@ function onWeekChange(idx){
   renderTable(rows, title, 'weekly');
 }
 
+// ── Overview Chart (dynamic) ──────────────────────────────────────────────
+function renderOverviewChart(period){
+  if(overviewChart){ overviewChart.destroy(); overviewChart=null; }
+  const titleEl = document.getElementById('overview-chart-title');
+  const lineDL = (color,align)=>({font:{size:7,weight:'bold'},rotation:-45,color,anchor:'end',align:align||'top',offset:0});
+  let labels, pg1d, vipd, clubsd, datasets, chartType;
+
+  if(period==='daily'){
+    labels=sliceLast(DAILY.labels,30); pg1d=sliceLast(DAILY.pg1,30); vipd=sliceLast(DAILY.vip,30); clubsd=sliceLast(DAILY.clubs,30);
+    chartType='line';
+    titleEl.innerHTML='<span>Daily</span> — PG1, VIP &amp; Clubs (Last 30 Days)';
+    datasets=[
+      {label:'PG1',  data:pg1d,  borderColor:ORANGE,   backgroundColor:ORANGE+'22',   borderWidth:2,pointRadius:3,fill:false,tension:0.3,datalabels:lineDL(ORANGE,'top')},
+      {label:'VIP',  data:vipd,  borderColor:D_ORANGE, backgroundColor:D_ORANGE+'22', borderWidth:2,pointRadius:3,fill:false,tension:0.3,datalabels:lineDL(D_ORANGE,'bottom')},
+      {label:'Clubs',data:clubsd,borderColor:'#7B726C',backgroundColor:'#7B726C22',   borderWidth:2,pointRadius:3,fill:false,tension:0.3,datalabels:lineDL('#7B726C','top')},
+      targetLine(labels,150,'Target (150)',STONE),
+    ];
+  } else if(period==='weekly'){
+    labels=sliceLast(WEEKLY.labels,8); pg1d=sliceLast(WEEKLY.pg1,8); vipd=sliceLast(WEEKLY.vip,8); clubsd=sliceLast(WEEKLY.clubs,8);
+    chartType='bar';
+    titleEl.innerHTML='<span>Weekly</span> — PG1, VIP &amp; Clubs (Last 8 Weeks)';
+    datasets=[
+      {label:'PG1',  data:pg1d,  backgroundColor:ORANGE+'CC',  borderRadius:3},
+      {label:'VIP',  data:vipd,  backgroundColor:D_ORANGE+'CC',borderRadius:3},
+      {label:'Clubs',data:clubsd,backgroundColor:'#7B726CBB',  borderRadius:3},
+      targetLine(labels,600,'PG1/VIP Target','#FD3300'),
+      targetLine(labels,400,'Clubs Target','#7B726C'),
+    ];
+  } else {
+    labels=sliceLast(MONTHLY.labels,6); pg1d=sliceLast(MONTHLY.pg1,6); vipd=sliceLast(MONTHLY.vip,6); clubsd=sliceLast(MONTHLY.clubs,6);
+    chartType='bar';
+    titleEl.innerHTML='<span>Historical</span> — Monthly PG1, VIP &amp; Clubs (Last 6 Months)';
+    datasets=[
+      {label:'PG1',  data:pg1d,  backgroundColor:ORANGE+'CC',  borderRadius:3},
+      {label:'VIP',  data:vipd,  backgroundColor:D_ORANGE+'CC',borderRadius:3},
+      {label:'Clubs',data:clubsd,backgroundColor:'#7B726CBB',  borderRadius:3},
+      targetLine(labels,2400,'PG1/VIP Target','#FD3300'),
+      targetLine(labels,1600,'Clubs Target','#7B726C'),
+    ];
+  }
+  overviewChart = new Chart(document.getElementById('overviewChart'),{
+    type:chartType, data:{labels,datasets}, options:{...chartDefaults,responsive:true}
+  });
+}
+
 // ── Overview Period Switch ────────────────────────────────────────────────
 function switchPeriod(period, el){
   currentPeriod = period;
   document.querySelectorAll('#page-overview .period-btn').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
 
-  // Show/hide sub-selectors
-  document.getElementById('date-sub-selector').style.display  = period==='daily'   ? 'flex' : 'none';
-  document.getElementById('week-sub-selector').style.display  = period==='weekly'  ? 'flex' : 'none';
-  document.getElementById('proj-info-bar').style.display      = period==='monthly' ? 'block': 'none';
+  document.getElementById('date-sub-selector').style.display = period==='daily'   ? 'flex' : 'none';
+  document.getElementById('week-sub-selector').style.display = period==='weekly'  ? 'flex' : 'none';
+  document.getElementById('proj-info-bar').style.display     = period==='monthly' ? 'block': 'none';
+
+  renderOverviewChart(period);
 
   if(period==='daily'){
     onDateChange(document.getElementById('date-picker').value);
   } else if(period==='weekly'){
     onWeekChange(document.getElementById('week-picker').value);
   } else {
-    // Monthly: use Jun MTD enterprise data
     const tgt = ENTERPRISE_TARGETS.monthly;
+    const ep = TEAM_PROFILES['Enterprise'].periods.monthly;
     const rows = [
-      {label:'PG1',   tgt:tgt.pg1,   act:554},
-      {label:'VIP',   tgt:tgt.vip,   act:387},
-      {label:'Clubs', tgt:tgt.clubs, act:297},
+      {label:'PG1',   tgt:tgt.pg1,   act:ep.act.pg1},
+      {label:'VIP',   tgt:tgt.vip,   act:ep.act.vip},
+      {label:'Clubs', tgt:tgt.clubs, act:ep.act.clubs},
     ];
     renderKPICards(rows, 'monthly');
     renderTable(rows, 'Monthly Summary — June 2026 MTD', 'monthly');
@@ -1338,21 +1388,8 @@ function targetLine(data, val, label, color){
     datalabels: { display: false } };
 }
 
-// Overview Chart
-new Chart(document.getElementById('overviewChart'), {
-  type:'bar',
-  data:{
-    labels: MONTHLY.labels,
-    datasets:[
-      { label:'PG1', data:MONTHLY.pg1, backgroundColor:ORANGE+'CC', borderRadius:3 },
-      { label:'VIP', data:MONTHLY.vip, backgroundColor:D_ORANGE+'CC', borderRadius:3 },
-      { label:'Clubs', data:MONTHLY.clubs, backgroundColor:'#7B726C'+'BB', borderRadius:3 },
-      targetLine(MONTHLY.labels, 2400, 'PG1/VIP Target', '#FD3300'),
-      targetLine(MONTHLY.labels, 1600, 'Clubs Target', '#7B726C'),
-    ]
-  },
-  options:{ ...chartDefaults, responsive:true }
-});
+// Overview Chart (dynamic — see renderOverviewChart)
+renderOverviewChart('daily');
 
 // Monthly PG1+VIP
 new Chart(document.getElementById('monthlyPGVIPChart'), {

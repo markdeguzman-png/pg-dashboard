@@ -1333,17 +1333,23 @@ function renderConversions(filterTeam){
     </td></tr>`;
 
     const repTgt = PER_REP_TARGETS[currentTeamPeriod];
-    const tgtStyle = 'text-align:right;color:#999;font-size:10px;';
-    reps.forEach(([name, pctVal, ratio])=>{
+    reps.forEach(([name, pctVal, ratio, actuals])=>{
       const cls = ratio>=0.4?'pill-green':ratio>=0.2?'pill-yellow':'pill-red';
+      const a = actuals?.[currentTeamPeriod];
+      const pg1Cell   = a!=null ? `<b>${a.pg1}</b>`   : '<span style="color:#bbb">—</span>';
+      const vipCell   = a!=null ? `<b>${a.vip}</b>`   : '<span style="color:#bbb">—</span>';
+      const clubsCell = a!=null ? `<b>${a.clubs}</b>` : '<span style="color:#bbb">—</span>';
+      const pg1Ptg   = a!=null ? ptgPill(a.pg1,   repTgt.pg1)   : '<span style="color:#bbb">—</span>';
+      const vipPtg   = a!=null ? ptgPill(a.vip,   repTgt.vip)   : '<span style="color:#bbb">—</span>';
+      const clubsPtg = a!=null ? ptgPill(a.clubs, repTgt.clubs) : '<span style="color:#bbb">—</span>';
       html += `<tr>
         <td></td><td>${name}</td>
-        <td style="${tgtStyle}">${repTgt.pg1}<span style="color:#ccc;font-size:9px;"> tgt</span></td>
-        <td style="${tgtStyle}">${repTgt.vip}<span style="color:#ccc;font-size:9px;"> tgt</span></td>
-        <td style="${tgtStyle}">${repTgt.clubs}<span style="color:#ccc;font-size:9px;"> tgt</span></td>
-        <td style="text-align:right;color:#bbb;">—</td>
-        <td style="text-align:right;color:#bbb;">—</td>
-        <td style="text-align:right;color:#bbb;">—</td>
+        <td style="text-align:right;">${pg1Cell}</td>
+        <td style="text-align:right;">${vipCell}</td>
+        <td style="text-align:right;">${clubsCell}</td>
+        <td style="text-align:right;">${pg1Ptg}</td>
+        <td style="text-align:right;">${vipPtg}</td>
+        <td style="text-align:right;">${clubsPtg}</td>
         <td><div class="bar-cell">
           <div class="mini-bar-bg"><div class="mini-bar" style="width:${Math.min(ratio*100,100)}%;background:${barColor(ratio,0.4)}"></div></div>
           <span class="pill ${cls}">${pctVal}</span>

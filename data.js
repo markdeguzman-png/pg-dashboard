@@ -17,6 +17,13 @@ const ENTERPRISE_TARGETS = {
   monthly: { pg1:2400, vip:2400, clubs:1600 },
 };
 
+// Per-rep individual quotas (not summed to derive team targets)
+const PER_REP_TARGETS = {
+  daily:   { pg1: 4,  vip: 4,  clubs: 3  },
+  weekly:  { pg1: 16, vip: 16, clubs: 11 },
+  monthly: { pg1: 65, vip: 65, clubs: 45 },
+};
+
 const TEAM_PROFILES = {
   'Enterprise': {
     reps: 38, color: '#FD3300',

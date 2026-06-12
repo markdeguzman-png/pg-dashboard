@@ -721,7 +721,7 @@
     </div>
     <table id="conv-table">
       <thead>
-        <tr><th>Team</th><th>Rep Name</th><th>PG1 Actual</th><th>VIP Actual</th><th>Clubs Actual</th><th>PG1 PTG</th><th>VIP PTG</th><th>Clubs PTG</th><th>Conversion Rate</th></tr>
+        <tr><th>Team</th><th>Rep Name</th><th>PG1</th><th>VIP</th><th>Clubs</th><th>PG1 PTG</th><th>VIP PTG</th><th>Clubs PTG</th><th>Conversion Rate</th></tr>
       </thead>
       <tbody id="conv-tbody"></tbody>
     </table>
@@ -1158,7 +1158,7 @@ function renderTeamScoreboard(period){
       act = { pg1: DAILY.pg1[idx], vip: DAILY.vip[idx], clubs: DAILY.clubs[idx] };
     } else {
       act = profile.periods ? profile.periods.daily.act : null;
-      tgt = profile.periods ? profile.periods.daily.tgt : null;
+      tgt = profile.periods ? getTeamTarget(currentTeam, 'daily') : null;
     }
   } else if(period==='weekly'){
     const idx = currentTeamWeekIdx ?? WEEKLY.labels.length-1;
@@ -1168,7 +1168,7 @@ function renderTeamScoreboard(period){
       act = { pg1: WEEKLY.pg1[idx], vip: WEEKLY.vip[idx], clubs: WEEKLY.clubs[idx] };
     } else {
       act = profile.periods ? profile.periods.weekly.act : null;
-      tgt = profile.periods ? profile.periods.weekly.tgt : null;
+      tgt = profile.periods ? getTeamTarget(currentTeam, 'weekly') : null;
     }
   } else {
     const idx = currentTeamMonthIdx ?? MONTHLY.labels.length-1;
@@ -1178,7 +1178,7 @@ function renderTeamScoreboard(period){
       act = { pg1: MONTHLY.pg1[idx], vip: MONTHLY.vip[idx], clubs: MONTHLY.clubs[idx] };
     } else {
       act = profile.periods ? profile.periods.monthly.act : null;
-      tgt = profile.periods ? profile.periods.monthly.tgt : null;
+      tgt = profile.periods ? getTeamTarget(currentTeam, 'monthly') : null;
     }
   }
 
@@ -1280,23 +1280,35 @@ function ptgPill(act, tgt){
   return `<span class="pill ${cls}">${p}</span>`;
 }
 
+// Team target = enterprise target × (team reps / enterprise reps), not sum of per-rep quotas
+function getTeamTarget(team, period){
+  const entReps  = TEAM_PROFILES['Enterprise'].reps;
+  const teamReps = TEAM_PROFILES[team].reps;
+  const ent      = ENTERPRISE_TARGETS[period];
+  return {
+    pg1:   Math.round(ent.pg1   * teamReps / entReps),
+    vip:   Math.round(ent.vip   * teamReps / entReps),
+    clubs: Math.round(ent.clubs * teamReps / entReps),
+  };
+}
+
 function getTeamActuals(team, period){
-  // Returns {act, tgt} for the selected period + index
+  const tgt = team==='Enterprise' ? ENTERPRISE_TARGETS[period] : getTeamTarget(team, period);
   if(team==='Enterprise'){
     if(period==='daily'){
       const idx = currentTeamDateIdx ?? DAILY.labels.length-1;
-      return { act:{pg1:DAILY.pg1[idx],vip:DAILY.vip[idx],clubs:DAILY.clubs[idx]}, tgt:ENTERPRISE_TARGETS.daily };
+      return { act:{pg1:DAILY.pg1[idx],vip:DAILY.vip[idx],clubs:DAILY.clubs[idx]}, tgt };
     } else if(period==='weekly'){
       const idx = currentTeamWeekIdx ?? WEEKLY.labels.length-1;
-      return { act:{pg1:WEEKLY.pg1[idx],vip:WEEKLY.vip[idx],clubs:WEEKLY.clubs[idx]}, tgt:ENTERPRISE_TARGETS.weekly };
+      return { act:{pg1:WEEKLY.pg1[idx],vip:WEEKLY.vip[idx],clubs:WEEKLY.clubs[idx]}, tgt };
     } else {
       const idx = currentTeamMonthIdx ?? MONTHLY.labels.length-1;
-      return { act:{pg1:MONTHLY.pg1[idx],vip:MONTHLY.vip[idx],clubs:MONTHLY.clubs[idx]}, tgt:ENTERPRISE_TARGETS.monthly };
+      return { act:{pg1:MONTHLY.pg1[idx],vip:MONTHLY.vip[idx],clubs:MONTHLY.clubs[idx]}, tgt };
     }
   }
   const profile = TEAM_PROFILES[team];
   if(!profile || !profile.periods) return null;
-  return profile.periods[period];
+  return { act: profile.periods[period].act, tgt };
 }
 
 function renderConversions(filterTeam){
@@ -1319,13 +1331,15 @@ function renderConversions(filterTeam){
       <span class="conv-team-badge" style="background:${color}"></span>${team}${teamSummary}
     </td></tr>`;
 
+    const repTgt = PER_REP_TARGETS[currentTeamPeriod];
+    const tgtStyle = 'text-align:right;color:#999;font-size:10px;';
     reps.forEach(([name, pctVal, ratio])=>{
       const cls = ratio>=0.4?'pill-green':ratio>=0.2?'pill-yellow':'pill-red';
       html += `<tr>
         <td></td><td>${name}</td>
-        <td style="text-align:right;color:#bbb;">—</td>
-        <td style="text-align:right;color:#bbb;">—</td>
-        <td style="text-align:right;color:#bbb;">—</td>
+        <td style="${tgtStyle}">${repTgt.pg1}<span style="color:#ccc;font-size:9px;"> tgt</span></td>
+        <td style="${tgtStyle}">${repTgt.vip}<span style="color:#ccc;font-size:9px;"> tgt</span></td>
+        <td style="${tgtStyle}">${repTgt.clubs}<span style="color:#ccc;font-size:9px;"> tgt</span></td>
         <td style="text-align:right;color:#bbb;">—</td>
         <td style="text-align:right;color:#bbb;">—</td>
         <td style="text-align:right;color:#bbb;">—</td>

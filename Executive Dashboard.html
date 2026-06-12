@@ -1123,14 +1123,17 @@ function initTeamPickers(){
 function onTeamDateChange(val){
   currentTeamDateIdx = parseInt(val);
   renderTeamScoreboard('daily');
+  renderConversions(currentTeam);
 }
 function onTeamWeekChange(val){
   currentTeamWeekIdx = parseInt(val);
   renderTeamScoreboard('weekly');
+  renderConversions(currentTeam);
 }
 function onTeamMonthChange(val){
   currentTeamMonthIdx = parseInt(val);
   renderTeamScoreboard('monthly');
+  renderConversions(currentTeam);
 }
 
 // ── Team Period Switch ────────────────────────────────────────────────────
@@ -1279,35 +1282,54 @@ function ptgPill(act, tgt){
   return `<span class="pill ${cls}">${p}</span>`;
 }
 
+function getTeamActuals(team, period){
+  if(team==='Enterprise'){
+    if(period==='daily'){
+      const idx = currentTeamDateIdx ?? DAILY.labels.length-1;
+      return { act:{pg1:DAILY.pg1[idx],vip:DAILY.vip[idx],clubs:DAILY.clubs[idx]}, tgt:ENTERPRISE_TARGETS.daily };
+    } else if(period==='weekly'){
+      const idx = currentTeamWeekIdx ?? WEEKLY.labels.length-1;
+      return { act:{pg1:WEEKLY.pg1[idx],vip:WEEKLY.vip[idx],clubs:WEEKLY.clubs[idx]}, tgt:ENTERPRISE_TARGETS.weekly };
+    } else {
+      const idx = currentTeamMonthIdx ?? MONTHLY.labels.length-1;
+      return { act:{pg1:MONTHLY.pg1[idx],vip:MONTHLY.vip[idx],clubs:MONTHLY.clubs[idx]}, tgt:ENTERPRISE_TARGETS.monthly };
+    }
+  }
+  const profile = TEAM_PROFILES[team];
+  if(!profile || !profile.periods) return null;
+  return profile.periods[period];
+}
+
 function renderConversions(filterTeam){
   let html = '';
   CONVERSIONS.forEach(({team, color, reps})=>{
-    // Only show PG1 LOB teams
     if(!PG1_TEAMS.includes(team)) return;
     if(filterTeam && filterTeam!=='Enterprise' && team!==filterTeam) return;
+
+    const p = getTeamActuals(team, currentTeamPeriod);
+    let teamSummary = '';
+    if(p){
+      teamSummary = `&nbsp;&nbsp;
+        <span style="font-size:10px;font-weight:400;color:#555;">
+          PG1: <b>${fmt(p.act.pg1)}</b> ${ptgPill(p.act.pg1,p.tgt.pg1)} &nbsp;
+          VIP: <b>${fmt(p.act.vip)}</b> ${ptgPill(p.act.vip,p.tgt.vip)} &nbsp;
+          Clubs: <b>${fmt(p.act.clubs)}</b> ${ptgPill(p.act.clubs,p.tgt.clubs)}
+        </span>`;
+    }
     html += `<tr class="conv-team-row"><td colspan="9">
-      <span class="conv-team-badge" style="background:${color}"></span>${team}
+      <span class="conv-team-badge" style="background:${color}"></span>${team}${teamSummary}
     </td></tr>`;
-    const profile = TEAM_PROFILES[team];
-    const p = profile && profile.periods ? profile.periods[currentTeamPeriod] : null;
+
     reps.forEach(([name, pctVal, ratio])=>{
       const cls = ratio>=0.4?'pill-green':ratio>=0.2?'pill-yellow':'pill-red';
-      let pg1Act='—', vipAct='—', clubsAct='—', pg1Ptg, vipPtg, clubsPtg;
-      if(p){
-        pg1Act   = fmt(p.act.pg1);   pg1Ptg   = ptgPill(p.act.pg1,   p.tgt.pg1);
-        vipAct   = fmt(p.act.vip);   vipPtg   = ptgPill(p.act.vip,   p.tgt.vip);
-        clubsAct = fmt(p.act.clubs); clubsPtg = ptgPill(p.act.clubs, p.tgt.clubs);
-      } else {
-        pg1Ptg = vipPtg = clubsPtg = `<span style="color:#999;">—</span>`;
-      }
       html += `<tr>
         <td></td><td>${name}</td>
-        <td style="text-align:right;">${pg1Act}</td>
-        <td style="text-align:right;">${vipAct}</td>
-        <td style="text-align:right;">${clubsAct}</td>
-        <td style="text-align:right;">${pg1Ptg}</td>
-        <td style="text-align:right;">${vipPtg}</td>
-        <td style="text-align:right;">${clubsPtg}</td>
+        <td style="text-align:right;color:#bbb;">—</td>
+        <td style="text-align:right;color:#bbb;">—</td>
+        <td style="text-align:right;color:#bbb;">—</td>
+        <td style="text-align:right;color:#bbb;">—</td>
+        <td style="text-align:right;color:#bbb;">—</td>
+        <td style="text-align:right;color:#bbb;">—</td>
         <td><div class="bar-cell">
           <div class="mini-bar-bg"><div class="mini-bar" style="width:${Math.min(ratio*100,100)}%;background:${barColor(ratio,0.4)}"></div></div>
           <span class="pill ${cls}">${pctVal}</span>

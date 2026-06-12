@@ -676,6 +676,20 @@
     <div class="period-btn" id="team-monthly-btn" onclick="switchTeamPeriod('monthly', this)">Monthly (MTD)</div>
   </div>
 
+  <!-- Team sub-selectors -->
+  <div class="sub-selector" id="team-date-sub">
+    <label>Select Date:</label>
+    <select id="team-date-picker" onchange="onTeamDateChange(this.value)"></select>
+  </div>
+  <div class="sub-selector" id="team-week-sub" style="display:none;">
+    <label>Select Week Beginning:</label>
+    <select id="team-week-picker" onchange="onTeamWeekChange(this.value)"></select>
+  </div>
+  <div class="sub-selector" id="team-month-sub" style="display:none;">
+    <label>Select Month:</label>
+    <select id="team-month-picker" onchange="onTeamMonthChange(this.value)"></select>
+  </div>
+
   <!-- Team Scoreboard -->
   <div class="table-card">
     <div class="table-card-header">
@@ -857,7 +871,10 @@ function sliceLast(arr, n){ return arr.slice(Math.max(0, arr.length - n)); }
 // ── State ─────────────────────────────────────────────────────────────────
 let currentPeriod = 'daily';
 let currentTeam   = 'Enterprise';
-let currentTeamPeriod = 'daily';
+let currentTeamPeriod    = 'daily';
+let currentTeamDateIdx   = null;
+let currentTeamWeekIdx   = null;
+let currentTeamMonthIdx  = null;
 let settersPeriod  = 'weekly';
 let ccPeriod       = 'monthly';
 let overviewChart  = null;
@@ -1073,18 +1090,97 @@ function renderTeamView(){
   }
 }
 
+// ── Team Pickers ──────────────────────────────────────────────────────────
+function initTeamPickers(){
+  const dp = document.getElementById('team-date-picker');
+  DAILY.labels.forEach((d,i)=>{
+    const o = document.createElement('option'); o.value=i;
+    o.textContent = d + (i===DAILY.labels.length-1?' (latest)':'');
+    dp.appendChild(o);
+  });
+  dp.value = DAILY.labels.length - 1;
+  currentTeamDateIdx = DAILY.labels.length - 1;
+
+  const wp = document.getElementById('team-week-picker');
+  WEEKLY.labels.forEach((w,i)=>{
+    const o = document.createElement('option'); o.value=i;
+    o.textContent = 'WB ' + w + (i===WEEKLY.labels.length-1?' (latest)':'');
+    wp.appendChild(o);
+  });
+  wp.value = WEEKLY.labels.length - 1;
+  currentTeamWeekIdx = WEEKLY.labels.length - 1;
+
+  const mp = document.getElementById('team-month-picker');
+  MONTHLY.labels.forEach((m,i)=>{
+    const o = document.createElement('option'); o.value=i;
+    o.textContent = m + (i===MONTHLY.labels.length-1?' (latest)':'');
+    mp.appendChild(o);
+  });
+  mp.value = MONTHLY.labels.length - 1;
+  currentTeamMonthIdx = MONTHLY.labels.length - 1;
+}
+
+function onTeamDateChange(val){
+  currentTeamDateIdx = parseInt(val);
+  renderTeamScoreboard('daily');
+}
+function onTeamWeekChange(val){
+  currentTeamWeekIdx = parseInt(val);
+  renderTeamScoreboard('weekly');
+}
+function onTeamMonthChange(val){
+  currentTeamMonthIdx = parseInt(val);
+  renderTeamScoreboard('monthly');
+}
+
 // ── Team Period Switch ────────────────────────────────────────────────────
 function switchTeamPeriod(period, el){
   currentTeamPeriod = period;
   document.querySelectorAll('#page-teams .period-btn').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
+  document.getElementById('team-date-sub').style.display  = period==='daily'   ? 'flex' : 'none';
+  document.getElementById('team-week-sub').style.display  = period==='weekly'  ? 'flex' : 'none';
+  document.getElementById('team-month-sub').style.display = period==='monthly' ? 'flex' : 'none';
   renderTeamScoreboard(period);
   renderPG1TrendChart(period);
 }
 
 function renderTeamScoreboard(period){
   const profile = TEAM_PROFILES[currentTeam];
-  const periodLabel = {daily:'Daily ('+DAILY_LABEL+')', weekly:'Weekly ('+WEEKLY_LABEL+')', monthly:'Monthly MTD'}[period];
+
+  let periodLabel, act, tgt;
+  if(period==='daily'){
+    const idx = currentTeamDateIdx ?? DAILY.labels.length-1;
+    periodLabel = 'Daily (' + DAILY.labels[idx] + ')';
+    if(currentTeam==='Enterprise'){
+      tgt = ENTERPRISE_TARGETS.daily;
+      act = { pg1: DAILY.pg1[idx], vip: DAILY.vip[idx], clubs: DAILY.clubs[idx] };
+    } else {
+      act = profile.periods ? profile.periods.daily.act : null;
+      tgt = profile.periods ? profile.periods.daily.tgt : null;
+    }
+  } else if(period==='weekly'){
+    const idx = currentTeamWeekIdx ?? WEEKLY.labels.length-1;
+    periodLabel = 'Weekly (WB ' + WEEKLY.labels[idx] + ')';
+    if(currentTeam==='Enterprise'){
+      tgt = ENTERPRISE_TARGETS.weekly;
+      act = { pg1: WEEKLY.pg1[idx], vip: WEEKLY.vip[idx], clubs: WEEKLY.clubs[idx] };
+    } else {
+      act = profile.periods ? profile.periods.weekly.act : null;
+      tgt = profile.periods ? profile.periods.weekly.tgt : null;
+    }
+  } else {
+    const idx = currentTeamMonthIdx ?? MONTHLY.labels.length-1;
+    periodLabel = 'Monthly (' + MONTHLY.labels[idx] + ')';
+    if(currentTeam==='Enterprise'){
+      tgt = ENTERPRISE_TARGETS.monthly;
+      act = { pg1: MONTHLY.pg1[idx], vip: MONTHLY.vip[idx], clubs: MONTHLY.clubs[idx] };
+    } else {
+      act = profile.periods ? profile.periods.monthly.act : null;
+      tgt = profile.periods ? profile.periods.monthly.tgt : null;
+    }
+  }
+
   document.getElementById('team-table-title').textContent = currentTeam + ' — ' + periodLabel;
 
   if(!profile.periods){
@@ -1094,8 +1190,6 @@ function renderTeamScoreboard(period){
       </td></tr>`;
     return;
   }
-
-  const {act, tgt} = profile.periods[period];
   const convCell = (currentTeam==='Enterprise' && profile.conv)
     ? `<td>${fmt(profile.conv.sold)}</td><td>${fmt(profile.conv.calls)}</td>
        <td><span class="${pillClass(profile.conv.sold/profile.conv.calls,0.24)}">${((profile.conv.sold/profile.conv.calls)*100).toFixed(1)}%</span></td>`
@@ -1530,6 +1624,7 @@ document.getElementById('team-weekly-btn').textContent = 'Weekly (' + WEEKLY_LAB
 document.getElementById('team-monthly-btn').textContent = 'Monthly (MTD)';
 
 initPickers();
+initTeamPickers();
 onDateChange(document.getElementById('date-picker').value);
 renderWeeklyTables();
 renderMonthlyPGVIPTable();

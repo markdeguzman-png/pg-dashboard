@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Performance Golf — Phone Team Executive Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <style>
   /* ── PG Brand Tokens ─────────────────────────────────────────────────────── */
   :root {
@@ -730,6 +731,8 @@
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
 <script src="data.js"></script>
 <script>
+Chart.register(ChartDataLabels);
+
 // ── Brand Colors ─────────────────────────────────────────────────────────
 const ORANGE = '#FD3300';
 const D_ORANGE = '#DB2C00';
@@ -1044,7 +1047,18 @@ function renderConversions(filterTeam){
 
 // ── Charts ────────────────────────────────────────────────────────────────
 const chartDefaults = {
-  plugins: { legend:{ labels:{ font:{ family:'Arial', size:11 }, color:BLACK, boxWidth:12, padding:16 } } },
+  plugins: {
+    legend:{ labels:{ font:{ family:'Arial', size:11 }, color:BLACK, boxWidth:12, padding:16 } },
+    datalabels: {
+      color: BLACK,
+      font: { family:'Arial', size:9, weight:'bold' },
+      formatter: (val) => val != null ? Math.round(val).toLocaleString() : '',
+      anchor: 'end',
+      align: 'top',
+      offset: 2,
+      clamp: true,
+    }
+  },
   scales: {
     x:{ grid:{ color:PEBBLE }, ticks:{ color:'#7B726C', font:{family:'Arial',size:10} } },
     y:{ grid:{ color:PEBBLE }, ticks:{ color:'#7B726C', font:{family:'Arial',size:10} } }
@@ -1053,7 +1067,8 @@ const chartDefaults = {
 
 function targetLine(data, val, label, color){
   return { label, data: data.map(()=>val), borderColor:color||STONE,
-    borderDash:[6,4], borderWidth:2, pointRadius:0, type:'line', order:0 };
+    borderDash:[6,4], borderWidth:2, pointRadius:0, type:'line', order:0,
+    datalabels: { display: false } };
 }
 
 // Overview Chart
@@ -1107,9 +1122,11 @@ new Chart(document.getElementById('dailyPGVIPChart'), {
     labels: DAILY.labels,
     datasets:[
       { label:'PG1', data:DAILY.pg1, borderColor:ORANGE, backgroundColor:ORANGE+'22',
-        borderWidth:2, pointRadius:3, fill:false, tension:0.3 },
+        borderWidth:2, pointRadius:3, fill:false, tension:0.3,
+        datalabels:{ font:{size:7,weight:'bold'}, rotation:-45, color:ORANGE, anchor:'end', align:'top', offset:0 } },
       { label:'VIP', data:DAILY.vip, borderColor:D_ORANGE, backgroundColor:D_ORANGE+'22',
-        borderWidth:2, pointRadius:3, fill:false, tension:0.3 },
+        borderWidth:2, pointRadius:3, fill:false, tension:0.3,
+        datalabels:{ font:{size:7,weight:'bold'}, rotation:-45, color:D_ORANGE, anchor:'end', align:'bottom', offset:0 } },
       targetLine(DAILY.labels, 150, 'Target (150)', STONE),
     ]
   },
@@ -1149,7 +1166,8 @@ new Chart(document.getElementById('dailyClubsChart'), {
     labels: DAILY.labels,
     datasets:[
       { label:'Clubs', data:DAILY.clubs, borderColor:'#7B726C', backgroundColor:'#7B726C22',
-        borderWidth:2, pointRadius:3, fill:false, tension:0.3 },
+        borderWidth:2, pointRadius:3, fill:false, tension:0.3,
+        datalabels:{ font:{size:7,weight:'bold'}, rotation:-45, color:'#7B726C', anchor:'end', align:'top', offset:0 } },
       targetLine(DAILY.labels, 100, 'Target (100)', D_ORANGE),
     ]
   },

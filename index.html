@@ -473,7 +473,9 @@
   <div class="tab active" onclick="showPage('overview', this)">Overview</div>
   <div class="tab" onclick="showPage('pg1vip', this)">PG1 &amp; VIP Trends</div>
   <div class="tab" onclick="showPage('clubs', this)">Clubs Trends</div>
-  <div class="tab" onclick="showPage('teams', this)">Team Performance</div>
+  <div class="tab" onclick="showPage('teams', this)">PG1 Team Performance</div>
+  <div class="tab" onclick="showPage('setters', this)">Phone Setters</div>
+  <div class="tab" onclick="showPage('customercare', this)">Customer Care</div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
@@ -656,16 +658,14 @@
 <div class="page" id="page-teams">
 <div class="content">
 
-  <div class="section-title"><span>Teams</span> — Daily · Weekly · Monthly Performance</div>
+  <div class="section-title"><span>PG1 Teams</span> — Daily · Weekly · Monthly Performance</div>
 
   <!-- Team Selector -->
   <div class="team-selector" id="team-selector">
     <button class="team-btn active" onclick="selectTeam('Enterprise', this)">Enterprise</button>
     <button class="team-btn" onclick="selectTeam('Team Anne', this)">Team Anne</button>
     <button class="team-btn" onclick="selectTeam('Team Jen', this)">Team Jen</button>
-    <button class="team-btn" onclick="selectTeam('Team Lee', this)">Team Lee</button>
     <button class="team-btn" onclick="selectTeam('Team Mark', this)">Team Mark</button>
-    <button class="team-btn" onclick="selectTeam('Team Philip', this)">Team Philip</button>
     <button class="team-btn" onclick="selectTeam('Team Remen', this)">Team Remen</button>
   </div>
 
@@ -673,54 +673,137 @@
   <div class="period-selector">
     <div class="period-btn active" id="team-daily-btn" onclick="switchTeamPeriod('daily', this)">Daily</div>
     <div class="period-btn" id="team-weekly-btn" onclick="switchTeamPeriod('weekly', this)">Weekly</div>
-    <div class="period-btn" onclick="switchTeamPeriod('monthly', this)">Monthly (Jun MTD)</div>
+    <div class="period-btn" id="team-monthly-btn" onclick="switchTeamPeriod('monthly', this)">Monthly (MTD)</div>
   </div>
 
   <!-- Team Scoreboard -->
   <div class="table-card">
     <div class="table-card-header">
-      <div class="table-card-title" id="team-table-title">Team Scoreboard — Daily (Jun 5, 2026)</div>
-      <div class="table-card-badge">6 Teams</div>
+      <div class="table-card-title" id="team-table-title">PG1 Team Scoreboard</div>
+      <div class="table-card-badge">PG1 LOB</div>
     </div>
     <table>
       <thead>
-        <tr><th>Team</th><th>Reps</th><th>PG1</th><th>PG1 Tgt</th><th>PG1 %</th><th>VIP</th><th>VIP Tgt</th><th>VIP %</th><th>Clubs</th><th>Clubs Tgt</th><th>Clubs %</th><th>PS Sold</th><th>3-Min Calls</th><th>Conv %</th></tr>
+        <tr><th>Team</th><th>Reps</th><th>PG1 Actual</th><th>PG1 Tgt</th><th>PG1 PTG</th><th>VIP Actual</th><th>VIP Tgt</th><th>VIP PTG</th><th>Clubs Actual</th><th>Clubs Tgt</th><th>Clubs PTG</th><th>PS Sold</th><th>3-Min Calls</th><th>Conv %</th></tr>
       </thead>
       <tbody id="team-scoreboard-tbody"></tbody>
     </table>
   </div>
 
-  <!-- Team note (shown for teams with limited data) -->
+  <!-- Team note -->
   <div id="team-note" style="display:none;background:#FFF3CD;border-left:4px solid #BF9000;border-radius:4px;padding:10px 14px;margin-bottom:12px;font-size:11px;color:#5C4400;font-weight:600;"></div>
 
-  <!-- Team Trend Section (Anne & Enterprise only) -->
-  <div id="team-trend-section">
-  <div class="section-title" style="margin-top:8px;"><span>Team Anne</span> — Full Trend (13 Reps)</div>
-  <div class="chart-grid">
-    <div class="chart-card">
-      <div class="chart-title"><span>Monthly</span> — Team Anne PG1, VIP &amp; Clubs</div>
-      <canvas id="anneMonthlyChart" height="200"></canvas>
-    </div>
-    <div class="chart-card">
-      <div class="chart-title"><span>Weekly</span> — Team Anne PG1, VIP &amp; Clubs</div>
-      <canvas id="anneWeeklyChart" height="200"></canvas>
-    </div>
+  <!-- Trend Chart (dynamic, shown for Enterprise & Team Anne) -->
+  <div id="pg1-trend-wrapper" class="chart-card-full" style="display:none;">
+    <div class="chart-title" id="pg1-trend-title"><span>Enterprise</span> — PG1, VIP &amp; Clubs Trend</div>
+    <canvas id="pg1TrendChart" height="90"></canvas>
   </div>
-
-  </div><!-- /team-trend-section -->
 
   <!-- Conversion Rates -->
   <div class="table-card">
     <div class="table-card-header">
       <div class="table-card-title">Conversion Rate — by Rep</div>
-      <div class="table-card-badge" id="conv-badge">All Teams</div>
+      <div class="table-card-badge" id="conv-badge">All PG1 Teams</div>
     </div>
     <table id="conv-table">
       <thead>
-        <tr><th>Team</th><th>Rep Name</th><th>PG1 PTG</th><th>VIP PTG</th><th>Clubs PTG</th><th>Conversion Rate</th></tr>
+        <tr><th>Team</th><th>Rep Name</th><th>PG1 Actual</th><th>VIP Actual</th><th>Clubs Actual</th><th>PG1 PTG</th><th>VIP PTG</th><th>Clubs PTG</th><th>Conversion Rate</th></tr>
       </thead>
       <tbody id="conv-tbody"></tbody>
     </table>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- PAGE 5 — PHONE SETTERS                                                   -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-setters">
+<div class="content">
+
+  <div class="section-title"><span>Phone Setters</span> — Internal Setter LOB</div>
+
+  <div class="period-selector">
+    <div class="period-btn" onclick="switchSettersPeriod('daily', this)">Daily</div>
+    <div class="period-btn active" id="setters-weekly-btn" onclick="switchSettersPeriod('weekly', this)">Weekly</div>
+    <div class="period-btn" onclick="switchSettersPeriod('monthly', this)">Monthly</div>
+  </div>
+
+  <!-- Scoreboard -->
+  <div class="table-card">
+    <div class="table-card-header">
+      <div class="table-card-title" id="setters-table-title">Phone Setters — Weekly</div>
+      <div class="table-card-badge">Internal Setter LOB</div>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Metric</th><th>Actual</th><th>Target</th><th>% to Goal</th><th>Status</th></tr>
+      </thead>
+      <tbody id="setters-scoreboard-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- Trend Chart -->
+  <div class="chart-card-full">
+    <div class="chart-title" id="setters-chart-title"><span>Weekly</span> — Sets, Show &amp; Closed Deals</div>
+    <canvas id="settersChart" height="90"></canvas>
+  </div>
+
+  <!-- Detail Table -->
+  <div class="table-card">
+    <div class="table-card-header">
+      <div class="table-card-title" id="setters-detail-title">Weekly Detail</div>
+      <div class="table-card-badge">All Periods</div>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Period</th><th>Sets</th><th>Show</th><th>Closed</th><th>Cash Collected</th></tr>
+      </thead>
+      <tbody id="setters-detail-tbody"></tbody>
+    </table>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- PAGE 6 — CUSTOMER CARE                                                   -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-customercare">
+<div class="content">
+
+  <div class="section-title"><span>Customer Care</span> — Team Lee LOB</div>
+
+  <div class="period-selector">
+    <div class="period-btn" onclick="switchCCPeriod('daily', this)">Daily</div>
+    <div class="period-btn" onclick="switchCCPeriod('weekly', this)">Weekly</div>
+    <div class="period-btn active" onclick="switchCCPeriod('monthly', this)">Monthly</div>
+  </div>
+
+  <!-- No-data notice -->
+  <div id="cc-no-data" style="background:#FFF3CD;border-left:4px solid #BF9000;border-radius:4px;padding:12px 16px;margin-bottom:16px;font-size:12px;color:#5C4400;font-weight:600;">
+    ⚠ Customer Care data (PG1/VIP/Clubs/CSAT) is not yet connected to the data source. Update <code>CUSTOMER_CARE_*</code> arrays in data.js to populate this tab.
+  </div>
+
+  <!-- Scoreboard -->
+  <div class="table-card">
+    <div class="table-card-header">
+      <div class="table-card-title" id="cc-table-title">Customer Care — Monthly</div>
+      <div class="table-card-badge">Team Lee</div>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Period</th><th>PG1</th><th>VIP</th><th>Clubs</th><th>CSAT Score</th><th>Survey Count</th></tr>
+      </thead>
+      <tbody id="cc-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- Trend Chart -->
+  <div class="chart-card-full" id="cc-chart-wrapper" style="display:none;">
+    <div class="chart-title" id="cc-chart-title"><span>Monthly</span> — PG1, VIP &amp; Clubs</div>
+    <canvas id="ccChart" height="90"></canvas>
   </div>
 
 </div>
@@ -765,10 +848,21 @@ function barColor(act,tgt){
 }
 function capPct(act,tgt){ return Math.min((act/tgt)*100,100)+'%'; }
 
+// ── PG1 LOB teams ─────────────────────────────────────────────────────────
+const PG1_TEAMS = ['Enterprise','Team Anne','Team Jen','Team Mark','Team Remen'];
+
+// ── Slice helper (last N items) ───────────────────────────────────────────
+function sliceLast(arr, n){ return arr.slice(Math.max(0, arr.length - n)); }
+
 // ── State ─────────────────────────────────────────────────────────────────
 let currentPeriod = 'daily';
 let currentTeam   = 'Enterprise';
 let currentTeamPeriod = 'daily';
+let settersPeriod = 'weekly';
+let ccPeriod      = 'monthly';
+let pg1TrendChart = null;
+let settersChart  = null;
+let ccChart       = null;
 
 // ── Tab Navigation ────────────────────────────────────────────────────────
 function showPage(id, el){
@@ -916,17 +1010,12 @@ function selectTeam(name, el){
 function renderTeamView(){
   const profile = TEAM_PROFILES[currentTeam];
   renderTeamScoreboard(currentTeamPeriod);
+  renderPG1TrendChart(currentTeamPeriod);
   renderConversions(currentTeam);
 
-  // Badge
   const badge = document.getElementById('conv-badge');
-  if(badge) badge.textContent = currentTeam==='Enterprise' ? 'All Teams' : currentTeam;
+  if(badge) badge.textContent = currentTeam==='Enterprise' ? 'All PG1 Teams' : currentTeam;
 
-  // Show/hide trend section
-  const trendSection = document.getElementById('team-trend-section');
-  if(trendSection) trendSection.style.display = profile.hasTrend ? 'block':'none';
-
-  // Note
   const noteEl = document.getElementById('team-note');
   if(noteEl){
     noteEl.style.display = profile.note ? 'block':'none';
@@ -940,27 +1029,23 @@ function switchTeamPeriod(period, el){
   document.querySelectorAll('#page-teams .period-btn').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
   renderTeamScoreboard(period);
-  const labels = {daily:'Daily ('+DAILY_LABEL+', 2026)', weekly:'Weekly ('+WEEKLY_LABEL+', 2026)', monthly:'Monthly (Jun MTD)'};
-  document.getElementById('team-table-title').textContent =
-    currentTeam + ' Scoreboard — ' + labels[period];
+  renderPG1TrendChart(period);
 }
 
 function renderTeamScoreboard(period){
   const profile = TEAM_PROFILES[currentTeam];
-  const labels = {daily:'Daily ('+DAILY_LABEL+', 2026)', weekly:'Weekly ('+WEEKLY_LABEL+', 2026)', monthly:'Monthly (Jun MTD)'};
-  document.getElementById('team-table-title').textContent =
-    currentTeam + ' Scoreboard — ' + labels[period];
+  const periodLabel = {daily:'Daily ('+DAILY_LABEL+')', weekly:'Weekly ('+WEEKLY_LABEL+')', monthly:'Monthly MTD'}[period];
+  document.getElementById('team-table-title').textContent = currentTeam + ' — ' + periodLabel;
 
   if(!profile.periods){
     document.getElementById('team-scoreboard-tbody').innerHTML = `
-      <tr><td colspan="11" style="text-align:center;padding:20px;color:#7B726C;font-style:italic;">
-        PTG data not available for ${currentTeam} — see conversion rates below.
+      <tr><td colspan="14" style="text-align:center;padding:20px;color:#7B726C;font-style:italic;">
+        PTG data not available for ${currentTeam}.
       </td></tr>`;
     return;
   }
 
   const {act, tgt} = profile.periods[period];
-  // If Enterprise, also show conv data
   const convCell = (currentTeam==='Enterprise' && profile.conv)
     ? `<td>${fmt(profile.conv.sold)}</td><td>${fmt(profile.conv.calls)}</td>
        <td><span class="${pillClass(profile.conv.sold/profile.conv.calls,0.24)}">${((profile.conv.sold/profile.conv.calls)*100).toFixed(1)}%</span></td>`
@@ -968,8 +1053,7 @@ function renderTeamScoreboard(period){
 
   document.getElementById('team-scoreboard-tbody').innerHTML = `
     <tr>
-      <td>${currentTeam}</td>
-      <td>${profile.reps}</td>
+      <td>${currentTeam}</td><td>${profile.reps}</td>
       <td>${fmt(act.pg1)}</td><td>${fmt(tgt.pg1)}</td>
       <td><span class="${pillClass(act.pg1,tgt.pg1)}">${pct(act.pg1,tgt.pg1)}</span></td>
       <td>${fmt(act.vip)}</td><td>${fmt(tgt.vip)}</td>
@@ -978,6 +1062,47 @@ function renderTeamScoreboard(period){
       <td><span class="${pillClass(act.clubs,tgt.clubs)}">${pct(act.clubs,tgt.clubs)}</span></td>
       ${convCell}
     </tr>`;
+}
+
+// ── PG1 Trend Chart (dynamic by period & team) ────────────────────────────
+function renderPG1TrendChart(period){
+  const profile = TEAM_PROFILES[currentTeam];
+  const wrapper = document.getElementById('pg1-trend-wrapper');
+  if(!profile || !profile.hasTrend){ wrapper.style.display='none'; return; }
+  wrapper.style.display='block';
+
+  const titleEl = document.getElementById('pg1-trend-title');
+  titleEl.innerHTML = `<span>${currentTeam}</span> — PG1, VIP &amp; Clubs (${
+    period==='daily'?'Last 30 Days':period==='weekly'?'Last 8 Weeks':'Last 6 Months'})`;
+
+  let labels, pg1data, vipdata, clubsdata, tgtVal;
+  if(currentTeam==='Enterprise'){
+    if(period==='daily'){ labels=sliceLast(DAILY.labels,30); pg1data=sliceLast(DAILY.pg1,30); vipdata=sliceLast(DAILY.vip,30); clubsdata=sliceLast(DAILY.clubs,30); tgtVal=150; }
+    else if(period==='weekly'){ labels=sliceLast(WEEKLY.labels,8); pg1data=sliceLast(WEEKLY.pg1,8); vipdata=sliceLast(WEEKLY.vip,8); clubsdata=sliceLast(WEEKLY.clubs,8); tgtVal=600; }
+    else{ labels=sliceLast(MONTHLY.labels,6); pg1data=sliceLast(MONTHLY.pg1,6); vipdata=sliceLast(MONTHLY.vip,6); clubsdata=sliceLast(MONTHLY.clubs,6); tgtVal=2400; }
+  } else {
+    if(period==='daily'){ labels=sliceLast(DAILY.labels,30); pg1data=sliceLast(DAILY.pg1,30); vipdata=sliceLast(DAILY.vip,30); clubsdata=sliceLast(DAILY.clubs,30); tgtVal=150; }
+    else if(period==='weekly'){ labels=sliceLast(ANNE_WEEKLY.labels,8); pg1data=sliceLast(ANNE_WEEKLY.pg1,8); vipdata=sliceLast(ANNE_WEEKLY.vip,8); clubsdata=sliceLast(ANNE_WEEKLY.clubs,8); tgtVal=206; }
+    else{ labels=sliceLast(ANNE_MONTHLY.labels,6); pg1data=sliceLast(ANNE_MONTHLY.pg1,6); vipdata=sliceLast(ANNE_MONTHLY.vip,6); clubsdata=sliceLast(ANNE_MONTHLY.clubs,6); tgtVal=822; }
+  }
+
+  if(pg1TrendChart){ pg1TrendChart.destroy(); pg1TrendChart=null; }
+  const isLine = period==='daily';
+  const lineDL = (color,align)=>({ font:{size:7,weight:'bold'}, rotation:-45, color, anchor:'end', align:align||'top', offset:0 });
+  const datasets = isLine ? [
+    { label:'PG1', data:pg1data, borderColor:ORANGE, backgroundColor:ORANGE+'22', borderWidth:2, pointRadius:3, fill:false, tension:0.3, datalabels:lineDL(ORANGE,'top') },
+    { label:'VIP', data:vipdata, borderColor:D_ORANGE, backgroundColor:D_ORANGE+'22', borderWidth:2, pointRadius:3, fill:false, tension:0.3, datalabels:lineDL(D_ORANGE,'bottom') },
+    { label:'Clubs', data:clubsdata, borderColor:'#7B726C', backgroundColor:'#7B726C22', borderWidth:2, pointRadius:3, fill:false, tension:0.3, datalabels:lineDL('#7B726C','top') },
+    targetLine(labels, tgtVal, 'Target', STONE),
+  ] : [
+    { label:'PG1', data:pg1data, backgroundColor:ORANGE+'CC', borderRadius:3 },
+    { label:'VIP', data:vipdata, backgroundColor:D_ORANGE+'CC', borderRadius:3 },
+    { label:'Clubs', data:clubsdata, backgroundColor:'#7B726CBB', borderRadius:3 },
+    targetLine(labels, tgtVal, 'Target', STONE),
+  ];
+  pg1TrendChart = new Chart(document.getElementById('pg1TrendChart'), {
+    type: isLine?'line':'bar', data:{ labels, datasets }, options:{...chartDefaults, responsive:true}
+  });
 }
 
 // ── Weekly Tables ─────────────────────────────────────────────────────────
@@ -1002,7 +1127,7 @@ function renderWeeklyTables(){
   }).join('');
 }
 
-// ── Conversion Table (filterable by team) ─────────────────────────────────
+// ── Conversion Table (PG1 teams only) ────────────────────────────────────
 function ptgPill(act, tgt){
   const r = act / tgt;
   const p = (r * 100).toFixed(1) + '%';
@@ -1013,27 +1138,32 @@ function ptgPill(act, tgt){
 function renderConversions(filterTeam){
   let html = '';
   CONVERSIONS.forEach(({team, color, reps})=>{
+    // Only show PG1 LOB teams
+    if(!PG1_TEAMS.includes(team)) return;
     if(filterTeam && filterTeam!=='Enterprise' && team!==filterTeam) return;
-    html += `<tr class="conv-team-row"><td colspan="6">
+    html += `<tr class="conv-team-row"><td colspan="9">
       <span class="conv-team-badge" style="background:${color}"></span>${team}
     </td></tr>`;
     const profile = TEAM_PROFILES[team];
-    const periods = profile && profile.periods ? profile.periods.monthly : null;
+    const p = profile && profile.periods ? profile.periods[currentTeamPeriod] : null;
     reps.forEach(([name, pctVal, ratio])=>{
       const cls = ratio>=0.4?'pill-green':ratio>=0.2?'pill-yellow':'pill-red';
-      let pg1Cell, vipCell, clubsCell;
-      if(periods){
-        pg1Cell   = ptgPill(periods.act.pg1,   periods.tgt.pg1);
-        vipCell   = ptgPill(periods.act.vip,   periods.tgt.vip);
-        clubsCell = ptgPill(periods.act.clubs, periods.tgt.clubs);
+      let pg1Act='—', vipAct='—', clubsAct='—', pg1Ptg, vipPtg, clubsPtg;
+      if(p){
+        pg1Act   = fmt(p.act.pg1);   pg1Ptg   = ptgPill(p.act.pg1,   p.tgt.pg1);
+        vipAct   = fmt(p.act.vip);   vipPtg   = ptgPill(p.act.vip,   p.tgt.vip);
+        clubsAct = fmt(p.act.clubs); clubsPtg = ptgPill(p.act.clubs, p.tgt.clubs);
       } else {
-        pg1Cell = vipCell = clubsCell = `<span style="color:#999;">—</span>`;
+        pg1Ptg = vipPtg = clubsPtg = `<span style="color:#999;">—</span>`;
       }
       html += `<tr>
         <td></td><td>${name}</td>
-        <td style="text-align:right;">${pg1Cell}</td>
-        <td style="text-align:right;">${vipCell}</td>
-        <td style="text-align:right;">${clubsCell}</td>
+        <td style="text-align:right;">${pg1Act}</td>
+        <td style="text-align:right;">${vipAct}</td>
+        <td style="text-align:right;">${clubsAct}</td>
+        <td style="text-align:right;">${pg1Ptg}</td>
+        <td style="text-align:right;">${vipPtg}</td>
+        <td style="text-align:right;">${clubsPtg}</td>
         <td><div class="bar-cell">
           <div class="mini-bar-bg"><div class="mini-bar" style="width:${Math.min(ratio*100,100)}%;background:${barColor(ratio,0.4)}"></div></div>
           <span class="pill ${cls}">${pctVal}</span>
@@ -1041,8 +1171,145 @@ function renderConversions(filterTeam){
       </tr>`;
     });
   });
-  if(!html) html = `<tr><td colspan="6" style="text-align:center;padding:20px;color:#999;font-style:italic;">No reps found for ${filterTeam}</td></tr>`;
+  if(!html) html = `<tr><td colspan="9" style="text-align:center;padding:20px;color:#999;font-style:italic;">No reps found.</td></tr>`;
   document.getElementById('conv-tbody').innerHTML = html;
+}
+
+// ── Phone Setters ─────────────────────────────────────────────────────────
+function switchSettersPeriod(period, el){
+  settersPeriod = period;
+  document.querySelectorAll('#page-setters .period-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  renderSetters();
+}
+
+function getSettersData(){
+  const n = settersPeriod==='daily'?30 : settersPeriod==='weekly'?8 : 6;
+  const src = settersPeriod==='daily'?PHONE_SETTERS_DAILY : settersPeriod==='weekly'?PHONE_SETTERS_WEEKLY : PHONE_SETTERS_MONTHLY;
+  const tgt = PHONE_SETTERS_TARGETS[settersPeriod];
+  return {
+    labels: sliceLast(src.labels, n),
+    sets:   sliceLast(src.sets,   n),
+    show:   sliceLast(src.show,   n),
+    closed: sliceLast(src.closed, n),
+    cash:   sliceLast(src.cash,   n),
+    tgt,
+  };
+}
+
+function renderSetters(){
+  const periodLabel = {daily:'Daily (Last 30 Days)', weekly:'Weekly (Last 8 Weeks)', monthly:'Monthly (Last 6 Months)'}[settersPeriod];
+  document.getElementById('setters-table-title').textContent = 'Phone Setters — ' + periodLabel;
+  document.getElementById('setters-chart-title').innerHTML = `<span>${settersPeriod.charAt(0).toUpperCase()+settersPeriod.slice(1)}</span> — Sets, Show &amp; Closed Deals`;
+  document.getElementById('setters-detail-title').textContent = periodLabel + ' Detail';
+
+  const d = getSettersData();
+  const last = d.labels.length - 1;
+  const latest = { sets:d.sets[last], show:d.show[last], closed:d.closed[last], cash:d.cash[last] };
+  const t = d.tgt;
+
+  // Scoreboard (latest period)
+  document.getElementById('setters-scoreboard-tbody').innerHTML = [
+    {label:'Sets (Bookings)', act:latest.sets, tgt:t.sets},
+    {label:'Show',            act:latest.show, tgt:t.show},
+    {label:'Closed Deals',   act:latest.closed, tgt:null},
+    {label:'Cash Collected', act:latest.cash, tgt:t.cash, isCash:true},
+  ].map(({label,act,tgt:tg,isCash})=>{
+    if(act==null) return `<tr><td>${label}</td><td colspan="4" style="color:#999;font-style:italic;text-align:center;">Data not available</td></tr>`;
+    const aF = isCash?'$'+Math.round(act).toLocaleString():fmt(act);
+    const tF = tg?(isCash?'$'+tg.toLocaleString():fmt(tg)):'—';
+    if(!tg) return `<tr><td>${label}</td><td>${aF}</td><td colspan="3">—</td></tr>`;
+    return `<tr><td>${label}</td><td>${aF}</td><td>${tF}</td>
+      <td><div class="bar-cell"><div class="mini-bar-bg"><div class="mini-bar" style="width:${capPct(act,tg)};background:${barColor(act,tg)}"></div></div>${pct(act,tg)}</div></td>
+      <td><span class="${pillClass(act,tg)}">${pillLabel(act,tg)}</span></td></tr>`;
+  }).join('');
+
+  // Chart
+  if(settersChart){ settersChart.destroy(); settersChart=null; }
+  const isLine = settersPeriod==='daily';
+  const lineDL = (color,align)=>({font:{size:7,weight:'bold'},rotation:-45,color,anchor:'end',align:align||'top',offset:0});
+  const datasets = isLine ? [
+    {label:'Sets',   data:d.sets,   borderColor:ORANGE,   backgroundColor:ORANGE+'22',   borderWidth:2,pointRadius:3,fill:false,tension:0.3,datalabels:lineDL(ORANGE,'top')},
+    {label:'Show',   data:d.show,   borderColor:D_ORANGE, backgroundColor:D_ORANGE+'22', borderWidth:2,pointRadius:3,fill:false,tension:0.3,datalabels:lineDL(D_ORANGE,'bottom')},
+    {label:'Closed', data:d.closed, borderColor:GREEN_C,  backgroundColor:GREEN_C+'22',  borderWidth:2,pointRadius:3,fill:false,tension:0.3,datalabels:lineDL(GREEN_C,'top')},
+  ] : [
+    {label:'Sets',   data:d.sets,   backgroundColor:ORANGE+'CC',  borderRadius:3},
+    {label:'Show',   data:d.show,   backgroundColor:D_ORANGE+'CC',borderRadius:3},
+    {label:'Closed', data:d.closed, backgroundColor:GREEN_C+'88', borderRadius:3},
+  ];
+  settersChart = new Chart(document.getElementById('settersChart'),{
+    type:isLine?'line':'bar', data:{labels:d.labels,datasets}, options:{...chartDefaults,responsive:true}
+  });
+
+  // Detail table (all periods)
+  document.getElementById('setters-detail-tbody').innerHTML = d.labels.map((lbl,i)=>{
+    const cashVal = d.cash[i]!=null ? '$'+Math.round(d.cash[i]).toLocaleString() : '—';
+    return `<tr><td>${lbl}</td><td>${fmt(d.sets[i])}</td><td>${fmt(d.show[i])}</td><td>${fmt(d.closed[i])}</td><td>${cashVal}</td></tr>`;
+  }).join('');
+}
+
+// ── Customer Care ─────────────────────────────────────────────────────────
+function switchCCPeriod(period, el){
+  ccPeriod = period;
+  document.querySelectorAll('#page-customercare .period-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  renderCC();
+}
+
+function getCCData(){
+  const n = ccPeriod==='daily'?30 : ccPeriod==='weekly'?8 : 6;
+  const src = ccPeriod==='daily'?CUSTOMER_CARE_DAILY : ccPeriod==='weekly'?CUSTOMER_CARE_WEEKLY : CUSTOMER_CARE_MONTHLY;
+  return {
+    labels:   sliceLast(src.labels,   n),
+    pg1:      sliceLast(src.pg1,      n),
+    vip:      sliceLast(src.vip,      n),
+    clubs:    sliceLast(src.clubs,    n),
+    csat_num: sliceLast(src.csat_num, n),
+    csat_den: sliceLast(src.csat_den, n),
+  };
+}
+
+function renderCC(){
+  const periodLabel = {daily:'Daily (Last 30 Days)', weekly:'Weekly (Last 8 Weeks)', monthly:'Monthly (Last 6 Months)'}[ccPeriod];
+  document.getElementById('cc-table-title').textContent = 'Customer Care — ' + periodLabel;
+  const d = getCCData();
+  const hasData = d.pg1.some(v=>v!=null && v>0);
+  document.getElementById('cc-no-data').style.display = hasData?'none':'block';
+
+  // Table
+  document.getElementById('cc-tbody').innerHTML = d.labels.map((lbl,i)=>{
+    const num=d.csat_num[i], den=d.csat_den[i];
+    const csatStr = (num!=null&&den!=null&&den>0) ? ((num/den*100).toFixed(1)+'%') : '—';
+    const denStr  = den!=null ? den : '—';
+    return `<tr>
+      <td>${lbl}</td>
+      <td>${d.pg1[i]!=null?fmt(d.pg1[i]):'—'}</td>
+      <td>${d.vip[i]!=null?fmt(d.vip[i]):'—'}</td>
+      <td>${d.clubs[i]!=null?fmt(d.clubs[i]):'—'}</td>
+      <td>${csatStr}</td>
+      <td>${denStr}</td>
+    </tr>`;
+  }).join('');
+
+  // Chart
+  const wrapper = document.getElementById('cc-chart-wrapper');
+  if(!hasData){ wrapper.style.display='none'; return; }
+  wrapper.style.display='block';
+  if(ccChart){ ccChart.destroy(); ccChart=null; }
+  const isLine = ccPeriod==='daily';
+  const lineDL = (color,align)=>({font:{size:7,weight:'bold'},rotation:-45,color,anchor:'end',align:align||'top',offset:0});
+  const datasets = isLine ? [
+    {label:'PG1',  data:d.pg1,   borderColor:ORANGE,   backgroundColor:ORANGE+'22',   borderWidth:2,pointRadius:3,fill:false,tension:0.3,datalabels:lineDL(ORANGE,'top')},
+    {label:'VIP',  data:d.vip,   borderColor:D_ORANGE, backgroundColor:D_ORANGE+'22', borderWidth:2,pointRadius:3,fill:false,tension:0.3,datalabels:lineDL(D_ORANGE,'bottom')},
+    {label:'Clubs',data:d.clubs, borderColor:'#7B726C',backgroundColor:'#7B726C22',   borderWidth:2,pointRadius:3,fill:false,tension:0.3,datalabels:lineDL('#7B726C','top')},
+  ] : [
+    {label:'PG1',  data:d.pg1,   backgroundColor:ORANGE+'CC',  borderRadius:3},
+    {label:'VIP',  data:d.vip,   backgroundColor:D_ORANGE+'CC',borderRadius:3},
+    {label:'Clubs',data:d.clubs, backgroundColor:'#7B726CBB',  borderRadius:3},
+  ];
+  ccChart = new Chart(document.getElementById('ccChart'),{
+    type:isLine?'line':'bar', data:{labels:d.labels,datasets}, options:{...chartDefaults,responsive:true}
+  });
 }
 
 // ── Charts ────────────────────────────────────────────────────────────────
@@ -1174,33 +1441,7 @@ new Chart(document.getElementById('dailyClubsChart'), {
   options:{ ...chartDefaults, responsive:true }
 });
 
-// Team Anne Monthly
-new Chart(document.getElementById('anneMonthlyChart'), {
-  type:'bar',
-  data:{
-    labels: ANNE_MONTHLY.labels,
-    datasets:[
-      { label:'PG1',   data:ANNE_MONTHLY.pg1,   backgroundColor:ORANGE+'CC',   borderRadius:3 },
-      { label:'VIP',   data:ANNE_MONTHLY.vip,   backgroundColor:D_ORANGE+'CC', borderRadius:3 },
-      { label:'Clubs', data:ANNE_MONTHLY.clubs, backgroundColor:'#7B726CBB',   borderRadius:3 },
-    ]
-  },
-  options:{ ...chartDefaults, responsive:true }
-});
-
-// Team Anne Weekly
-new Chart(document.getElementById('anneWeeklyChart'), {
-  type:'bar',
-  data:{
-    labels: ANNE_WEEKLY.labels,
-    datasets:[
-      { label:'PG1',   data:ANNE_WEEKLY.pg1,   backgroundColor:ORANGE+'CC',   borderRadius:3 },
-      { label:'VIP',   data:ANNE_WEEKLY.vip,   backgroundColor:D_ORANGE+'CC', borderRadius:3 },
-      { label:'Clubs', data:ANNE_WEEKLY.clubs, backgroundColor:'#7B726CBB',   borderRadius:3 },
-    ]
-  },
-  options:{ ...chartDefaults, responsive:true }
-});
+// (Anne trend charts now rendered dynamically via renderPG1TrendChart)
 
 // ── Init ──────────────────────────────────────────────────────────────────
 function renderMonthlyPGVIPTable(){
@@ -1249,6 +1490,7 @@ document.getElementById('proj-info-bar').innerHTML =
   'Formula: <em>MTD Actual + (Daily Avg &times; Remaining Days)</em>';
 document.getElementById('team-daily-btn').textContent  = 'Daily (' + DAILY_LABEL + ')';
 document.getElementById('team-weekly-btn').textContent = 'Weekly (' + WEEKLY_LABEL + ')';
+document.getElementById('team-monthly-btn').textContent = 'Monthly (MTD)';
 
 initPickers();
 onDateChange(document.getElementById('date-picker').value);
@@ -1256,7 +1498,10 @@ renderWeeklyTables();
 renderMonthlyPGVIPTable();
 renderMonthlyClubsTable();
 renderTeamScoreboard('daily');
+renderPG1TrendChart('daily');
 renderConversions('Enterprise');
+renderSetters();
+renderCC();
 </script>
 </body>
 </html>

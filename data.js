@@ -169,3 +169,57 @@ const CONVERSIONS = [
     ['Aileen Mendez','28.57%',0.2857],['Kevin Jabagat','15.56%',0.1556],
   ]},
 ];
+
+// ── Phone Setters (Internal Setter LOB / TMA) ─────────────────────────────
+const PHONE_SETTERS_TARGETS = {
+  daily:   { sets:30,  show:18, closed:6,   cash:50000   },
+  weekly:  { sets:150, show:85, closed:30,  cash:250000  },
+  monthly: { sets:600, show:340,closed:120, cash:1000000 },
+};
+const PHONE_SETTERS_MONTHLY = {
+  labels: ['Feb','Mar','Apr','May','Jun MTD'],
+  sets:   [689,  1078, 469, 506, 220],
+  show:   [336,  457,  288, 304, 107],
+  closed: [130,  122,  99,  93,  40],
+  cash:   [null, null, null, null, 230113],
+};
+const PHONE_SETTERS_WEEKLY = {
+  labels: ['4/20','4/27','5/4','5/11','5/18','5/25','6/1','6/8'],
+  sets:   [101, 71, 141, 120, 119, 106, 121, 99],
+  show:   [56,  36,  70,  81,  79,  62,  53, 54],
+  closed: [26,  14,  17,  19,  23,  28,  21, 19],
+  cash:   [null,null,null,null,null,null,130663,null],
+};
+const PHONE_SETTERS_DAILY = {
+  labels: ['6/3','6/4','6/5','6/6','6/7','6/8','6/9','6/10','6/11','6/12'],
+  sets:   [33, 33, 14,  4,  2, 21, 37, 22, 19, 0],
+  show:   [ 6,  9,  9,  9,  0, 14, 11, 12, 12, 4],
+  closed: [ 1,  3,  5,  5,  0,  4,  7,  3,  5, 0],
+  cash:   [null,null,null,null,null,null,null,null,24450,null],
+};
+
+// ── Customer Care (Team Lee LOB) ──────────────────────────────────────────
+const CUSTOMER_CARE_MONTHLY = {
+  labels:   ['Feb','Mar','Apr','May','Jun MTD'],
+  pg1:      [null,null,null,null,null],
+  vip:      [null,null,null,null,null],
+  clubs:    [null,null,null,null,null],
+  csat_num: [null,null,null,null,null],
+  csat_den: [null,null,null,null,null],
+};
+const CUSTOMER_CARE_WEEKLY = {
+  labels:   ['4/20','4/27','5/4','5/11','5/18','5/25','6/1','6/8'],
+  pg1:      [null,null,null,null,null,null,null,null],
+  vip:      [null,null,null,null,null,null,null,null],
+  clubs:    [null,null,null,null,null,null,null,null],
+  csat_num: [null,null,null,null,null,null,null,null],
+  csat_den: [null,null,null,null,null,null,null,null],
+};
+const CUSTOMER_CARE_DAILY = {
+  labels:   ['6/3','6/4','6/5','6/6','6/7','6/8','6/9','6/10','6/11','6/12'],
+  pg1:      [null,null,null,null,null,null,null,null,null,null],
+  vip:      [null,null,null,null,null,null,null,null,null,null],
+  clubs:    [null,null,null,null,null,null,null,null,null,null],
+  csat_num: [null,null,null,null,null,null,null,null,null,null],
+  csat_den: [null,null,null,null,null,null,null,null,null,null],
+};

@@ -1334,7 +1334,8 @@ function renderConversions(filterTeam){
     const repTgt = PER_REP_TARGETS[currentTeamPeriod];
     reps.forEach(([name, pctVal, ratio, actuals])=>{
       const cls = ratio>=0.4?'pill-green':ratio>=0.2?'pill-yellow':'pill-red';
-      const a = actuals?.[currentTeamPeriod];
+      const _idx = currentTeamPeriod==='daily' ? currentTeamDateIdx : currentTeamPeriod==='weekly' ? currentTeamWeekIdx : currentTeamMonthIdx;
+      const a = actuals?.[currentTeamPeriod]?.[_idx];
       const pg1Cell   = a!=null ? `<b>${a.pg1}</b>`   : '<span style="color:#bbb">—</span>';
       const vipCell   = a!=null ? `<b>${a.vip}</b>`   : '<span style="color:#bbb">—</span>';
       const clubsCell = a!=null ? `<b>${a.clubs}</b>` : '<span style="color:#bbb">—</span>';

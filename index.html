@@ -228,6 +228,39 @@
     color: white;
   }
 
+  /* ── Period Dropdown ─────────────────────────────────────────────────────── */
+  .period-dropdown {
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .period-dropdown label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--pg-gray-text);
+  }
+  .period-dropdown select {
+    padding: 6px 28px 6px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border: 1.5px solid var(--pg-pebble);
+    border-radius: 4px;
+    background: white;
+    color: var(--pg-black);
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237B726C'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    outline: none;
+  }
+  .period-dropdown select:focus { border-color: var(--pg-orange); }
+
   /* ── Sub-selector (date / week / team) ───────────────────────────────────── */
   .sub-selector {
     display: flex;
@@ -738,10 +771,13 @@
 
   <div class="section-title"><span>Phone Setters</span> — Internal Setter LOB</div>
 
-  <div class="period-selector">
-    <div class="period-btn" onclick="switchSettersPeriod('daily', this)">Daily</div>
-    <div class="period-btn active" id="setters-weekly-btn" onclick="switchSettersPeriod('weekly', this)">Weekly</div>
-    <div class="period-btn" onclick="switchSettersPeriod('monthly', this)">Monthly</div>
+  <div class="period-dropdown">
+    <label for="setters-period-select">View by</label>
+    <select id="setters-period-select" onchange="switchSettersPeriod(this.value)">
+      <option value="daily">Daily</option>
+      <option value="weekly" selected>Weekly</option>
+      <option value="monthly">Monthly</option>
+    </select>
   </div>
 
   <!-- Scoreboard -->
@@ -789,10 +825,13 @@
 
   <div class="section-title"><span>Customer Care</span> — Team Lee LOB</div>
 
-  <div class="period-selector">
-    <div class="period-btn" onclick="switchCCPeriod('daily', this)">Daily</div>
-    <div class="period-btn" onclick="switchCCPeriod('weekly', this)">Weekly</div>
-    <div class="period-btn active" onclick="switchCCPeriod('monthly', this)">Monthly</div>
+  <div class="period-dropdown">
+    <label for="cc-period-select">View by</label>
+    <select id="cc-period-select" onchange="switchCCPeriod(this.value)">
+      <option value="daily">Daily</option>
+      <option value="weekly">Weekly</option>
+      <option value="monthly" selected>Monthly</option>
+    </select>
   </div>
 
   <!-- No-data notice -->
@@ -1373,10 +1412,8 @@ function renderConversions(filterTeam){
 }
 
 // ── Phone Setters ─────────────────────────────────────────────────────────
-function switchSettersPeriod(period, el){
+function switchSettersPeriod(period){
   settersPeriod = period;
-  document.querySelectorAll('#page-setters .period-btn').forEach(b=>b.classList.remove('active'));
-  el.classList.add('active');
   renderSetters();
 }
 
@@ -1446,10 +1483,8 @@ function renderSetters(){
 }
 
 // ── Customer Care ─────────────────────────────────────────────────────────
-function switchCCPeriod(period, el){
+function switchCCPeriod(period){
   ccPeriod = period;
-  document.querySelectorAll('#page-customercare .period-btn').forEach(b=>b.classList.remove('active'));
-  el.classList.add('active');
   renderCC();
 }
 

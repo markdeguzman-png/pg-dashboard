@@ -771,13 +771,10 @@
 
   <div class="section-title"><span>Phone Setters</span> — Internal Setter LOB</div>
 
-  <div class="period-dropdown">
-    <label for="setters-period-select">View by</label>
-    <select id="setters-period-select" onchange="switchSettersPeriod(this.value)">
-      <option value="daily">Daily</option>
-      <option value="weekly" selected>Weekly</option>
-      <option value="monthly">Monthly</option>
-    </select>
+  <div class="period-selector">
+    <div class="period-btn" id="setters-daily-btn" onclick="switchSettersPeriod('daily', this)">Daily</div>
+    <div class="period-btn active" id="setters-weekly-btn" onclick="switchSettersPeriod('weekly', this)">Weekly</div>
+    <div class="period-btn" id="setters-monthly-btn" onclick="switchSettersPeriod('monthly', this)">Monthly (MTD)</div>
   </div>
 
   <!-- Scoreboard -->
@@ -825,13 +822,10 @@
 
   <div class="section-title"><span>Customer Care</span> — Team Lee LOB</div>
 
-  <div class="period-dropdown">
-    <label for="cc-period-select">View by</label>
-    <select id="cc-period-select" onchange="switchCCPeriod(this.value)">
-      <option value="daily">Daily</option>
-      <option value="weekly">Weekly</option>
-      <option value="monthly" selected>Monthly</option>
-    </select>
+  <div class="period-selector">
+    <div class="period-btn" id="cc-daily-btn" onclick="switchCCPeriod('daily', this)">Daily</div>
+    <div class="period-btn" id="cc-weekly-btn" onclick="switchCCPeriod('weekly', this)">Weekly</div>
+    <div class="period-btn active" id="cc-monthly-btn" onclick="switchCCPeriod('monthly', this)">Monthly (MTD)</div>
   </div>
 
   <!-- No-data notice -->
@@ -1412,8 +1406,10 @@ function renderConversions(filterTeam){
 }
 
 // ── Phone Setters ─────────────────────────────────────────────────────────
-function switchSettersPeriod(period){
+function switchSettersPeriod(period, el){
   settersPeriod = period;
+  document.querySelectorAll('#page-setters .period-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
   renderSetters();
 }
 
@@ -1483,8 +1479,10 @@ function renderSetters(){
 }
 
 // ── Customer Care ─────────────────────────────────────────────────────────
-function switchCCPeriod(period){
+function switchCCPeriod(period, el){
   ccPeriod = period;
+  document.querySelectorAll('#page-customercare .period-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
   renderCC();
 }
 
@@ -1710,6 +1708,12 @@ document.getElementById('proj-info-bar').innerHTML =
 document.getElementById('team-daily-btn').textContent  = 'Daily (' + DAILY_LABEL + ')';
 document.getElementById('team-weekly-btn').textContent = 'Weekly (' + WEEKLY_LABEL + ')';
 document.getElementById('team-monthly-btn').textContent = 'Monthly (MTD)';
+document.getElementById('setters-daily-btn').textContent  = 'Daily (' + DAILY_LABEL + ')';
+document.getElementById('setters-weekly-btn').textContent = 'Weekly (' + WEEKLY_LABEL + ')';
+document.getElementById('setters-monthly-btn').textContent = 'Monthly (MTD)';
+document.getElementById('cc-daily-btn').textContent  = 'Daily (' + DAILY_LABEL + ')';
+document.getElementById('cc-weekly-btn').textContent = 'Weekly (' + WEEKLY_LABEL + ')';
+document.getElementById('cc-monthly-btn').textContent = 'Monthly (MTD)';
 
 initPickers();
 initTeamPickers();

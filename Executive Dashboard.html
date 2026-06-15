@@ -464,7 +464,7 @@
   </div>
   <div class="topbar-meta">
     <div class="topbar-date">As of <span id="as-of-date"></span></div>
-    <div class="topbar-date" style="margin-top:2px;">38 Active Reps &nbsp;|&nbsp; 6 Teams</div>
+    <div class="topbar-date" style="margin-top:2px;" id="topbar-reps">60 Active Reps &nbsp;|&nbsp; 8 Teams</div>
   </div>
 </div>
 
@@ -886,11 +886,22 @@ let settersChart  = null;
 let ccChart       = null;
 
 // ── Tab Navigation ────────────────────────────────────────────────────────
+const TAB_HEADCOUNT = {
+  overview:    { reps: 60, teams: 8 },
+  pg1vip:      { reps: 60, teams: 8 },
+  clubs:       { reps: 60, teams: 8 },
+  teams:       { reps: 38, teams: 6 },
+  setters:     { reps: 10, teams: 1 },
+  customercare:{ reps: 12, teams: 1 },
+};
 function showPage(id, el){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   el.classList.add('active');
+  const hc = TAB_HEADCOUNT[id] || { reps: 60, teams: 8 };
+  document.getElementById('topbar-reps').innerHTML =
+    hc.reps + ' Active Reps &nbsp;|&nbsp; ' + hc.teams + ' Team' + (hc.teams > 1 ? 's' : '');
 }
 
 // ── Overview: Date & Week Pickers ─────────────────────────────────────────

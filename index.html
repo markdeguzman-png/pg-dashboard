@@ -797,17 +797,25 @@
     <canvas id="settersChart" height="90"></canvas>
   </div>
 
-  <!-- Detail Table -->
+  <!-- Rep Performance Table -->
   <div class="table-card">
     <div class="table-card-header">
-      <div class="table-card-title" id="setters-detail-title">Weekly Detail</div>
-      <div class="table-card-badge">All Periods</div>
+      <div class="table-card-title" id="setters-rep-title">Rep Performance — Weekly</div>
+      <div class="table-card-badge">Internal Setter LOB</div>
     </div>
     <table>
       <thead>
-        <tr><th>Period</th><th>Sets</th><th>Show</th><th>Closed</th><th>Cash Collected</th></tr>
+        <tr>
+          <th>Rep Name</th>
+          <th style="text-align:right;">Sets</th>
+          <th>Sets % to Goal</th>
+          <th style="text-align:right;">Show</th>
+          <th>Show % to Goal</th>
+          <th style="text-align:right;">Cash Collected</th>
+          <th>Cash % to Goal</th>
+        </tr>
       </thead>
-      <tbody id="setters-detail-tbody"></tbody>
+      <tbody id="setters-rep-tbody"></tbody>
     </table>
   </div>
 
@@ -1432,7 +1440,6 @@ function renderSetters(){
   const periodLabel = {daily:'Daily (Last 30 Days)', weekly:'Weekly (Last 8 Weeks)', monthly:'Monthly (Last 6 Months)'}[settersPeriod];
   document.getElementById('setters-table-title').textContent = 'Phone Setters — ' + periodLabel;
   document.getElementById('setters-chart-title').innerHTML = `<span>${settersPeriod.charAt(0).toUpperCase()+settersPeriod.slice(1)}</span> — Sets, Show &amp; Closed Deals`;
-  document.getElementById('setters-detail-title').textContent = periodLabel + ' Detail';
 
   const d = getSettersData();
   const last = d.labels.length - 1;
@@ -1472,10 +1479,39 @@ function renderSetters(){
     type:isLine?'line':'bar', data:{labels:d.labels,datasets}, options:{...chartDefaults,responsive:true}
   });
 
-  // Detail table (all periods)
-  document.getElementById('setters-detail-tbody').innerHTML = d.labels.map((lbl,i)=>{
-    const cashVal = d.cash[i]!=null ? '$'+Math.round(d.cash[i]).toLocaleString() : '—';
-    return `<tr><td>${lbl}</td><td>${fmt(d.sets[i])}</td><td>${fmt(d.show[i])}</td><td>${fmt(d.closed[i])}</td><td>${cashVal}</td></tr>`;
+  // Rep performance table
+  renderSettersRepTable();
+}
+
+function renderSettersRepTable(){
+  const tgt = PHONE_SETTERS_REP_TARGETS[settersPeriod];
+  const periodLabel = {daily:'Daily', weekly:'Weekly', monthly:'Monthly (MTD)'}[settersPeriod];
+  document.getElementById('setters-rep-title').textContent = 'Rep Performance — ' + periodLabel;
+
+  const tbody = document.getElementById('setters-rep-tbody');
+  if(!PHONE_SETTERS_REPS || !PHONE_SETTERS_REPS.length){
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:20px;color:#999;font-style:italic;">Rep-level data not yet available</td></tr>`;
+    return;
+  }
+
+  function metricCell(act, tg, isCash){
+    if(act == null) return '<td>—</td><td>—</td>';
+    const aF = isCash ? '$'+Math.round(act).toLocaleString() : fmt(act);
+    const bar = `<div class="bar-cell"><div class="mini-bar-bg"><div class="mini-bar" style="width:${capPct(act,tg)};background:${barColor(act,tg)}"></div></div>${pct(act,tg)}</div>`;
+    return `<td style="text-align:right;">${aF}</td><td>${bar}</td>`;
+  }
+
+  tbody.innerHTML = PHONE_SETTERS_REPS.map(([name, periods])=>{
+    const d = (periods && periods[settersPeriod]) || {};
+    const sets = d.sets ?? null;
+    const show = d.show ?? null;
+    const cash = d.cash ?? null;
+    return `<tr>
+      <td>${name}</td>
+      ${metricCell(sets, tgt.sets, false)}
+      ${metricCell(show, tgt.show, false)}
+      ${metricCell(cash, tgt.cash, true)}
+    </tr>`;
   }).join('');
 }
 

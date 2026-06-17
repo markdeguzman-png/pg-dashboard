@@ -377,6 +377,13 @@ const PHONE_SETTERS_DAILY = {
   closed: [ 1,  3,  5,  5,  0,  4,  7,  3,  5,  7,  7,  0,  5,  1,  0],
   cash:   [null,null,null,null,null,null,null,null,24450,null,null,null,null,null,null],
 };
+const PHONE_SETTERS_REP_TARGETS = {
+  daily:   { sets:  3, show:  2, cash:   5000 },
+  weekly:  { sets: 15, show: 10, cash:  25000 },
+  monthly: { sets: 60, show: 40, cash: 100000 },
+};
+// [name, {daily:{sets,show,cash}, weekly:{sets,show,cash}, monthly:{sets,show,cash}}]
+const PHONE_SETTERS_REPS = [];
 
 // ── Customer Care (Team Lee LOB) ──────────────────────────────────────────
 const CUSTOMER_CARE_MONTHLY = {

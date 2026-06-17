@@ -866,6 +866,7 @@ Chart.register(ChartDataLabels);
 // ── Brand Colors ─────────────────────────────────────────────────────────
 const ORANGE = '#FD3300';
 const D_ORANGE = '#DB2C00';
+const VIP_COLOR = '#C17B00';
 const BLACK = '#1D1A1A';
 const STONE = '#B3AAA3';
 const PEBBLE = '#DFD9D5';
@@ -994,7 +995,7 @@ function renderOverviewChart(period){
     titleEl.innerHTML='<span>Daily</span> — PG1, VIP &amp; Clubs (Last 30 Days)';
     datasets=[
       {label:'PG1',  data:pg1d,  borderColor:ORANGE,   backgroundColor:ORANGE+'22',   borderWidth:2,pointRadius:3,fill:false,tension:0.3,datalabels:lineDL(ORANGE,'top')},
-      {label:'VIP',  data:vipd,  borderColor:D_ORANGE, backgroundColor:D_ORANGE+'22', borderWidth:2,pointRadius:3,fill:false,tension:0.3,datalabels:lineDL(D_ORANGE,'bottom')},
+      {label:'VIP',  data:vipd,  borderColor:VIP_COLOR, backgroundColor:VIP_COLOR+'22', borderWidth:2,pointRadius:3,fill:false,tension:0.3,datalabels:lineDL(VIP_COLOR,'bottom')},
       {label:'Clubs',data:clubsd,borderColor:'#7B726C',backgroundColor:'#7B726C22',   borderWidth:2,pointRadius:3,fill:false,tension:0.3,datalabels:lineDL('#7B726C','top')},
       targetLine(labels,150,'Target (150)',STONE),
     ];
@@ -1004,7 +1005,7 @@ function renderOverviewChart(period){
     titleEl.innerHTML='<span>Weekly</span> — PG1, VIP &amp; Clubs (Last 8 Weeks)';
     datasets=[
       {label:'PG1',  data:pg1d,  backgroundColor:ORANGE+'CC',  borderRadius:3},
-      {label:'VIP',  data:vipd,  backgroundColor:D_ORANGE+'CC',borderRadius:3},
+      {label:'VIP',  data:vipd,  backgroundColor:VIP_COLOR+'CC',borderRadius:3},
       {label:'Clubs',data:clubsd,backgroundColor:'#7B726CBB',  borderRadius:3},
       targetLine(labels,600,'PG1/VIP Target','#FD3300'),
       targetLine(labels,400,'Clubs Target','#7B726C'),
@@ -1015,7 +1016,7 @@ function renderOverviewChart(period){
     titleEl.innerHTML='<span>Historical</span> — Monthly PG1, VIP &amp; Clubs (Last 6 Months)';
     datasets=[
       {label:'PG1',  data:pg1d,  backgroundColor:ORANGE+'CC',  borderRadius:3},
-      {label:'VIP',  data:vipd,  backgroundColor:D_ORANGE+'CC',borderRadius:3},
+      {label:'VIP',  data:vipd,  backgroundColor:VIP_COLOR+'CC',borderRadius:3},
       {label:'Clubs',data:clubsd,backgroundColor:'#7B726CBB',  borderRadius:3},
       targetLine(labels,2400,'PG1/VIP Target','#FD3300'),
       targetLine(labels,1600,'Clubs Target','#7B726C'),
@@ -1280,12 +1281,12 @@ function renderPG1TrendChart(period){
   const lineDL = (color,align)=>({ font:{size:7,weight:'bold'}, rotation:-45, color, anchor:'end', align:align||'top', offset:0 });
   const datasets = isLine ? [
     { label:'PG1', data:pg1data, borderColor:ORANGE, backgroundColor:ORANGE+'22', borderWidth:2, pointRadius:3, fill:false, tension:0.3, datalabels:lineDL(ORANGE,'top') },
-    { label:'VIP', data:vipdata, borderColor:D_ORANGE, backgroundColor:D_ORANGE+'22', borderWidth:2, pointRadius:3, fill:false, tension:0.3, datalabels:lineDL(D_ORANGE,'bottom') },
+    { label:'VIP', data:vipdata, borderColor:VIP_COLOR, backgroundColor:VIP_COLOR+'22', borderWidth:2, pointRadius:3, fill:false, tension:0.3, datalabels:lineDL(VIP_COLOR,'bottom') },
     { label:'Clubs', data:clubsdata, borderColor:'#7B726C', backgroundColor:'#7B726C22', borderWidth:2, pointRadius:3, fill:false, tension:0.3, datalabels:lineDL('#7B726C','top') },
     targetLine(labels, tgtVal, 'Target', STONE),
   ] : [
     { label:'PG1', data:pg1data, backgroundColor:ORANGE+'CC', borderRadius:3 },
-    { label:'VIP', data:vipdata, backgroundColor:D_ORANGE+'CC', borderRadius:3 },
+    { label:'VIP', data:vipdata, backgroundColor:VIP_COLOR+'CC', borderRadius:3 },
     { label:'Clubs', data:clubsdata, backgroundColor:'#7B726CBB', borderRadius:3 },
     targetLine(labels, tgtVal, 'Target', STONE),
   ];
@@ -1530,11 +1531,11 @@ function renderCC(){
   const lineDL = (color,align)=>({font:{size:7,weight:'bold'},rotation:-45,color,anchor:'end',align:align||'top',offset:0});
   const datasets = isLine ? [
     {label:'PG1',  data:d.pg1,   borderColor:ORANGE,   backgroundColor:ORANGE+'22',   borderWidth:2,pointRadius:3,fill:false,tension:0.3,datalabels:lineDL(ORANGE,'top')},
-    {label:'VIP',  data:d.vip,   borderColor:D_ORANGE, backgroundColor:D_ORANGE+'22', borderWidth:2,pointRadius:3,fill:false,tension:0.3,datalabels:lineDL(D_ORANGE,'bottom')},
+    {label:'VIP',  data:d.vip,   borderColor:VIP_COLOR, backgroundColor:VIP_COLOR+'22', borderWidth:2,pointRadius:3,fill:false,tension:0.3,datalabels:lineDL(VIP_COLOR,'bottom')},
     {label:'Clubs',data:d.clubs, borderColor:'#7B726C',backgroundColor:'#7B726C22',   borderWidth:2,pointRadius:3,fill:false,tension:0.3,datalabels:lineDL('#7B726C','top')},
   ] : [
     {label:'PG1',  data:d.pg1,   backgroundColor:ORANGE+'CC',  borderRadius:3},
-    {label:'VIP',  data:d.vip,   backgroundColor:D_ORANGE+'CC',borderRadius:3},
+    {label:'VIP',  data:d.vip,   backgroundColor:VIP_COLOR+'CC',borderRadius:3},
     {label:'Clubs',data:d.clubs, backgroundColor:'#7B726CBB',  borderRadius:3},
   ];
   ccChart = new Chart(document.getElementById('ccChart'),{
@@ -1578,7 +1579,7 @@ new Chart(document.getElementById('monthlyPGVIPChart'), {
     labels: MONTHLY.labels,
     datasets:[
       { label:'PG1', data:MONTHLY.pg1, backgroundColor:ORANGE+'CC', borderRadius:3 },
-      { label:'VIP', data:MONTHLY.vip, backgroundColor:D_ORANGE+'CC', borderRadius:3 },
+      { label:'VIP', data:MONTHLY.vip, backgroundColor:VIP_COLOR+'CC', borderRadius:3 },
       targetLine(MONTHLY.labels, 2400, 'Target (2,400)', STONE),
     ]
   },
@@ -1592,7 +1593,7 @@ new Chart(document.getElementById('weeklyPGVIPChart'), {
     labels: WEEKLY.labels,
     datasets:[
       { label:'PG1', data:WEEKLY.pg1, backgroundColor:ORANGE+'CC', borderRadius:3 },
-      { label:'VIP', data:WEEKLY.vip, backgroundColor:D_ORANGE+'CC', borderRadius:3 },
+      { label:'VIP', data:WEEKLY.vip, backgroundColor:VIP_COLOR+'CC', borderRadius:3 },
       targetLine(WEEKLY.labels, 600, 'Target (600)', STONE),
     ]
   },
@@ -1608,9 +1609,9 @@ new Chart(document.getElementById('dailyPGVIPChart'), {
       { label:'PG1', data:DAILY.pg1, borderColor:ORANGE, backgroundColor:ORANGE+'22',
         borderWidth:2, pointRadius:3, fill:false, tension:0.3,
         datalabels:{ font:{size:7,weight:'bold'}, rotation:-45, color:ORANGE, anchor:'end', align:'top', offset:0 } },
-      { label:'VIP', data:DAILY.vip, borderColor:D_ORANGE, backgroundColor:D_ORANGE+'22',
+      { label:'VIP', data:DAILY.vip, borderColor:VIP_COLOR, backgroundColor:VIP_COLOR+'22',
         borderWidth:2, pointRadius:3, fill:false, tension:0.3,
-        datalabels:{ font:{size:7,weight:'bold'}, rotation:-45, color:D_ORANGE, anchor:'end', align:'bottom', offset:0 } },
+        datalabels:{ font:{size:7,weight:'bold'}, rotation:-45, color:VIP_COLOR, anchor:'end', align:'bottom', offset:0 } },
       targetLine(DAILY.labels, 150, 'Target (150)', STONE),
     ]
   },

@@ -777,6 +777,19 @@
     <div class="period-btn" id="setters-monthly-btn" onclick="switchSettersPeriod('monthly', this)">Monthly (MTD)</div>
   </div>
 
+  <div class="sub-selector" id="setters-date-sub" style="display:none;">
+    <label>Select Date:</label>
+    <select id="setters-date-picker" onchange="onSettersDateChange(this.value)"></select>
+  </div>
+  <div class="sub-selector" id="setters-week-sub">
+    <label>Select Week Beginning:</label>
+    <select id="setters-week-picker" onchange="onSettersWeekChange(this.value)"></select>
+  </div>
+  <div class="sub-selector" id="setters-month-sub" style="display:none;">
+    <label>Select Month:</label>
+    <select id="setters-month-picker" onchange="onSettersMonthChange(this.value)"></select>
+  </div>
+
   <!-- Scoreboard -->
   <div class="table-card">
     <div class="table-card-header">
@@ -918,6 +931,9 @@ let currentTeamDateIdx   = null;
 let currentTeamWeekIdx   = null;
 let currentTeamMonthIdx  = null;
 let settersPeriod  = 'weekly';
+let currentSettersDateIdx  = null;
+let currentSettersWeekIdx  = null;
+let currentSettersMonthIdx = null;
 let ccPeriod       = 'monthly';
 let overviewChart  = null;
 let pg1TrendChart  = null;
@@ -1419,6 +1435,51 @@ function switchSettersPeriod(period, el){
   settersPeriod = period;
   document.querySelectorAll('#page-setters .period-btn').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
+  document.getElementById('setters-date-sub').style.display  = period==='daily'   ? 'flex' : 'none';
+  document.getElementById('setters-week-sub').style.display  = period==='weekly'  ? 'flex' : 'none';
+  document.getElementById('setters-month-sub').style.display = period==='monthly' ? 'flex' : 'none';
+  renderSetters();
+}
+
+function initSettersPickers(){
+  const dp = document.getElementById('setters-date-picker');
+  PHONE_SETTERS_DAILY.labels.forEach((d,i)=>{
+    const o = document.createElement('option'); o.value=i;
+    o.textContent = d + (i===PHONE_SETTERS_DAILY.labels.length-1?' (latest)':'');
+    dp.appendChild(o);
+  });
+  dp.value = PHONE_SETTERS_DAILY.labels.length - 1;
+  currentSettersDateIdx = PHONE_SETTERS_DAILY.labels.length - 1;
+
+  const wp = document.getElementById('setters-week-picker');
+  PHONE_SETTERS_WEEKLY.labels.forEach((w,i)=>{
+    const o = document.createElement('option'); o.value=i;
+    o.textContent = 'WB ' + w + (i===PHONE_SETTERS_WEEKLY.labels.length-1?' (latest)':'');
+    wp.appendChild(o);
+  });
+  wp.value = PHONE_SETTERS_WEEKLY.labels.length - 1;
+  currentSettersWeekIdx = PHONE_SETTERS_WEEKLY.labels.length - 1;
+
+  const mp = document.getElementById('setters-month-picker');
+  PHONE_SETTERS_MONTHLY.labels.forEach((m,i)=>{
+    const o = document.createElement('option'); o.value=i;
+    o.textContent = m + (i===PHONE_SETTERS_MONTHLY.labels.length-1?' (latest)':'');
+    mp.appendChild(o);
+  });
+  mp.value = PHONE_SETTERS_MONTHLY.labels.length - 1;
+  currentSettersMonthIdx = PHONE_SETTERS_MONTHLY.labels.length - 1;
+}
+
+function onSettersDateChange(val){
+  currentSettersDateIdx = parseInt(val);
+  renderSetters();
+}
+function onSettersWeekChange(val){
+  currentSettersWeekIdx = parseInt(val);
+  renderSetters();
+}
+function onSettersMonthChange(val){
+  currentSettersMonthIdx = parseInt(val);
   renderSetters();
 }
 
@@ -1426,24 +1487,44 @@ function getSettersData(){
   const n = settersPeriod==='daily'?30 : settersPeriod==='weekly'?8 : 6;
   const src = settersPeriod==='daily'?PHONE_SETTERS_DAILY : settersPeriod==='weekly'?PHONE_SETTERS_WEEKLY : PHONE_SETTERS_MONTHLY;
   const tgt = PHONE_SETTERS_TARGETS[settersPeriod];
+  const cash_rev = sliceLast(src.cash_rev, n);
+  const cash_ref = sliceLast(src.cash_ref, n);
+  const cash = cash_rev.map((r,i) => (r == null && cash_ref[i] == null) ? null : (r??0)+(cash_ref[i]??0));
   return {
     labels: sliceLast(src.labels, n),
     sets:   sliceLast(src.sets,   n),
     show:   sliceLast(src.show,   n),
     closed: sliceLast(src.closed, n),
-    cash:   sliceLast(src.cash,   n),
+    cash,
     tgt,
   };
 }
 
+function getSettersSelectedIdx(d){
+  if(settersPeriod==='daily')   return currentSettersDateIdx  ?? d.labels.length-1;
+  if(settersPeriod==='weekly')  return currentSettersWeekIdx  ?? d.labels.length-1;
+  return                               currentSettersMonthIdx ?? d.labels.length-1;
+}
+
 function renderSetters(){
-  const periodLabel = {daily:'Daily (Last 30 Days)', weekly:'Weekly (Last 8 Weeks)', monthly:'Monthly (Last 6 Months)'}[settersPeriod];
+  const src = settersPeriod==='daily'?PHONE_SETTERS_DAILY : settersPeriod==='weekly'?PHONE_SETTERS_WEEKLY : PHONE_SETTERS_MONTHLY;
+  let selIdx;
+  if(settersPeriod==='daily')  selIdx = currentSettersDateIdx  ?? PHONE_SETTERS_DAILY.labels.length-1;
+  else if(settersPeriod==='weekly') selIdx = currentSettersWeekIdx ?? PHONE_SETTERS_WEEKLY.labels.length-1;
+  else selIdx = currentSettersMonthIdx ?? PHONE_SETTERS_MONTHLY.labels.length-1;
+
+  const selLabel = src.labels[selIdx];
+  const periodLabel = settersPeriod==='daily' ? 'Daily (' + selLabel + ')' :
+                      settersPeriod==='weekly' ? 'Weekly (WB ' + selLabel + ')' :
+                      'Monthly (' + selLabel + ')';
   document.getElementById('setters-table-title').textContent = 'Phone Setters — ' + periodLabel;
   document.getElementById('setters-chart-title').innerHTML = `<span>${settersPeriod.charAt(0).toUpperCase()+settersPeriod.slice(1)}</span> — Sets, Show &amp; Closed Deals`;
 
   const d = getSettersData();
-  const last = d.labels.length - 1;
-  const latest = { sets:d.sets[last], show:d.show[last], closed:d.closed[last], cash:d.cash[last] };
+  const cash_rev_val = src.cash_rev[selIdx];
+  const cash_ref_val = src.cash_ref[selIdx];
+  const cashVal = (cash_rev_val == null && cash_ref_val == null) ? null : (cash_rev_val??0)+(cash_ref_val??0);
+  const latest = { sets:src.sets[selIdx], show:src.show[selIdx], closed:src.closed[selIdx], cash:cashVal };
   const t = d.tgt;
 
   // Scoreboard (latest period)
@@ -1505,7 +1586,7 @@ function renderSettersRepTable(){
     const d = (periods && periods[settersPeriod]) || {};
     const sets = d.sets ?? null;
     const show = d.show ?? null;
-    const cash = d.cash ?? null;
+    const cash = (d.cash_rev == null && d.cash_ref == null) ? null : (d.cash_rev??0)+(d.cash_ref??0);
     return `<tr>
       <td>${name}</td>
       ${metricCell(sets, tgt.sets, false)}
@@ -1754,6 +1835,7 @@ document.getElementById('cc-monthly-btn').textContent = 'Monthly (MTD)';
 
 initPickers();
 initTeamPickers();
+initSettersPickers();
 onDateChange(document.getElementById('date-picker').value);
 renderWeeklyTables();
 renderMonthlyPGVIPTable();

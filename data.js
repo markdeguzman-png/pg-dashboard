@@ -357,45 +357,47 @@ const PHONE_SETTERS_TARGETS = {
   monthly: { sets:600, show:340,closed:120, cash:1000000 },
 };
 const PHONE_SETTERS_MONTHLY = {
-  labels: ['Feb','Mar','Apr','May','Jun MTD'],
-  sets:   [689,  1078, 469, 506, 334],
-  show:   [336,  457,  288, 304, 178],
-  closed: [130,  122,  99,  93,  70],
-  cash:   [null, null, null, null, 346558],
+  labels:   ['Feb','Mar','Apr','May','Jun MTD'],
+  sets:     [689,  1078, 469, 506, 334],
+  show:     [336,  457,  288, 304, 178],
+  closed:   [130,  122,  99,  93,  70],
+  cash_rev: [null, null, null, null, 346558],
+  cash_ref: [null, null, null, null, 0],
 };
 const PHONE_SETTERS_WEEKLY = {
-  labels: ['4/20','4/27','5/4','5/11','5/18','5/25','6/1','6/8','6/15'],
-  sets:   [101, 71, 141, 120, 119, 106, 121, 124, 89],
-  show:   [56,  36,  70,  81,  79,  62,  53,  78, 47],
-  closed: [26,  14,  17,  19,  23,  28,  21,  33, 16],
-  cash:   [null,null,null,null,null,null,130663,null,null],
+  labels:   ['4/20','4/27','5/4','5/11','5/18','5/25','6/1','6/8','6/15'],
+  sets:     [101, 71, 141, 120, 119, 106, 121, 124, 89],
+  show:     [56,  36,  70,  81,  79,  62,  53,  78, 47],
+  closed:   [26,  14,  17,  19,  23,  28,  21,  33, 16],
+  cash_rev: [null,null,null,null,null,null,130663,null,null],
+  cash_ref: [null,null,null,null,null,null,0,     null,null],
 };
 const PHONE_SETTERS_DAILY = {
-  labels: ['6/3','6/4','6/5','6/6','6/7','6/8','6/9','6/10','6/11','6/12','6/13','6/14','6/15','6/16','6/17','6/18','6/19'],
-  sets:   [33, 33, 14,  4,  2, 21, 35, 22, 20, 24,  1,  2, 24, 29, 13, 23,  0],
-  show:   [ 6,  9,  9,  9,  0, 14, 11, 12, 12, 21,  8,  0, 16,  7, 12, 10,  1],
-  closed: [ 1,  3,  5,  5,  0,  4,  7,  3,  5,  7,  7,  0,  5,  1,  4,  6,  0],
-  cash:   [null,null,null,null,null,null,null,null,24450,null,null,null,null,null,null,null,null],
+  labels:   ['6/3','6/4','6/5','6/6','6/7','6/8','6/9','6/10','6/11','6/12','6/13','6/14','6/15','6/16','6/17','6/18','6/19'],
+  sets:     [33, 33, 14,  4,  2, 21, 35, 22, 20, 24,  1,  2, 24, 29, 13, 23,  0],
+  show:     [ 6,  9,  9,  9,  0, 14, 11, 12, 12, 21,  8,  0, 16,  7, 12, 10,  1],
+  closed:   [ 1,  3,  5,  5,  0,  4,  7,  3,  5,  7,  7,  0,  5,  1,  4,  6,  0],
+  cash_rev: [null,null,null,null,null,null,null,null,24450,null,null,null,null,null,null,null,null],
+  cash_ref: [null,null,null,null,null,null,null,null,0,    null,null,null,null,null,null,null,null],
 };
 const PHONE_SETTERS_REP_TARGETS = {
   daily:   { sets:  3, show:  2, cash:   5000 },
   weekly:  { sets: 15, show: 10, cash:  25000 },
   monthly: { sets: 60, show: 40, cash: 100000 },
 };
-// [name, {daily:{sets,show,cash}, weekly:{sets,show,cash}, monthly:{sets,show,cash}}]
-// Sets & Show: daily=06/19, weekly=WB 06/15, monthly=Jun MTD
-// Cash: monthly MTD only (not tracked per-rep at daily/weekly level)
+// [name, {daily:{sets,show,cash_rev,cash_ref}, weekly:{...}, monthly:{...}}]
+// Cash = cash_rev + cash_ref; monthly MTD only (not tracked per-rep at daily/weekly level)
 const PHONE_SETTERS_REPS = [
-  ['Jhaziel Gonzales',          {daily:{sets:0,show:0,cash:null}, weekly:{sets:5, show:4,cash:null}, monthly:{sets:27,show:20,cash:54978}}],
-  ['Tommy Tecson',              {daily:{sets:0,show:0,cash:null}, weekly:{sets:8, show:5,cash:null}, monthly:{sets:38,show:22,cash:48200}}],
-  ['Phoebe Estel Ymil Collado', {daily:{sets:0,show:0,cash:null}, weekly:{sets:1, show:3,cash:null}, monthly:{sets:34,show:17,cash:42500}}],
-  ['Vian Perez',                {daily:{sets:0,show:0,cash:null}, weekly:{sets:6, show:1,cash:null}, monthly:{sets:27,show:12,cash:42100}}],
-  ['Rafael John Abayan',        {daily:{sets:0,show:0,cash:null}, weekly:{sets:10,show:3,cash:null}, monthly:{sets:29,show:17,cash:38833}}],
-  ['Richard Ian Alvarez',       {daily:{sets:0,show:0,cash:null}, weekly:{sets:6, show:1,cash:null}, monthly:{sets:25,show:12,cash:36667}}],
-  ['Heinrich Abarquez',         {daily:{sets:0,show:0,cash:null}, weekly:{sets:5, show:3,cash:null}, monthly:{sets:41,show:25,cash:30750}}],
-  ['Dan Emmanuel Nicolas',      {daily:{sets:0,show:0,cash:null}, weekly:{sets:3, show:2,cash:null}, monthly:{sets:20,show:9, cash:27700}}],
-  ['Julius Vizcayno',           {daily:{sets:0,show:0,cash:null}, weekly:{sets:0, show:1,cash:null}, monthly:{sets:25,show:13,cash:17330}}],
-  ['Philip Josh Caperig',       {daily:{sets:0,show:0,cash:null}, weekly:{sets:0, show:0,cash:null}, monthly:{sets:2, show:1, cash:0}}],
+  ['Jhaziel Gonzales',          {daily:{sets:0,show:0,cash_rev:null,cash_ref:null}, weekly:{sets:5, show:4,cash_rev:null,cash_ref:null}, monthly:{sets:27,show:20,cash_rev:54978,cash_ref:0}}],
+  ['Tommy Tecson',              {daily:{sets:0,show:0,cash_rev:null,cash_ref:null}, weekly:{sets:8, show:5,cash_rev:null,cash_ref:null}, monthly:{sets:38,show:22,cash_rev:48200,cash_ref:0}}],
+  ['Phoebe Estel Ymil Collado', {daily:{sets:0,show:0,cash_rev:null,cash_ref:null}, weekly:{sets:1, show:3,cash_rev:null,cash_ref:null}, monthly:{sets:34,show:17,cash_rev:42500,cash_ref:0}}],
+  ['Vian Perez',                {daily:{sets:0,show:0,cash_rev:null,cash_ref:null}, weekly:{sets:6, show:1,cash_rev:null,cash_ref:null}, monthly:{sets:27,show:12,cash_rev:42100,cash_ref:0}}],
+  ['Rafael John Abayan',        {daily:{sets:0,show:0,cash_rev:null,cash_ref:null}, weekly:{sets:10,show:3,cash_rev:null,cash_ref:null}, monthly:{sets:29,show:17,cash_rev:38833,cash_ref:0}}],
+  ['Richard Ian Alvarez',       {daily:{sets:0,show:0,cash_rev:null,cash_ref:null}, weekly:{sets:6, show:1,cash_rev:null,cash_ref:null}, monthly:{sets:25,show:12,cash_rev:36667,cash_ref:0}}],
+  ['Heinrich Abarquez',         {daily:{sets:0,show:0,cash_rev:null,cash_ref:null}, weekly:{sets:5, show:3,cash_rev:null,cash_ref:null}, monthly:{sets:41,show:25,cash_rev:30750,cash_ref:0}}],
+  ['Dan Emmanuel Nicolas',      {daily:{sets:0,show:0,cash_rev:null,cash_ref:null}, weekly:{sets:3, show:2,cash_rev:null,cash_ref:null}, monthly:{sets:20,show:9, cash_rev:27700,cash_ref:0}}],
+  ['Julius Vizcayno',           {daily:{sets:0,show:0,cash_rev:null,cash_ref:null}, weekly:{sets:0, show:1,cash_rev:null,cash_ref:null}, monthly:{sets:25,show:13,cash_rev:17330,cash_ref:0}}],
+  ['Philip Josh Caperig',       {daily:{sets:0,show:0,cash_rev:null,cash_ref:null}, weekly:{sets:0, show:0,cash_rev:null,cash_ref:null}, monthly:{sets:2, show:1, cash_rev:0,    cash_ref:0}}],
 ];
 
 // ── Customer Care (Team Lee LOB) ──────────────────────────────────────────

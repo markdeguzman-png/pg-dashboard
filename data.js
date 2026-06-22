@@ -388,16 +388,16 @@ const PHONE_SETTERS_REP_TARGETS = {
 // [name, {daily:{sets,show,cash_rev,cash_ref}, weekly:{...}, monthly:{...}}]
 // Cash = cash_rev + cash_ref; monthly MTD only (not tracked per-rep at daily/weekly level)
 const PHONE_SETTERS_REPS = [
-  ['Jhaziel Gonzales',          {daily:{sets:0,show:0,cash_rev:null,cash_ref:null}, weekly:{sets:5, show:4,cash_rev:null,cash_ref:null}, monthly:{sets:27,show:20,cash_rev:54978,cash_ref:0}}],
-  ['Tommy Tecson',              {daily:{sets:0,show:0,cash_rev:null,cash_ref:null}, weekly:{sets:8, show:5,cash_rev:null,cash_ref:null}, monthly:{sets:38,show:22,cash_rev:48200,cash_ref:0}}],
-  ['Phoebe Estel Ymil Collado', {daily:{sets:0,show:0,cash_rev:null,cash_ref:null}, weekly:{sets:1, show:3,cash_rev:null,cash_ref:null}, monthly:{sets:34,show:17,cash_rev:42500,cash_ref:0}}],
-  ['Vian Perez',                {daily:{sets:0,show:0,cash_rev:null,cash_ref:null}, weekly:{sets:6, show:1,cash_rev:null,cash_ref:null}, monthly:{sets:27,show:12,cash_rev:42100,cash_ref:0}}],
-  ['Rafael John Abayan',        {daily:{sets:0,show:0,cash_rev:null,cash_ref:null}, weekly:{sets:10,show:3,cash_rev:null,cash_ref:null}, monthly:{sets:29,show:17,cash_rev:38833,cash_ref:0}}],
-  ['Richard Ian Alvarez',       {daily:{sets:0,show:0,cash_rev:null,cash_ref:null}, weekly:{sets:6, show:1,cash_rev:null,cash_ref:null}, monthly:{sets:25,show:12,cash_rev:36667,cash_ref:0}}],
-  ['Heinrich Abarquez',         {daily:{sets:0,show:0,cash_rev:null,cash_ref:null}, weekly:{sets:5, show:3,cash_rev:null,cash_ref:null}, monthly:{sets:41,show:25,cash_rev:30750,cash_ref:0}}],
-  ['Dan Emmanuel Nicolas',      {daily:{sets:0,show:0,cash_rev:null,cash_ref:null}, weekly:{sets:3, show:2,cash_rev:null,cash_ref:null}, monthly:{sets:20,show:9, cash_rev:27700,cash_ref:0}}],
-  ['Julius Vizcayno',           {daily:{sets:0,show:0,cash_rev:null,cash_ref:null}, weekly:{sets:0, show:1,cash_rev:null,cash_ref:null}, monthly:{sets:25,show:13,cash_rev:17330,cash_ref:0}}],
-  ['Philip Josh Caperig',       {daily:{sets:0,show:0,cash_rev:null,cash_ref:null}, weekly:{sets:0, show:0,cash_rev:null,cash_ref:null}, monthly:{sets:2, show:1, cash_rev:0,    cash_ref:0}}],
+  ['Jhaziel Gonzales',          {daily:{sets:0,show:0,cash_rev:0,cash_ref:0}, weekly:{sets:5, show:4,cash_rev:0,cash_ref:0}, monthly:{sets:27,show:20,cash_rev:54978,cash_ref:0}}],
+  ['Tommy Tecson',              {daily:{sets:0,show:0,cash_rev:0,cash_ref:0}, weekly:{sets:8, show:5,cash_rev:0,cash_ref:0}, monthly:{sets:38,show:22,cash_rev:48200,cash_ref:0}}],
+  ['Phoebe Estel Ymil Collado', {daily:{sets:0,show:0,cash_rev:0,cash_ref:0}, weekly:{sets:1, show:3,cash_rev:0,cash_ref:0}, monthly:{sets:34,show:17,cash_rev:42500,cash_ref:0}}],
+  ['Vian Perez',                {daily:{sets:0,show:0,cash_rev:0,cash_ref:0}, weekly:{sets:6, show:1,cash_rev:0,cash_ref:0}, monthly:{sets:27,show:12,cash_rev:42100,cash_ref:0}}],
+  ['Rafael John Abayan',        {daily:{sets:0,show:0,cash_rev:0,cash_ref:0}, weekly:{sets:10,show:3,cash_rev:0,cash_ref:0}, monthly:{sets:29,show:17,cash_rev:38833,cash_ref:0}}],
+  ['Richard Ian Alvarez',       {daily:{sets:0,show:0,cash_rev:0,cash_ref:0}, weekly:{sets:6, show:1,cash_rev:0,cash_ref:0}, monthly:{sets:25,show:12,cash_rev:36667,cash_ref:0}}],
+  ['Heinrich Abarquez',         {daily:{sets:0,show:0,cash_rev:0,cash_ref:0}, weekly:{sets:5, show:3,cash_rev:0,cash_ref:0}, monthly:{sets:41,show:25,cash_rev:30750,cash_ref:0}}],
+  ['Dan Emmanuel Nicolas',      {daily:{sets:0,show:0,cash_rev:0,cash_ref:0}, weekly:{sets:3, show:2,cash_rev:0,cash_ref:0}, monthly:{sets:20,show:9, cash_rev:27700,cash_ref:0}}],
+  ['Julius Vizcayno',           {daily:{sets:0,show:0,cash_rev:0,cash_ref:0}, weekly:{sets:0, show:1,cash_rev:0,cash_ref:0}, monthly:{sets:25,show:13,cash_rev:17330,cash_ref:0}}],
+  ['Philip Josh Caperig',       {daily:{sets:0,show:0,cash_rev:0,cash_ref:0}, weekly:{sets:0, show:0,cash_rev:0,cash_ref:0}, monthly:{sets:2, show:1, cash_rev:0,    cash_ref:0}}],
 ];
 
 // ── Customer Care (Team Lee LOB) ──────────────────────────────────────────

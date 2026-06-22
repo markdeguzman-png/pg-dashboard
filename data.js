@@ -369,16 +369,16 @@ const PHONE_SETTERS_WEEKLY = {
   sets:     [101, 71, 141, 120, 119, 106, 121, 124, 89],
   show:     [56,  36,  70,  81,  79,  62,  53,  78, 47],
   closed:   [26,  14,  17,  19,  23,  28,  21,  33, 16],
-  cash_rev: [null,null,null,null,null,null,130663,null,null],
-  cash_ref: [null,null,null,null,null,null,0,     null,null],
+  cash_rev: [0,   0,   0,   0,   0,   0,   130663,0,   130663],
+  cash_ref: [0,   0,   0,   0,   0,   0,   0,     0,   0],
 };
 const PHONE_SETTERS_DAILY = {
   labels:   ['6/3','6/4','6/5','6/6','6/7','6/8','6/9','6/10','6/11','6/12','6/13','6/14','6/15','6/16','6/17','6/18','6/19'],
   sets:     [33, 33, 14,  4,  2, 21, 35, 22, 20, 24,  1,  2, 24, 29, 13, 23,  0],
   show:     [ 6,  9,  9,  9,  0, 14, 11, 12, 12, 21,  8,  0, 16,  7, 12, 10,  1],
   closed:   [ 1,  3,  5,  5,  0,  4,  7,  3,  5,  7,  7,  0,  5,  1,  4,  6,  0],
-  cash_rev: [null,null,null,null,null,null,null,null,24450,null,null,null,null,null,null,null,null],
-  cash_ref: [null,null,null,null,null,null,null,null,0,    null,null,null,null,null,null,null,null],
+  cash_rev: [0,   0,   0,   0,   0,   0,   0,   0,   24450,0,   0,   0,   0,   0,   0,   0,   0],
+  cash_ref: [0,   0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0],
 };
 const PHONE_SETTERS_REP_TARGETS = {
   daily:   { sets:  3, show:  2, cash:   5000 },

@@ -849,20 +849,6 @@
     <div class="period-btn active" id="cc-monthly-btn" onclick="switchCCPeriod('monthly', this)">Monthly (MTD)</div>
   </div>
 
-  <!-- Scoreboard -->
-  <div class="table-card">
-    <div class="table-card-header">
-      <div class="table-card-title" id="cc-table-title">Customer Care — Monthly</div>
-      <div class="table-card-badge">Team Lee</div>
-    </div>
-    <table>
-      <thead>
-        <tr><th>Period</th><th>PG1</th><th>VIP</th><th>Clubs</th><th>CSAT Score</th><th>Survey Count</th></tr>
-      </thead>
-      <tbody id="cc-tbody"></tbody>
-    </table>
-  </div>
-
   <!-- Trend Chart -->
   <div class="chart-card-full" id="cc-chart-wrapper" style="display:none;">
     <div class="chart-title" id="cc-chart-title"><span>Monthly</span> — PG1, VIP &amp; Clubs</div>
@@ -1646,22 +1632,6 @@ function renderCCRepTable(){
 function renderCC(){
   const periodLabel = {daily:'Daily (Last 30 Days)', weekly:'Weekly (Last 8 Weeks)', monthly:'Monthly (Last 6 Months)'}[ccPeriod];
   document.getElementById('cc-table-title').textContent = 'Customer Care — ' + periodLabel;
-  const d = getCCData();
-  // Table
-  document.getElementById('cc-tbody').innerHTML = d.labels.map((lbl,i)=>{
-    const num=d.csat_num[i], den=d.csat_den[i];
-    const csatStr = (num!=null&&den!=null&&den>0) ? ((num/den*100).toFixed(1)+'%') : '—';
-    const denStr  = den!=null ? den : '—';
-    return `<tr>
-      <td>${lbl}</td>
-      <td>${d.pg1[i]!=null?fmt(d.pg1[i]):'—'}</td>
-      <td>${d.vip[i]!=null?fmt(d.vip[i]):'—'}</td>
-      <td>${d.clubs[i]!=null?fmt(d.clubs[i]):'—'}</td>
-      <td>${csatStr}</td>
-      <td>${denStr}</td>
-    </tr>`;
-  }).join('');
-
   renderCCRepTable();
 
   // Chart

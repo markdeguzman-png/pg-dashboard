@@ -862,6 +862,20 @@
     <select id="cc-month-picker" onchange="onCCMonthChange(this.value)"></select>
   </div>
 
+  <!-- Summary Scoreboard -->
+  <div class="table-card">
+    <div class="table-card-header">
+      <div class="table-card-title" id="cc-score-title">Customer Care — Monthly (MTD)</div>
+      <div class="table-card-badge">Team Lee · 12 reps</div>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Team</th><th>Reps</th><th>PG1</th><th>VIP</th><th>Clubs</th><th>CSAT Score</th><th>Surveys</th></tr>
+      </thead>
+      <tbody id="cc-score-tbody"></tbody>
+    </table>
+  </div>
+
   <!-- Trend Chart -->
   <div class="chart-card-full" id="cc-chart-wrapper" style="display:none;">
     <div class="chart-title" id="cc-chart-title"><span>Monthly</span> — PG1, VIP &amp; Clubs</div>
@@ -1670,6 +1684,31 @@ function getCCSelIdx(){
   return currentCCMonthIdx ?? CUSTOMER_CARE_MONTHLY.labels.length-1;
 }
 
+function renderCCScoreboard(){
+  const selIdx = getCCSelIdx();
+  const src = ccPeriod==='daily'?CUSTOMER_CARE_DAILY : ccPeriod==='weekly'?CUSTOMER_CARE_WEEKLY : CUSTOMER_CARE_MONTHLY;
+  const lbl = src.labels[selIdx] ?? '';
+  const titleLbl = ccPeriod==='daily' ? `Daily (${lbl})` : ccPeriod==='weekly' ? `Weekly (WB ${lbl})` : `Monthly (${lbl})`;
+  document.getElementById('cc-score-title').textContent = 'Customer Care — ' + titleLbl;
+
+  const pg1   = src.pg1[selIdx]      ?? 0;
+  const vip   = src.vip[selIdx]      ?? 0;
+  const clubs = src.clubs[selIdx]    ?? 0;
+  const num   = src.csat_num[selIdx] ?? 0;
+  const den   = src.csat_den[selIdx] ?? 0;
+  const csatStr = den > 0 ? (num/den*100).toFixed(1)+'%' : '—';
+
+  document.getElementById('cc-score-tbody').innerHTML = `
+    <tr>
+      <td>Team Lee</td><td>12</td>
+      <td>${fmt(pg1)}</td>
+      <td>${fmt(vip)}</td>
+      <td>${fmt(clubs)}</td>
+      <td>${csatStr}</td>
+      <td>${fmt(den)}</td>
+    </tr>`;
+}
+
 function renderCCRepTable(){
   const selIdx = getCCSelIdx();
   const src = ccPeriod==='daily'?CUSTOMER_CARE_DAILY : ccPeriod==='weekly'?CUSTOMER_CARE_WEEKLY : CUSTOMER_CARE_MONTHLY;
@@ -1691,6 +1730,7 @@ function renderCCRepTable(){
 }
 
 function renderCC(){
+  renderCCScoreboard();
   renderCCRepTable();
 
   const d = getCCData();

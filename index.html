@@ -1630,24 +1630,25 @@ function renderCCRepTable(){
 }
 
 function renderCC(){
-  const periodLabel = {daily:'Daily (Last 30 Days)', weekly:'Weekly (Last 8 Weeks)', monthly:'Monthly (Last 6 Months)'}[ccPeriod];
-  document.getElementById('cc-table-title').textContent = 'Customer Care — ' + periodLabel;
   renderCCRepTable();
 
-  // Chart
+  const d = getCCData();
+  const periodLabel = {daily:'Daily', weekly:'Weekly', monthly:'Monthly'}[ccPeriod];
+  document.getElementById('cc-chart-title').innerHTML = `<span>${periodLabel}</span> — PG1, VIP &amp; Clubs`;
+
   const wrapper = document.getElementById('cc-chart-wrapper');
-  wrapper.style.display='block';
+  wrapper.style.display = 'block';
   if(ccChart){ ccChart.destroy(); ccChart=null; }
   const isLine = ccPeriod==='daily';
   const lineDL = (color,align)=>({font:{size:7,weight:'bold'},rotation:-45,color,anchor:'end',align:align||'top',offset:0});
   const datasets = isLine ? [
-    {label:'PG1',  data:d.pg1,   borderColor:ORANGE,   backgroundColor:ORANGE+'22',   borderWidth:2,pointRadius:3,fill:false,tension:0.3,datalabels:lineDL(ORANGE,'top')},
+    {label:'PG1',  data:d.pg1,   borderColor:ORANGE,    backgroundColor:ORANGE+'22',    borderWidth:2,pointRadius:3,fill:false,tension:0.3,datalabels:lineDL(ORANGE,'top')},
     {label:'VIP',  data:d.vip,   borderColor:VIP_COLOR, backgroundColor:VIP_COLOR+'22', borderWidth:2,pointRadius:3,fill:false,tension:0.3,datalabels:lineDL(VIP_COLOR,'bottom')},
-    {label:'Clubs',data:d.clubs, borderColor:'#7B726C',backgroundColor:'#7B726C22',   borderWidth:2,pointRadius:3,fill:false,tension:0.3,datalabels:lineDL('#7B726C','top')},
+    {label:'Clubs',data:d.clubs, borderColor:'#7B726C', backgroundColor:'#7B726C22',    borderWidth:2,pointRadius:3,fill:false,tension:0.3,datalabels:lineDL('#7B726C','top')},
   ] : [
-    {label:'PG1',  data:d.pg1,   backgroundColor:ORANGE+'CC',  borderRadius:3},
+    {label:'PG1',  data:d.pg1,   backgroundColor:ORANGE+'CC',   borderRadius:3},
     {label:'VIP',  data:d.vip,   backgroundColor:VIP_COLOR+'CC',borderRadius:3},
-    {label:'Clubs',data:d.clubs, backgroundColor:'#7B726CBB',  borderRadius:3},
+    {label:'Clubs',data:d.clubs, backgroundColor:'#7B726CBB',   borderRadius:3},
   ];
   ccChart = new Chart(document.getElementById('ccChart'),{
     type:isLine?'line':'bar', data:{labels:d.labels,datasets}, options:{...chartDefaults,responsive:true}

@@ -849,11 +849,6 @@
     <div class="period-btn active" id="cc-monthly-btn" onclick="switchCCPeriod('monthly', this)">Monthly (MTD)</div>
   </div>
 
-  <!-- No-data notice -->
-  <div id="cc-no-data" style="background:#FFF3CD;border-left:4px solid #BF9000;border-radius:4px;padding:12px 16px;margin-bottom:16px;font-size:12px;color:#5C4400;font-weight:600;">
-    ⚠ Customer Care data (PG1/VIP/Clubs/CSAT) is not yet connected to the data source. Update <code>CUSTOMER_CARE_*</code> arrays in data.js to populate this tab.
-  </div>
-
   <!-- Scoreboard -->
   <div class="table-card">
     <div class="table-card-header">
@@ -872,6 +867,20 @@
   <div class="chart-card-full" id="cc-chart-wrapper" style="display:none;">
     <div class="chart-title" id="cc-chart-title"><span>Monthly</span> — PG1, VIP &amp; Clubs</div>
     <canvas id="ccChart" height="90"></canvas>
+  </div>
+
+  <!-- Rep Performance -->
+  <div class="table-card">
+    <div class="table-card-header">
+      <div class="table-card-title" id="cc-rep-table-title">Rep Performance — Monthly (MTD)</div>
+      <div class="table-card-badge">Team Lee · 12 reps</div>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Rep</th><th>PG1</th><th>VIP</th><th>Clubs</th><th>CSAT Score</th><th>Surveys</th></tr>
+      </thead>
+      <tbody id="cc-rep-tbody"></tbody>
+    </table>
   </div>
 
 </div>
@@ -1617,13 +1626,27 @@ function getCCData(){
   };
 }
 
+function renderCCRepTable(){
+  const pLabel = {daily:`Daily (${DAILY_LABEL})`, weekly:`Weekly (${WEEKLY_LABEL})`, monthly:'Monthly (MTD)'}[ccPeriod];
+  document.getElementById('cc-rep-table-title').textContent = 'Rep Performance — ' + pLabel;
+  document.getElementById('cc-rep-tbody').innerHTML = CUSTOMER_CARE_REPS.map(([name, periods])=>{
+    const d = periods[ccPeriod];
+    const csatStr = (d.csat_den>0) ? (d.csat_num/d.csat_den*100).toFixed(1)+'%' : '—';
+    return `<tr>
+      <td>${name}</td>
+      <td>${fmt(d.pg1)}</td>
+      <td>${fmt(d.vip)}</td>
+      <td>${fmt(d.clubs)}</td>
+      <td>${csatStr}</td>
+      <td>${d.csat_den}</td>
+    </tr>`;
+  }).join('');
+}
+
 function renderCC(){
   const periodLabel = {daily:'Daily (Last 30 Days)', weekly:'Weekly (Last 8 Weeks)', monthly:'Monthly (Last 6 Months)'}[ccPeriod];
   document.getElementById('cc-table-title').textContent = 'Customer Care — ' + periodLabel;
   const d = getCCData();
-  const hasData = d.pg1.some(v=>v!=null && v>0);
-  document.getElementById('cc-no-data').style.display = hasData?'none':'block';
-
   // Table
   document.getElementById('cc-tbody').innerHTML = d.labels.map((lbl,i)=>{
     const num=d.csat_num[i], den=d.csat_den[i];
@@ -1639,9 +1662,10 @@ function renderCC(){
     </tr>`;
   }).join('');
 
+  renderCCRepTable();
+
   // Chart
   const wrapper = document.getElementById('cc-chart-wrapper');
-  if(!hasData){ wrapper.style.display='none'; return; }
   wrapper.style.display='block';
   if(ccChart){ ccChart.destroy(); ccChart=null; }
   const isLine = ccPeriod==='daily';

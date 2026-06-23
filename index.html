@@ -849,6 +849,19 @@
     <div class="period-btn active" id="cc-monthly-btn" onclick="switchCCPeriod('monthly', this)">Monthly (MTD)</div>
   </div>
 
+  <div class="sub-selector" id="cc-date-sub" style="display:none;">
+    <label>Select Date:</label>
+    <select id="cc-date-picker" onchange="onCCDateChange(this.value)"></select>
+  </div>
+  <div class="sub-selector" id="cc-week-sub" style="display:none;">
+    <label>Select Week Beginning:</label>
+    <select id="cc-week-picker" onchange="onCCWeekChange(this.value)"></select>
+  </div>
+  <div class="sub-selector" id="cc-month-sub">
+    <label>Select Month:</label>
+    <select id="cc-month-picker" onchange="onCCMonthChange(this.value)"></select>
+  </div>
+
   <!-- Trend Chart -->
   <div class="chart-card-full" id="cc-chart-wrapper" style="display:none;">
     <div class="chart-title" id="cc-chart-title"><span>Monthly</span> — PG1, VIP &amp; Clubs</div>
@@ -929,7 +942,10 @@ let settersPeriod  = 'weekly';
 let currentSettersDateIdx  = null;
 let currentSettersWeekIdx  = null;
 let currentSettersMonthIdx = null;
-let ccPeriod       = 'monthly';
+let ccPeriod           = 'monthly';
+let currentCCDateIdx   = null;
+let currentCCWeekIdx   = null;
+let currentCCMonthIdx  = null;
 let overviewChart  = null;
 let pg1TrendChart  = null;
 let settersChart   = null;
@@ -1596,12 +1612,48 @@ function switchCCPeriod(period, el){
   ccPeriod = period;
   document.querySelectorAll('#page-customercare .period-btn').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
+  document.getElementById('cc-date-sub').style.display  = period==='daily'   ? 'flex' : 'none';
+  document.getElementById('cc-week-sub').style.display  = period==='weekly'  ? 'flex' : 'none';
+  document.getElementById('cc-month-sub').style.display = period==='monthly' ? 'flex' : 'none';
   renderCC();
 }
 
+function initCCPickers(){
+  const dp = document.getElementById('cc-date-picker');
+  CUSTOMER_CARE_DAILY.labels.forEach((d,i)=>{
+    const o = document.createElement('option'); o.value=i;
+    o.textContent = d + (i===CUSTOMER_CARE_DAILY.labels.length-1?' (latest)':'');
+    dp.appendChild(o);
+  });
+  dp.value = CUSTOMER_CARE_DAILY.labels.length - 1;
+  currentCCDateIdx = CUSTOMER_CARE_DAILY.labels.length - 1;
+
+  const wp = document.getElementById('cc-week-picker');
+  CUSTOMER_CARE_WEEKLY.labels.forEach((w,i)=>{
+    const o = document.createElement('option'); o.value=i;
+    o.textContent = 'WB ' + w + (i===CUSTOMER_CARE_WEEKLY.labels.length-1?' (latest)':'');
+    wp.appendChild(o);
+  });
+  wp.value = CUSTOMER_CARE_WEEKLY.labels.length - 1;
+  currentCCWeekIdx = CUSTOMER_CARE_WEEKLY.labels.length - 1;
+
+  const mp = document.getElementById('cc-month-picker');
+  CUSTOMER_CARE_MONTHLY.labels.forEach((m,i)=>{
+    const o = document.createElement('option'); o.value=i;
+    o.textContent = m + (i===CUSTOMER_CARE_MONTHLY.labels.length-1?' (latest)':'');
+    mp.appendChild(o);
+  });
+  mp.value = CUSTOMER_CARE_MONTHLY.labels.length - 1;
+  currentCCMonthIdx = CUSTOMER_CARE_MONTHLY.labels.length - 1;
+}
+
+function onCCDateChange(val){ currentCCDateIdx = parseInt(val); renderCC(); }
+function onCCWeekChange(val){ currentCCWeekIdx = parseInt(val); renderCC(); }
+function onCCMonthChange(val){ currentCCMonthIdx = parseInt(val); renderCC(); }
+
 function getCCData(){
-  const n = ccPeriod==='daily'?30 : ccPeriod==='weekly'?8 : 6;
   const src = ccPeriod==='daily'?CUSTOMER_CARE_DAILY : ccPeriod==='weekly'?CUSTOMER_CARE_WEEKLY : CUSTOMER_CARE_MONTHLY;
+  const n   = ccPeriod==='daily'?30 : ccPeriod==='weekly'?8 : 6;
   return {
     labels:   sliceLast(src.labels,   n),
     pg1:      sliceLast(src.pg1,      n),
@@ -1612,8 +1664,17 @@ function getCCData(){
   };
 }
 
+function getCCSelIdx(){
+  if(ccPeriod==='daily')   return currentCCDateIdx  ?? CUSTOMER_CARE_DAILY.labels.length-1;
+  if(ccPeriod==='weekly')  return currentCCWeekIdx  ?? CUSTOMER_CARE_WEEKLY.labels.length-1;
+  return currentCCMonthIdx ?? CUSTOMER_CARE_MONTHLY.labels.length-1;
+}
+
 function renderCCRepTable(){
-  const pLabel = {daily:`Daily (${DAILY_LABEL})`, weekly:`Weekly (${WEEKLY_LABEL})`, monthly:'Monthly (MTD)'}[ccPeriod];
+  const selIdx = getCCSelIdx();
+  const src = ccPeriod==='daily'?CUSTOMER_CARE_DAILY : ccPeriod==='weekly'?CUSTOMER_CARE_WEEKLY : CUSTOMER_CARE_MONTHLY;
+  const selLabel = src.labels[selIdx] ?? '';
+  const pLabel = ccPeriod==='daily' ? `Daily (${selLabel})` : ccPeriod==='weekly' ? `Weekly (WB ${selLabel})` : `Monthly (${selLabel})`;
   document.getElementById('cc-rep-table-title').textContent = 'Rep Performance — ' + pLabel;
   document.getElementById('cc-rep-tbody').innerHTML = CUSTOMER_CARE_REPS.map(([name, periods])=>{
     const d = periods[ccPeriod];
@@ -1831,6 +1892,7 @@ document.getElementById('cc-monthly-btn').textContent = 'Monthly (MTD)';
 initPickers();
 initTeamPickers();
 initSettersPickers();
+initCCPickers();
 onDateChange(document.getElementById('date-picker').value);
 renderWeeklyTables();
 renderMonthlyPGVIPTable();

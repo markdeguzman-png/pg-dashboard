@@ -496,9 +496,8 @@
     </div>
   </div>
   <div class="topbar-meta">
-    <div class="topbar-date">As of <span id="as-of-date"></span></div>
+    <div class="topbar-date">Data as of <span id="data-file-timestamp"></span></div>
     <div class="topbar-date" style="margin-top:2px;" id="topbar-reps">60 Active Reps &nbsp;|&nbsp; 8 Teams</div>
-    <div class="topbar-date" style="margin-top:2px;">Data as of <span id="data-file-timestamp"></span></div>
   </div>
 </div>
 
@@ -1913,8 +1912,14 @@ function renderMonthlyClubsTable(){
   }).join('');
 }
 
-document.getElementById('as-of-date').textContent = AS_OF_DATE;
-document.getElementById('data-file-timestamp').textContent = DATA_FILE_TIMESTAMP;
+document.getElementById('data-file-timestamp').textContent = (function() {
+  var d = new Date(DATA_FILE_TIMESTAMP);
+  return d.toLocaleString('en-US', {
+    timeZone: 'America/New_York',
+    month: 'long', day: 'numeric', year: 'numeric',
+    hour: 'numeric', minute: '2-digit', hour12: true, timeZoneName: 'short'
+  });
+})();
 document.getElementById('proj-info-bar').innerHTML =
   '<strong style="font-size:12px;">EOM Projection</strong> &nbsp;·&nbsp; ' +
   'Based on <strong>' + DAYS_WORKED + ' days worked</strong> (' + DAYS_WORKED_RANGE + ') &nbsp;·&nbsp; ' +

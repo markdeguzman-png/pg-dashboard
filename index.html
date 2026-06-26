@@ -1017,9 +1017,11 @@ function renderCRCharts(period){
     data:{
       labels,
       datasets:[
-        { type:'bar',  label:'New Cx',       data:newCx,      backgroundColor:'rgba(179,170,163,0.55)', yAxisID:'yLeft',  order:3 },
-        { type:'bar',  label:'Contactable',  data:contactable,backgroundColor:'rgba(253,51,0,0.75)',    yAxisID:'yLeft',  order:2 },
-        { type:'line', label:'Gross Revenue',data:gross,       borderColor:'#0077CC', backgroundColor:'rgba(0,119,204,0.10)', borderWidth:2.5, pointRadius:3, tension:0.3, yAxisID:'yRight', order:1, spanGaps:true },
+        { type:'bar',  label:'New Cx',       data:newCx,      backgroundColor:'rgba(179,170,163,0.55)', yAxisID:'yLeft',  order:3, datalabels:{display:false} },
+        { type:'bar',  label:'Contactable',  data:contactable,backgroundColor:'rgba(253,51,0,0.75)',    yAxisID:'yLeft',  order:2,
+          datalabels:{ display:true, anchor:'end', align:'end', color:'#FD3300', font:{size:9,weight:'700'}, formatter:v=>v?v.toLocaleString():'' } },
+        { type:'line', label:'Gross Revenue',data:gross,       borderColor:'#0077CC', backgroundColor:'rgba(0,119,204,0.10)', borderWidth:2.5, pointRadius:3, tension:0.3, yAxisID:'yRight', order:1, spanGaps:true,
+          datalabels:{ display:true, anchor:'top', align:'top', color:'#0077CC', font:{size:9,weight:'700'}, formatter:v=>v?'$'+(v>=1000000?(v/1000000).toFixed(1)+'M':v>=1000?(v/1000).toFixed(0)+'K':v):'' } },
       ]
     },
     options:{

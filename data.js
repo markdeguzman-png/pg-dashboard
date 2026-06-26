@@ -29,9 +29,9 @@ const TEAM_PROFILES = {
   'Enterprise': {
     reps: 38, color: '#FD3300',
     periods: {
-      daily:   { act:{pg1:17,   vip:10,   clubs:29},   tgt:{pg1:150,  vip:150,  clubs:100}  },
-      weekly:  { act:{pg1:275,  vip:150,  clubs:344},  tgt:{pg1:600,  vip:600,  clubs:400}  },
-      monthly: { act:{pg1:1741, vip:1120, clubs:1493}, tgt:{pg1:2400, vip:2400, clubs:1600} },
+      daily:   { act:{pg1:23,   vip:15,   clubs:38},   tgt:{pg1:150,  vip:150,  clubs:100}  },
+      weekly:  { act:{pg1:281,  vip:155,  clubs:353},  tgt:{pg1:600,  vip:600,  clubs:400}  },
+      monthly: { act:{pg1:1747, vip:1125, clubs:1502}, tgt:{pg1:2400, vip:2400, clubs:1600} },
     },
     conv: { sold:2528, calls:13250 },
     hasTrend: true,
@@ -42,7 +42,7 @@ const TEAM_PROFILES = {
     periods: {
       daily:   { act:{pg1:15,  vip:11,  clubs:39},   tgt:{pg1:52,  vip:52,  clubs:35}  },
       weekly:  { act:{pg1:15,  vip:13,  clubs:24},   tgt:{pg1:206, vip:206, clubs:137} },
-      monthly: { act:{pg1:492, vip:405, clubs:490},  tgt:{pg1:822, vip:822, clubs:548} },
+      monthly: { act:{pg1:493, vip:406, clubs:490},  tgt:{pg1:822, vip:822, clubs:548} },
     },
     hasTrend: true,
     note: null,
@@ -86,9 +86,9 @@ const TEAM_PROFILES = {
   'Team Remen': {
     reps: 9, color: '#ECE9E4',
     periods: {
-      daily:   { act:{pg1:5,   vip:4,   clubs:9},   tgt:{pg1:36,  vip:36,  clubs:24}  },
-      weekly:  { act:{pg1:20,  vip:19,  clubs:33},  tgt:{pg1:143, vip:143, clubs:95}  },
-      monthly: { act:{pg1:207, vip:206, clubs:108}, tgt:{pg1:569, vip:569, clubs:379} },
+      daily:   { act:{pg1:6,   vip:2,   clubs:9},   tgt:{pg1:36,  vip:36,  clubs:24}  },
+      weekly:  { act:{pg1:49,  vip:33,  clubs:32},  tgt:{pg1:143, vip:143, clubs:95}  },
+      monthly: { act:{pg1:286, vip:248, clubs:180}, tgt:{pg1:569, vip:569, clubs:379} },
     },
     hasTrend: false,
     note: null,
@@ -98,23 +98,23 @@ const TEAM_PROFILES = {
 const MONTHLY = {
   labels:        ['Jan','Feb','Mar','Apr','May','Jun MTD'],
   displayLabels: ['Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026','Jun 2026 (MTD)'],
-  pg1:           [2938, 1842, 2615, 2069, 1707, 1741],
-  vip:           [3055, 1859, 2338, 1966,  710, 1120],
-  clubs:         [1399, 1539, 2120, 2037, 1187, 1493],
+  pg1:           [2938, 1842, 2615, 2069, 1707, 1747],
+  vip:           [3055, 1859, 2338, 1966,  710, 1125],
+  clubs:         [1399, 1539, 2120, 2037, 1187, 1502],
 };
 
 const WEEKLY = {
   labels: ['4/13','4/20','4/27','5/4','5/11','5/18','5/25','6/1','6/8','6/15','6/22'],
-  pg1:    [459, 559, 327, 298, 401, 415, 556, 621, 463, 382, 275],
-  vip:    [518, 420, 195,   0,   9, 296, 405, 427, 309, 234, 150],
-  clubs:  [502, 406, 377, 280, 345, 241, 239, 362, 379, 408, 344],
+  pg1:    [459, 559, 327, 298, 401, 415, 556, 621, 463, 382, 281],
+  vip:    [518, 420, 195,   0,   9, 296, 405, 427, 309, 234, 155],
+  clubs:  [502, 406, 377, 280, 345, 241, 239, 362, 379, 408, 353],
 };
 
 const DAILY = {
   labels: ['5/9','5/10','5/11','5/12','5/13','5/14','5/15','5/18','5/19','5/20','5/21','5/22','5/25','5/26','5/27','5/28','5/29','5/30','5/31','6/1','6/2','6/3','6/4','6/5','6/8','6/9','6/10','6/11','6/12','6/13','6/14','6/15','6/16','6/17','6/18','6/19','6/22','6/23','6/24','6/25','6/26'],
-  pg1:    [14,4,85,70,86,80,70,101,83,89,77,65,100,102,116,103,91,29,15,139,124,137,110,82,157,97,51,81,70,19,15,86,67,81,60,70,71,68,69,50,17],
-  vip:    [0,0,0,0,0,8,1,58,73,73,55,37,84,80,75,76,65,17,8,102,86,92,76,60,119,68,26,55,32,11,7,58,42,48,36,41,35,41,39,26,10],
-  clubs:  [14,13,61,73,68,62,63,45,57,54,42,43,36,43,51,40,48,12,9,62,61,72,61,64,63,69,63,81,74,20,15,74,68,77,75,72,85,69,85,76,29],
+  pg1:    [14,4,85,70,86,80,70,101,83,89,77,65,100,102,116,103,91,29,15,139,124,137,110,82,157,97,51,81,70,19,15,86,67,81,60,70,71,68,69,50,23],
+  vip:    [0,0,0,0,0,8,1,58,73,73,55,37,84,80,75,76,65,17,8,102,86,92,76,60,119,68,26,55,32,11,7,58,42,48,36,41,35,41,39,26,15],
+  clubs:  [14,13,61,73,68,62,63,45,57,54,42,43,36,43,51,40,48,12,9,62,61,72,61,64,63,69,63,81,74,20,15,74,68,77,75,72,85,69,85,76,38],
 };
 
 // Team Anne full trend (monthly Feb–present, weekly 4/13–present)
@@ -263,42 +263,42 @@ const PHONE_SETTERS_REPS = [
 // ── Customer Care (Team Lee LOB) ──────────────────────────────────────────
 const CUSTOMER_CARE_MONTHLY = {
   labels:   ['Feb','Mar','Apr','May','Jun MTD'],
-  pg1:      [4,   52,  77,  185, 263],
-  vip:      [105, 151, 119, 17,    6],
-  clubs:    [27,  60,  90,  126, 179],
-  csat_num: [473, 446, 998, 1166, 904],
-  csat_den: [600, 519, 1189,1339, 995],
+  pg1:      [4,   52,  77,  185, 282],
+  vip:      [105, 151, 119, 17,   14],
+  clubs:    [27,  60,  90,  126, 204],
+  csat_num: [473, 446, 998, 1166, 982],
+  csat_den: [600, 519, 1189,1339,1079],
 };
 const CUSTOMER_CARE_WEEKLY = {
   labels:   ['4/13','4/20','4/27','5/4','5/11','5/18','5/25','6/1','6/8','6/15','6/22'],
-  pg1:      [7,  42, 22, 42, 49, 33, 58, 96, 67, 69, 31],
-  vip:      [37,  0,  4,  0,  0,  6,  6,  3,  0,  2,  1],
-  clubs:    [16, 10,  9, 14, 26, 22, 23, 53, 47, 62, 20],
-  csat_num: [183,128,118,214,209,240,150,321,299,217, 67],
-  csat_den: [199,143,136,233,236,258,168,356,328,237, 74],
+  pg1:      [7,  42, 22, 42, 49, 33, 58, 96, 67, 69, 48],
+  vip:      [37,  0,  4,  0,  0,  6,  6,  3,  0,  2,  7],
+  clubs:    [16, 10,  9, 14, 26, 22, 23, 53, 47, 62, 45],
+  csat_num: [183,128,118,214,209,240,150,321,299,217,145],
+  csat_den: [199,143,136,233,236,258,168,356,328,237,158],
 };
 const CUSTOMER_CARE_DAILY = {
-  labels:   ['6/3','6/4','6/5','6/6','6/7','6/8','6/9','6/10','6/11','6/12','6/13','6/14','6/15','6/16','6/17','6/18','6/19','6/22','6/24'],
-  pg1:      [22,13,12, 8, 2,12,15,11,11,11, 4, 3,12,10,23,11,13,16, 6],
-  vip:      [ 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0],
-  clubs:    [ 6,10, 5, 7, 2, 3, 6, 9,13,12, 3, 1, 7,10,20,10,10, 5, 7],
-  csat_num: [52,45,45,12,14,54,57,55,50,56,17,10,50,46,38,42,31,36, 0],
-  csat_den: [59,51,51,12,14,59,63,60,56,61,18,11,57,49,42,46,33,41, 0],
+  labels:   ['6/3','6/4','6/5','6/6','6/7','6/8','6/9','6/10','6/11','6/12','6/13','6/14','6/15','6/16','6/17','6/18','6/19','6/22','6/23','6/24','6/25','6/26'],
+  pg1:      [22,13,12, 8, 2,12,15,11,11,11, 4, 3,12,10,23,11,13,19,10,14, 5, 0],
+  vip:      [ 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 3, 2, 0, 2, 0],
+  clubs:    [ 6,10, 5, 7, 2, 3, 6, 9,13,12, 3, 1, 7,10,20,10,10,11, 9,17, 5, 3],
+  csat_num: [52,45,45,12,14,54,57,55,50,56,17,10,50,46,38,42,31,39,36,38,32, 0],
+  csat_den: [59,51,51,12,14,59,63,60,56,61,18,11,57,49,42,46,33,47,39,39,33, 0],
 };
 // [name, {daily:{pg1,vip,clubs,csat_num,csat_den}, weekly:{...}, monthly:{...}}]
 const CUSTOMER_CARE_REPS = [
-  ['Kikumi Keeshia Matsuo',   {daily:{pg1:0, vip:0,clubs:0, csat_num:0,  csat_den:0},  weekly:{pg1:7, vip:0,clubs:4, csat_num:20, csat_den:20}, monthly:{pg1:51, vip:2,clubs:23,csat_num:98,  csat_den:100}}],
-  ['Melody Tubio Libradilla', {daily:{pg1:0, vip:0,clubs:0, csat_num:0,  csat_den:0},  weekly:{pg1:3, vip:0,clubs:3, csat_num:3,  csat_den:5},  monthly:{pg1:35, vip:0,clubs:16,csat_num:104, csat_den:110}}],
-  ['Thomas John Lommen',      {daily:{pg1:0, vip:0,clubs:0, csat_num:0,  csat_den:0},  weekly:{pg1:6, vip:0,clubs:0, csat_num:15, csat_den:15}, monthly:{pg1:41, vip:1,clubs:23,csat_num:115, csat_den:127}}],
-  ['Lucky Sardia',            {daily:{pg1:0, vip:0,clubs:0, csat_num:0,  csat_den:0},  weekly:{pg1:2, vip:1,clubs:1, csat_num:6,  csat_den:7},  monthly:{pg1:28, vip:1,clubs:18,csat_num:74,  csat_den:78}}],
-  ['Rheena Jayne Tomakin',    {daily:{pg1:0, vip:0,clubs:0, csat_num:0,  csat_den:0},  weekly:{pg1:4, vip:0,clubs:3, csat_num:6,  csat_den:7},  monthly:{pg1:30, vip:0,clubs:25,csat_num:88,  csat_den:95}}],
-  ['Jacinto Jr Basada',       {daily:{pg1:0, vip:0,clubs:0, csat_num:0,  csat_den:0},  weekly:{pg1:5, vip:0,clubs:3, csat_num:5,  csat_den:6},  monthly:{pg1:22, vip:0,clubs:18,csat_num:65,  csat_den:69}}],
-  ['Micha Aborquez',          {daily:{pg1:0, vip:0,clubs:0, csat_num:0,  csat_den:0},  weekly:{pg1:3, vip:0,clubs:5, csat_num:3,  csat_den:4},  monthly:{pg1:21, vip:0,clubs:15,csat_num:60,  csat_den:69}}],
-  ['Marvin Tingin',           {daily:{pg1:0, vip:0,clubs:0, csat_num:0,  csat_den:0},  weekly:{pg1:0, vip:0,clubs:0, csat_num:0,  csat_den:0},  monthly:{pg1:13, vip:1,clubs:10,csat_num:64,  csat_den:71}}],
-  ['Majan Perez',             {daily:{pg1:0, vip:0,clubs:0, csat_num:0,  csat_den:0},  weekly:{pg1:0, vip:0,clubs:0, csat_num:0,  csat_den:0},  monthly:{pg1:1,  vip:0,clubs:16,csat_num:54,  csat_den:59}}],
-  ['Reynaldo Calde Jr',       {daily:{pg1:0, vip:0,clubs:0, csat_num:0,  csat_den:0},  weekly:{pg1:0, vip:0,clubs:0, csat_num:0,  csat_den:0},  monthly:{pg1:11, vip:0,clubs:3, csat_num:47,  csat_den:49}}],
-  ['Houda Ashraf Sayyed',     {daily:{pg1:0, vip:0,clubs:0, csat_num:0,  csat_den:0},  weekly:{pg1:0, vip:0,clubs:0, csat_num:0,  csat_den:0},  monthly:{pg1:5,  vip:1,clubs:5, csat_num:80,  csat_den:103}}],
-  ['Kathlene Tiampo',         {daily:{pg1:0, vip:0,clubs:0, csat_num:0,  csat_den:0},  weekly:{pg1:1, vip:0,clubs:1, csat_num:9,  csat_den:10}, monthly:{pg1:5,  vip:0,clubs:7, csat_num:55,  csat_den:65}}],
+  ['Kikumi Keeshia Matsuo',   {daily:{pg1:0, vip:0,clubs:0, csat_num:0, csat_den:0},  weekly:{pg1:7, vip:0,clubs:5, csat_num:28, csat_den:28}, monthly:{pg1:51, vip:2,clubs:24,csat_num:106,csat_den:108}}],
+  ['Melody Tubio Libradilla', {daily:{pg1:0, vip:0,clubs:3, csat_num:0, csat_den:0},  weekly:{pg1:5, vip:1,clubs:6, csat_num:14, csat_den:16}, monthly:{pg1:37, vip:1,clubs:19,csat_num:115,csat_den:121}}],
+  ['Thomas John Lommen',      {daily:{pg1:0, vip:0,clubs:0, csat_num:0, csat_den:0},  weekly:{pg1:8, vip:0,clubs:0, csat_num:18, csat_den:18}, monthly:{pg1:43, vip:1,clubs:23,csat_num:118,csat_den:130}}],
+  ['Lucky Sardia',            {daily:{pg1:0, vip:0,clubs:0, csat_num:0, csat_den:0},  weekly:{pg1:5, vip:1,clubs:6, csat_num:22, csat_den:23}, monthly:{pg1:31, vip:1,clubs:23,csat_num:90, csat_den:94}}],
+  ['Rheena Jayne Tomakin',    {daily:{pg1:0, vip:0,clubs:0, csat_num:0, csat_den:0},  weekly:{pg1:6, vip:1,clubs:7, csat_num:18, csat_den:19}, monthly:{pg1:32, vip:1,clubs:29,csat_num:100,csat_den:107}}],
+  ['Jacinto Jr Basada',       {daily:{pg1:0, vip:0,clubs:0, csat_num:0, csat_den:0},  weekly:{pg1:6, vip:0,clubs:3, csat_num:9,  csat_den:10}, monthly:{pg1:23, vip:0,clubs:18,csat_num:69, csat_den:73}}],
+  ['Micha Aborquez',          {daily:{pg1:0, vip:0,clubs:0, csat_num:0, csat_den:0},  weekly:{pg1:5, vip:0,clubs:7, csat_num:10, csat_den:11}, monthly:{pg1:23, vip:0,clubs:17,csat_num:67, csat_den:76}}],
+  ['Marvin Tingin',           {daily:{pg1:0, vip:0,clubs:0, csat_num:0, csat_den:0},  weekly:{pg1:0, vip:0,clubs:0, csat_num:0,  csat_den:0},  monthly:{pg1:13, vip:1,clubs:10,csat_num:64, csat_den:71}}],
+  ['Majan Perez',             {daily:{pg1:0, vip:0,clubs:0, csat_num:0, csat_den:0},  weekly:{pg1:0, vip:0,clubs:0, csat_num:0,  csat_den:0},  monthly:{pg1:1,  vip:0,clubs:16,csat_num:54, csat_den:59}}],
+  ['Reynaldo Calde Jr',       {daily:{pg1:0, vip:0,clubs:0, csat_num:0, csat_den:0},  weekly:{pg1:0, vip:0,clubs:0, csat_num:0,  csat_den:0},  monthly:{pg1:11, vip:0,clubs:3, csat_num:47, csat_den:49}}],
+  ['Houda Ashraf Sayyed',     {daily:{pg1:0, vip:0,clubs:0, csat_num:0, csat_den:0},  weekly:{pg1:0, vip:0,clubs:0, csat_num:0,  csat_den:0},  monthly:{pg1:5,  vip:1,clubs:5, csat_num:80, csat_den:103}}],
+  ['Kathlene Tiampo',         {daily:{pg1:0, vip:0,clubs:0, csat_num:0, csat_den:0},  weekly:{pg1:1, vip:0,clubs:3, csat_num:14, csat_den:16}, monthly:{pg1:5,  vip:0,clubs:9, csat_num:60, csat_den:71}}],
 ];
 
 // ── Contactable ───────────────────────────────────────────────────────────

@@ -117,19 +117,50 @@ const DAILY = {
   clubs:  [14,13,61,73,68,62,63,45,57,54,42,43,36,43,51,40,48,12,9,62,61,72,61,64,63,69,63,81,74,20,15,74,68,77,75,72,85,69,85,76,50],
 };
 
-// Team Anne full trend (monthly Feb–present, weekly 4/13–present)
+// Team Anne full trend — aligned with MONTHLY/WEEKLY/DAILY label arrays
+// ANNE_MONTHLY: 6 values, null for Jan (no data), Feb–Jun MTD present
 const ANNE_MONTHLY = {
-  labels: ['Feb','Mar','Apr','May','Jun MTD'],
-  pg1:    [546,  1113, 944, 609, 492],
-  vip:    [408,   910, 721, 289, 405],
-  clubs:  [240,   305, 287, 353, 490],
+  labels: ['Jan','Feb','Mar','Apr','May','Jun MTD'],
+  pg1:    [null, 546,  1113, 944, 609, 492],
+  vip:    [null, 408,   910, 721, 289, 405],
+  clubs:  [null, 240,   305, 287, 353, 490],
 };
 
+// ANNE_WEEKLY: 11 values aligned with WEEKLY.labels (4/13–6/22)
 const ANNE_WEEKLY = {
   labels: ['4/13','4/20','4/27','5/4','5/11','5/18','5/25','6/1','6/8','6/15','6/22'],
   pg1:    [225, 244, 137,  94, 131, 156, 213, 211, 120, 70, 15],
   vip:    [184, 167,  80,   0,   1, 110, 178, 189, 100, 50, 13],
   clubs:  [ 84,  70,  74,  98,  74,  72,  77, 109, 123, 92, 24],
+};
+
+// ANNE_DAILY: 41 values aligned with DAILY.labels (5/9–6/26); sparse — grows as daily task runs
+const ANNE_DAILY = {
+  pg1:   [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,15],
+  vip:   [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,11],
+  clubs: [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,39],
+};
+
+// Team Remen full trend — sourced from GD Sched aggregate tab
+// REMEN_MONTHLY: 6 values aligned with MONTHLY.labels; null for Jan (not in GD)
+const REMEN_MONTHLY = {
+  pg1:   [null, 896, 343, 288, 228, 286],
+  vip:   [null, 742, 271, 224, 106, 248],
+  clubs: [null, 231, 198, 189, 136, 180],
+};
+
+// REMEN_WEEKLY: 11 values aligned with WEEKLY.labels; null for 4/13–4/27 (before GD tab started)
+const REMEN_WEEKLY = {
+  pg1:   [null, null, null, 49, 41, 66, 71, 90, 71, 76, 49],
+  vip:   [null, null, null,  0,  0, 54, 52, 80, 67, 68, 33],
+  clubs: [null, null, null, 35, 33, 27, 30, 48, 45, 55, 32],
+};
+
+// REMEN_DAILY: 41 values aligned with DAILY.labels; data starts 6/17 (positions 33–40)
+const REMEN_DAILY = {
+  pg1:   [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null, 9,14,16,12,15, 7, 9, 6],
+  vip:   [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null, 9,14,14, 8,12, 6, 5, 2],
+  clubs: [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null, 5, 8,12, 8, 9, 3, 3, 9],
 };
 
 // Rep tuple: [name, convPct, convRatio, {daily:[32], weekly:[10], monthly:[6]}]

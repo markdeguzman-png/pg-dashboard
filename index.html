@@ -1457,20 +1457,19 @@ function renderPG1TrendChart(period){
     titleEl.innerHTML=`<span>Enterprise</span> — PG1, VIP &amp; Clubs (${period==='daily'?'Last 30 Days':period==='weekly'?'Last 8 Weeks':'Last 6 Months'})`;
 
   } else if(currentTeam==='Team Anne'){
-    if(period==='daily'){
-      const d=profile.periods.daily;
-      labels=[DAILY_LABEL]; pg1data=[d.act.pg1]; vipdata=[d.act.vip]; clubsdata=[d.act.clubs]; tgtVal=d.tgt.pg1; isSinglePoint=true;
-      titleEl.innerHTML=`<span>Team Anne</span> — PG1, VIP &amp; Clubs (Today)`;
-    } else if(period==='weekly'){
-      labels=sliceLast(ANNE_WEEKLY.labels,8); pg1data=sliceLast(ANNE_WEEKLY.pg1,8); vipdata=sliceLast(ANNE_WEEKLY.vip,8); clubsdata=sliceLast(ANNE_WEEKLY.clubs,8); tgtVal=206;
-      titleEl.innerHTML=`<span>Team Anne</span> — PG1, VIP &amp; Clubs (Last 8 Weeks)`;
-    } else{
-      labels=sliceLast(ANNE_MONTHLY.labels,6); pg1data=sliceLast(ANNE_MONTHLY.pg1,6); vipdata=sliceLast(ANNE_MONTHLY.vip,6); clubsdata=sliceLast(ANNE_MONTHLY.clubs,6); tgtVal=822;
-      titleEl.innerHTML=`<span>Team Anne</span> — PG1, VIP &amp; Clubs (Last 6 Months)`;
-    }
+    if(period==='daily'){ labels=sliceLast(DAILY.labels,30); pg1data=sliceLast(ANNE_DAILY.pg1,30); vipdata=sliceLast(ANNE_DAILY.vip,30); clubsdata=sliceLast(ANNE_DAILY.clubs,30); tgtVal=profile.periods.daily.tgt.pg1; }
+    else if(period==='weekly'){ labels=sliceLast(WEEKLY.labels,8); pg1data=sliceLast(ANNE_WEEKLY.pg1,8); vipdata=sliceLast(ANNE_WEEKLY.vip,8); clubsdata=sliceLast(ANNE_WEEKLY.clubs,8); tgtVal=profile.periods.weekly.tgt.pg1; }
+    else{ labels=sliceLast(MONTHLY.labels,6); pg1data=sliceLast(ANNE_MONTHLY.pg1,6); vipdata=sliceLast(ANNE_MONTHLY.vip,6); clubsdata=sliceLast(ANNE_MONTHLY.clubs,6); tgtVal=profile.periods.monthly.tgt.pg1; }
+    titleEl.innerHTML=`<span>Team Anne</span> — PG1, VIP &amp; Clubs (${period==='daily'?'Last 30 Days':period==='weekly'?'Last 8 Weeks':'Last 6 Months'})`;
+
+  } else if(currentTeam==='Team Remen'){
+    if(period==='daily'){ labels=sliceLast(DAILY.labels,30); pg1data=sliceLast(REMEN_DAILY.pg1,30); vipdata=sliceLast(REMEN_DAILY.vip,30); clubsdata=sliceLast(REMEN_DAILY.clubs,30); tgtVal=profile.periods.daily.tgt.pg1; }
+    else if(period==='weekly'){ labels=sliceLast(WEEKLY.labels,8); pg1data=sliceLast(REMEN_WEEKLY.pg1,8); vipdata=sliceLast(REMEN_WEEKLY.vip,8); clubsdata=sliceLast(REMEN_WEEKLY.clubs,8); tgtVal=profile.periods.weekly.tgt.pg1; }
+    else{ labels=sliceLast(MONTHLY.labels,6); pg1data=sliceLast(REMEN_MONTHLY.pg1,6); vipdata=sliceLast(REMEN_MONTHLY.vip,6); clubsdata=sliceLast(REMEN_MONTHLY.clubs,6); tgtVal=profile.periods.monthly.tgt.pg1; }
+    titleEl.innerHTML=`<span>Team Remen</span> — PG1, VIP &amp; Clubs (${period==='daily'?'Last 30 Days':period==='weekly'?'Last 8 Weeks':'Last 6 Months'})`;
 
   } else {
-    // Teams without historical arrays: show current-period snapshot
+    // Jen / Mark — no historical arrays yet; show current-period snapshot
     const tp=profile.periods;
     if(period==='daily'){
       const d=tp.daily; labels=[DAILY_LABEL]; pg1data=[d.act.pg1]; vipdata=[d.act.vip]; clubsdata=[d.act.clubs]; tgtVal=d.tgt.pg1;

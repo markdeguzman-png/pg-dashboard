@@ -54,7 +54,7 @@ const TEAM_PROFILES = {
       weekly:  { act:{pg1:60,  vip:50,  clubs:87},  tgt:{pg1:127, vip:127, clubs:85}  },
       monthly: { act:{pg1:280, vip:222, clubs:312}, tgt:{pg1:506, vip:506, clubs:337} },
     },
-    hasTrend: false,
+    hasTrend: true,
     note: null,
   },
   'Team Lee': {
@@ -70,7 +70,7 @@ const TEAM_PROFILES = {
       weekly:  { act:{pg1:76,  vip:68,  clubs:55},  tgt:{pg1:127, vip:127, clubs:85}  },
       monthly: { act:{pg1:284, vip:247, clubs:177}, tgt:{pg1:506, vip:506, clubs:337} },
     },
-    hasTrend: false,
+    hasTrend: true,
     note: null,
   },
   'Team Philip': {
@@ -90,7 +90,7 @@ const TEAM_PROFILES = {
       weekly:  { act:{pg1:49,  vip:33,  clubs:32},  tgt:{pg1:143, vip:143, clubs:95}  },
       monthly: { act:{pg1:286, vip:248, clubs:180}, tgt:{pg1:569, vip:569, clubs:379} },
     },
-    hasTrend: false,
+    hasTrend: true,
     note: null,
   },
 };

@@ -1373,6 +1373,7 @@ function switchTeamPeriod(period, el){
   document.getElementById('team-month-sub').style.display = period==='monthly' ? 'flex' : 'none';
   renderTeamScoreboard(period);
   renderPG1TrendChart(period);
+  renderConversions(currentTeam);
 }
 
 function renderTeamScoreboard(period){

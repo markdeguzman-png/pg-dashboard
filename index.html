@@ -572,6 +572,24 @@
     <canvas id="overviewChart" height="90"></canvas>
   </div>
 
+  <!-- ── Contactable & Revenue ── -->
+  <div class="section-title" style="margin-top:28px;"><span>Contactable &amp; Revenue</span> — Trends by Period</div>
+  <div class="period-selector" id="cr-period-selector">
+    <div class="period-btn active" onclick="switchCRPeriod('daily',this)">Daily</div>
+    <div class="period-btn"        onclick="switchCRPeriod('weekly',this)">Weekly</div>
+    <div class="period-btn"        onclick="switchCRPeriod('monthly',this)">Monthly</div>
+  </div>
+
+  <div class="chart-card-full">
+    <div class="chart-title"><span id="cr-combo-title">Daily</span> — New Cx, Contactable &amp; Gross Revenue</div>
+    <canvas id="crComboChart" height="90"></canvas>
+  </div>
+
+  <div class="chart-card-full">
+    <div class="chart-title"><span id="cr-cat-title">Daily</span> — Revenue by Category (Net)</div>
+    <canvas id="crCategoryChart" height="90"></canvas>
+  </div>
+
 </div>
 </div>
 
@@ -946,6 +964,122 @@ const PG1_TEAMS = ['Enterprise','Team Anne','Team Jen','Team Mark','Team Remen']
 function sliceLast(arr, n){ return arr.slice(Math.max(0, arr.length - n)); }
 
 // ── State ─────────────────────────────────────────────────────────────────
+let crComboChart    = null;
+let crCategoryChart = null;
+let currentCRPeriod = 'daily';
+
+function switchCRPeriod(period, el){
+  currentCRPeriod = period;
+  document.querySelectorAll('#cr-period-selector .period-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  renderCRCharts(period);
+}
+
+function renderCRCharts(period){
+  let labels, newCx, contactable, gross, net, pg1, vip, physical, digital, scratch, champions, titleSuffix;
+  if(period==='daily'){
+    labels=sliceLast(REVENUE_DAILY.labels,25); titleSuffix='Daily';
+    const n=labels.length;
+    const off=REVENUE_DAILY.labels.length-n;
+    newCx=sliceLast(CONTACTABLE_DAILY.new_cx,25);
+    contactable=sliceLast(CONTACTABLE_DAILY.contactable,25);
+    gross=sliceLast(REVENUE_DAILY.gross,25); net=sliceLast(REVENUE_DAILY.net,25);
+    pg1=sliceLast(REVENUE_DAILY.pg1,25); vip=sliceLast(REVENUE_DAILY.vip,25);
+    physical=sliceLast(REVENUE_DAILY.physical,25); digital=sliceLast(REVENUE_DAILY.digital,25);
+    scratch=sliceLast(REVENUE_DAILY.scratch,25); champions=sliceLast(REVENUE_DAILY.champions,25);
+  } else if(period==='weekly'){
+    labels=REVENUE_WEEKLY.labels; titleSuffix='Weekly';
+    newCx=CONTACTABLE_WEEKLY.new_cx; contactable=CONTACTABLE_WEEKLY.contactable;
+    gross=REVENUE_WEEKLY.gross; net=REVENUE_WEEKLY.net;
+    pg1=REVENUE_WEEKLY.pg1; vip=REVENUE_WEEKLY.vip;
+    physical=REVENUE_WEEKLY.physical; digital=REVENUE_WEEKLY.digital;
+    scratch=REVENUE_WEEKLY.scratch; champions=REVENUE_WEEKLY.champions;
+  } else {
+    labels=REVENUE_MONTHLY.labels; titleSuffix='Monthly';
+    newCx=CONTACTABLE_MONTHLY.new_cx; contactable=CONTACTABLE_MONTHLY.contactable;
+    gross=REVENUE_MONTHLY.gross; net=REVENUE_MONTHLY.net;
+    pg1=REVENUE_MONTHLY.pg1; vip=REVENUE_MONTHLY.vip;
+    physical=REVENUE_MONTHLY.physical; digital=REVENUE_MONTHLY.digital;
+    scratch=REVENUE_MONTHLY.scratch; champions=REVENUE_MONTHLY.champions;
+  }
+
+  // align contactable length to revenue labels length (pad with null on right if needed)
+  while(newCx.length < labels.length){ newCx = [...newCx, null]; }
+  while(contactable.length < labels.length){ contactable = [...contactable, null]; }
+  newCx = newCx.slice(0, labels.length);
+  contactable = contactable.slice(0, labels.length);
+
+  document.getElementById('cr-combo-title').textContent = titleSuffix;
+  document.getElementById('cr-cat-title').textContent   = titleSuffix;
+
+  if(crComboChart){ crComboChart.destroy(); crComboChart=null; }
+  crComboChart = new Chart(document.getElementById('crComboChart'),{
+    data:{
+      labels,
+      datasets:[
+        { type:'bar',  label:'New Cx',       data:newCx,      backgroundColor:'rgba(179,170,163,0.55)', yAxisID:'yLeft',  order:3 },
+        { type:'bar',  label:'Contactable',  data:contactable,backgroundColor:'rgba(253,51,0,0.75)',    yAxisID:'yLeft',  order:2 },
+        { type:'line', label:'Gross Revenue',data:gross,       borderColor:'#1D1A1A', backgroundColor:'rgba(29,26,26,0.08)', borderWidth:2, pointRadius:3, tension:0.3, yAxisID:'yRight', order:1, spanGaps:true },
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:true,
+      interaction:{ mode:'index', intersect:false },
+      plugins:{
+        legend:{ position:'top', labels:{ font:{size:11}, boxWidth:12 } },
+        datalabels:{ display:false },
+        tooltip:{
+          callbacks:{
+            label(ctx){
+              if(ctx.dataset.yAxisID==='yRight') return ctx.dataset.label+': $'+ctx.parsed.y.toLocaleString();
+              return ctx.dataset.label+': '+ctx.parsed.y?.toLocaleString();
+            }
+          }
+        }
+      },
+      scales:{
+        x:{ ticks:{font:{size:10}} },
+        yLeft:{ position:'left', beginAtZero:true, title:{display:true,text:'Count',font:{size:10}}, ticks:{font:{size:10}} },
+        yRight:{ position:'right', beginAtZero:true, grid:{drawOnChartArea:false}, title:{display:true,text:'Revenue ($)',font:{size:10}},
+          ticks:{ font:{size:10}, callback:v=>'$'+(v>=1000000?(v/1000000).toFixed(1)+'M':v>=1000?(v/1000).toFixed(0)+'K':v) } }
+      }
+    }
+  });
+
+  if(crCategoryChart){ crCategoryChart.destroy(); crCategoryChart=null; }
+  crCategoryChart = new Chart(document.getElementById('crCategoryChart'),{
+    data:{
+      labels,
+      datasets:[
+        { type:'bar',  label:'PG1',              data:pg1,      backgroundColor:'rgba(253,51,0,0.85)',   stack:'rev', yAxisID:'yLeft',  order:2 },
+        { type:'bar',  label:'VIP Coaching',     data:vip,      backgroundColor:'rgba(219,44,0,0.85)',   stack:'rev', yAxisID:'yLeft',  order:2 },
+        { type:'bar',  label:'Physical Products',data:physical, backgroundColor:'rgba(179,170,163,0.85)',stack:'rev', yAxisID:'yLeft',  order:2 },
+        { type:'bar',  label:'Digital Products', data:digital,  backgroundColor:'rgba(236,233,228,0.9)', stack:'rev', yAxisID:'yLeft',  order:2, borderColor:'#B3AAA3', borderWidth:1 },
+        { type:'bar',  label:'Scratch Club',     data:scratch,  backgroundColor:'rgba(29,26,26,0.65)',   stack:'rev', yAxisID:'yLeft',  order:2 },
+        { type:'bar',  label:'Champions Pass',   data:champions,backgroundColor:'rgba(123,114,108,0.75)',stack:'rev', yAxisID:'yLeft',  order:2 },
+        { type:'line', label:'Net Revenue',      data:net,      borderColor:'#FD3300', backgroundColor:'rgba(253,51,0,0.1)', borderWidth:2, pointRadius:3, tension:0.3, yAxisID:'yLeft', order:1, spanGaps:true },
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:true,
+      interaction:{ mode:'index', intersect:false },
+      plugins:{
+        legend:{ position:'top', labels:{ font:{size:11}, boxWidth:12 } },
+        datalabels:{ display:false },
+        tooltip:{
+          callbacks:{
+            label(ctx){ return ctx.dataset.label+': $'+ctx.parsed.y.toLocaleString(); }
+          }
+        }
+      },
+      scales:{
+        x:{ ticks:{font:{size:10}} },
+        yLeft:{ beginAtZero:true, stacked:true, title:{display:true,text:'Net Revenue ($)',font:{size:10}}, ticks:{ font:{size:10}, callback:v=>'$'+(v>=1000000?(v/1000000).toFixed(1)+'M':v>=1000?(v/1000).toFixed(0)+'K':v) } },
+      }
+    }
+  });
+}
+
 let currentPeriod = 'daily';
 let currentTeam   = 'Enterprise';
 let currentTeamPeriod    = 'daily';
@@ -1949,6 +2083,7 @@ renderPG1TrendChart('daily');
 renderConversions('Enterprise');
 renderSetters();
 renderCC();
+renderCRCharts('daily');
 </script>
 </body>
 </html>

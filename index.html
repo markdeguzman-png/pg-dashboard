@@ -1448,44 +1448,23 @@ function renderPG1TrendChart(period){
   wrapper.style.display='block';
 
   const titleEl = document.getElementById('pg1-trend-title');
-  let labels, pg1data, vipdata, clubsdata, tgtVal, isSinglePoint=false;
+  let labels, pg1data, vipdata, clubsdata, tgtVal;
+  const periodLabel = period==='daily'?'Last 30 Days':period==='weekly'?'Last 8 Weeks':'Last 6 Months';
 
   if(currentTeam==='Enterprise'){
     if(period==='daily'){ labels=sliceLast(DAILY.labels,30); pg1data=sliceLast(DAILY.pg1,30); vipdata=sliceLast(DAILY.vip,30); clubsdata=sliceLast(DAILY.clubs,30); tgtVal=150; }
     else if(period==='weekly'){ labels=sliceLast(WEEKLY.labels,8); pg1data=sliceLast(WEEKLY.pg1,8); vipdata=sliceLast(WEEKLY.vip,8); clubsdata=sliceLast(WEEKLY.clubs,8); tgtVal=600; }
     else{ labels=sliceLast(MONTHLY.labels,6); pg1data=sliceLast(MONTHLY.pg1,6); vipdata=sliceLast(MONTHLY.vip,6); clubsdata=sliceLast(MONTHLY.clubs,6); tgtVal=2400; }
-    titleEl.innerHTML=`<span>Enterprise</span> — PG1, VIP &amp; Clubs (${period==='daily'?'Last 30 Days':period==='weekly'?'Last 8 Weeks':'Last 6 Months'})`;
-
-  } else if(currentTeam==='Team Anne'){
-    if(period==='daily'){ labels=sliceLast(DAILY.labels,30); pg1data=sliceLast(ANNE_DAILY.pg1,30); vipdata=sliceLast(ANNE_DAILY.vip,30); clubsdata=sliceLast(ANNE_DAILY.clubs,30); tgtVal=profile.periods.daily.tgt.pg1; }
-    else if(period==='weekly'){ labels=sliceLast(WEEKLY.labels,8); pg1data=sliceLast(ANNE_WEEKLY.pg1,8); vipdata=sliceLast(ANNE_WEEKLY.vip,8); clubsdata=sliceLast(ANNE_WEEKLY.clubs,8); tgtVal=profile.periods.weekly.tgt.pg1; }
-    else{ labels=sliceLast(MONTHLY.labels,6); pg1data=sliceLast(ANNE_MONTHLY.pg1,6); vipdata=sliceLast(ANNE_MONTHLY.vip,6); clubsdata=sliceLast(ANNE_MONTHLY.clubs,6); tgtVal=profile.periods.monthly.tgt.pg1; }
-    titleEl.innerHTML=`<span>Team Anne</span> — PG1, VIP &amp; Clubs (${period==='daily'?'Last 30 Days':period==='weekly'?'Last 8 Weeks':'Last 6 Months'})`;
-
-  } else if(currentTeam==='Team Remen'){
-    if(period==='daily'){ labels=sliceLast(DAILY.labels,30); pg1data=sliceLast(REMEN_DAILY.pg1,30); vipdata=sliceLast(REMEN_DAILY.vip,30); clubsdata=sliceLast(REMEN_DAILY.clubs,30); tgtVal=profile.periods.daily.tgt.pg1; }
-    else if(period==='weekly'){ labels=sliceLast(WEEKLY.labels,8); pg1data=sliceLast(REMEN_WEEKLY.pg1,8); vipdata=sliceLast(REMEN_WEEKLY.vip,8); clubsdata=sliceLast(REMEN_WEEKLY.clubs,8); tgtVal=profile.periods.weekly.tgt.pg1; }
-    else{ labels=sliceLast(MONTHLY.labels,6); pg1data=sliceLast(REMEN_MONTHLY.pg1,6); vipdata=sliceLast(REMEN_MONTHLY.vip,6); clubsdata=sliceLast(REMEN_MONTHLY.clubs,6); tgtVal=profile.periods.monthly.tgt.pg1; }
-    titleEl.innerHTML=`<span>Team Remen</span> — PG1, VIP &amp; Clubs (${period==='daily'?'Last 30 Days':period==='weekly'?'Last 8 Weeks':'Last 6 Months'})`;
-
   } else {
-    // Jen / Mark — no historical arrays yet; show current-period snapshot
-    const tp=profile.periods;
-    if(period==='daily'){
-      const d=tp.daily; labels=[DAILY_LABEL]; pg1data=[d.act.pg1]; vipdata=[d.act.vip]; clubsdata=[d.act.clubs]; tgtVal=d.tgt.pg1;
-      titleEl.innerHTML=`<span>${currentTeam}</span> — PG1, VIP &amp; Clubs (Today)`;
-    } else if(period==='weekly'){
-      const w=tp.weekly; labels=[WEEKLY.labels[WEEKLY.labels.length-1]]; pg1data=[w.act.pg1]; vipdata=[w.act.vip]; clubsdata=[w.act.clubs]; tgtVal=w.tgt.pg1;
-      titleEl.innerHTML=`<span>${currentTeam}</span> — PG1, VIP &amp; Clubs (This Week)`;
-    } else{
-      const m=tp.monthly; labels=[MONTHLY.labels[MONTHLY.labels.length-1]]; pg1data=[m.act.pg1]; vipdata=[m.act.vip]; clubsdata=[m.act.clubs]; tgtVal=m.tgt.pg1;
-      titleEl.innerHTML=`<span>${currentTeam}</span> — PG1, VIP &amp; Clubs (This Month)`;
-    }
-    isSinglePoint=true;
+    const td=TEAM_TREND_DAILY[currentTeam], tw=TEAM_TREND_WEEKLY[currentTeam], tm=TEAM_TREND_MONTHLY[currentTeam];
+    if(period==='daily'){ labels=sliceLast(DAILY.labels,30); pg1data=sliceLast(td.pg1,30); vipdata=sliceLast(td.vip,30); clubsdata=sliceLast(td.clubs,30); tgtVal=profile.periods.daily.tgt.pg1; }
+    else if(period==='weekly'){ labels=sliceLast(WEEKLY.labels,8); pg1data=sliceLast(tw.pg1,8); vipdata=sliceLast(tw.vip,8); clubsdata=sliceLast(tw.clubs,8); tgtVal=profile.periods.weekly.tgt.pg1; }
+    else{ labels=sliceLast(MONTHLY.labels,6); pg1data=sliceLast(tm.pg1,6); vipdata=sliceLast(tm.vip,6); clubsdata=sliceLast(tm.clubs,6); tgtVal=profile.periods.monthly.tgt.pg1; }
   }
+  titleEl.innerHTML=`<span>${currentTeam}</span> — PG1, VIP &amp; Clubs (${periodLabel})`;
 
   if(pg1TrendChart){ pg1TrendChart.destroy(); pg1TrendChart=null; }
-  const isLine = period==='daily' && !isSinglePoint;
+  const isLine = period==='daily';
   const lineDL = (color,align)=>({ font:{size:7,weight:'bold'}, rotation:-45, color, anchor:'end', align:align||'top', offset:0 });
   const datasets = isLine ? [
     { label:'PG1', data:pg1data, borderColor:ORANGE, backgroundColor:ORANGE+'22', borderWidth:2, pointRadius:3, fill:false, tension:0.3, datalabels:lineDL(ORANGE,'top') },

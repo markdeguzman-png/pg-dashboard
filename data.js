@@ -163,6 +163,45 @@ const REMEN_DAILY = {
   clubs: [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null, 5, 8,12, 8, 9, 3, 3, 9],
 };
 
+// Team Jen trend arrays — sparse until daily task starts maintaining them
+const JEN_MONTHLY = {
+  pg1:   [null,null,null,null,null,280],
+  vip:   [null,null,null,null,null,222],
+  clubs: [null,null,null,null,null,312],
+};
+const JEN_WEEKLY = {
+  pg1:   [null,null,null,null,null,null,null,null,null,null,60],
+  vip:   [null,null,null,null,null,null,null,null,null,null,50],
+  clubs: [null,null,null,null,null,null,null,null,null,null,87],
+};
+const JEN_DAILY = {
+  pg1:   [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,8],
+  vip:   [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,4],
+  clubs: [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,12],
+};
+
+// Team Mark trend arrays — sparse until daily task starts maintaining them
+const MARK_MONTHLY = {
+  pg1:   [null,null,null,null,null,284],
+  vip:   [null,null,null,null,null,247],
+  clubs: [null,null,null,null,null,177],
+};
+const MARK_WEEKLY = {
+  pg1:   [null,null,null,null,null,null,null,null,null,null,76],
+  vip:   [null,null,null,null,null,null,null,null,null,null,68],
+  clubs: [null,null,null,null,null,null,null,null,null,null,55],
+};
+const MARK_DAILY = {
+  pg1:   [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,9],
+  vip:   [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,5],
+  clubs: [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,3],
+};
+
+// Lookup maps for renderPG1TrendChart — add new teams here when arrays are ready
+const TEAM_TREND_DAILY   = { 'Team Anne':ANNE_DAILY,   'Team Remen':REMEN_DAILY,   'Team Jen':JEN_DAILY,   'Team Mark':MARK_DAILY   };
+const TEAM_TREND_WEEKLY  = { 'Team Anne':ANNE_WEEKLY,  'Team Remen':REMEN_WEEKLY,  'Team Jen':JEN_WEEKLY,  'Team Mark':MARK_WEEKLY  };
+const TEAM_TREND_MONTHLY = { 'Team Anne':ANNE_MONTHLY, 'Team Remen':REMEN_MONTHLY, 'Team Jen':JEN_MONTHLY, 'Team Mark':MARK_MONTHLY };
+
 // Rep tuple: [name, convPct, convRatio, {daily:[32], weekly:[10], monthly:[6]}]
 // Indexes align with DAILY.labels / WEEKLY.labels / MONTHLY.labels respectively
 const CONVERSIONS = [

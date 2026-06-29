@@ -1,7 +1,7 @@
 // ── PG Dashboard Data — auto-updated by scheduled task ────────────────────
 // Do NOT edit the HTML file for data changes — update this file only.
 
-const DATA_FILE_TIMESTAMP  = '2026-06-29T18:08:54Z';
+const DATA_FILE_TIMESTAMP  = '2026-06-29T18:42:26Z';
 const AS_OF_DATE           = 'June 26, 2026';
 const DAILY_LABEL          = 'Jun 26';
 const WEEKLY_LABEL         = 'WB Jun 22';

@@ -1,7 +1,7 @@
 // ── PG Dashboard Data — auto-updated by scheduled task ────────────────────
 // Do NOT edit the HTML file for data changes — update this file only.
 
-const DATA_FILE_TIMESTAMP  = '2026-06-29T13:56:35Z';
+const DATA_FILE_TIMESTAMP  = '2026-06-29T14:12:53Z';
 const AS_OF_DATE           = 'June 26, 2026';
 const DAILY_LABEL          = 'Jun 26';
 const WEEKLY_LABEL         = 'WB Jun 22';
@@ -29,7 +29,7 @@ const TEAM_PROFILES = {
   'Enterprise': {
     reps: 38, color: '#FD3300',
     periods: {
-      daily:   { act:{pg1:7,    vip:5,    clubs:12},   tgt:{pg1:150,  vip:150,  clubs:100}  },
+      daily:   { act:{pg1:0,    vip:0,    clubs:0},    tgt:{pg1:150,  vip:150,  clubs:100}  },
       weekly:  { act:{pg1:281,  vip:155,  clubs:353},  tgt:{pg1:600,  vip:600,  clubs:400}  },
       monthly: { act:{pg1:1747, vip:1125, clubs:1502}, tgt:{pg1:2400, vip:2400, clubs:1600} },
     },
@@ -40,7 +40,7 @@ const TEAM_PROFILES = {
   'Team Anne': {
     reps: 13, color: '#FD3300',
     periods: {
-      daily:   { act:{pg1:15,  vip:11,  clubs:39},   tgt:{pg1:52,  vip:52,  clubs:35}  },
+      daily:   { act:{pg1:0,   vip:0,   clubs:0},    tgt:{pg1:52,  vip:52,  clubs:35}  },
       weekly:  { act:{pg1:15,  vip:13,  clubs:24},   tgt:{pg1:206, vip:206, clubs:137} },
       monthly: { act:{pg1:493, vip:406, clubs:490},  tgt:{pg1:822, vip:822, clubs:548} },
     },
@@ -50,7 +50,7 @@ const TEAM_PROFILES = {
   'Team Jen': {
     reps: 8, color: '#DB2C00',
     periods: {
-      daily:   { act:{pg1:8,   vip:4,   clubs:12},  tgt:{pg1:32,  vip:32,  clubs:22}  },
+      daily:   { act:{pg1:0,   vip:0,   clubs:0},   tgt:{pg1:32,  vip:32,  clubs:22}  },
       weekly:  { act:{pg1:60,  vip:50,  clubs:87},  tgt:{pg1:127, vip:127, clubs:85}  },
       monthly: { act:{pg1:280, vip:222, clubs:312}, tgt:{pg1:506, vip:506, clubs:337} },
     },
@@ -76,7 +76,7 @@ const TEAM_PROFILES = {
   'Team Philip': {
     reps: 10, color: '#DFD9D5',
     periods: {
-      daily:   { act:{pg1:25,  vip:3,  clubs:18},   tgt:{pg1:9,   vip:9,   clubs:9}   },
+      daily:   { act:{pg1:0,   vip:0,  clubs:0},    tgt:{pg1:9,   vip:9,   clubs:9}   },
       weekly:  { act:{pg1:32,  vip:0,  clubs:18},   tgt:{pg1:45,  vip:45,  clubs:45}  },
       monthly: { act:{pg1:414, vip:8,  clubs:334},  tgt:{pg1:200, vip:200, clubs:200} },
     },
@@ -86,7 +86,7 @@ const TEAM_PROFILES = {
   'Team Remen': {
     reps: 9, color: '#ECE9E4',
     periods: {
-      daily:   { act:{pg1:6,   vip:2,   clubs:9},   tgt:{pg1:36,  vip:36,  clubs:24}  },
+      daily:   { act:{pg1:0,   vip:0,   clubs:0},   tgt:{pg1:36,  vip:36,  clubs:24}  },
       weekly:  { act:{pg1:49,  vip:33,  clubs:32},  tgt:{pg1:143, vip:143, clubs:95}  },
       monthly: { act:{pg1:286, vip:248, clubs:180}, tgt:{pg1:569, vip:569, clubs:379} },
     },

@@ -1,7 +1,7 @@
 // ── PG Dashboard Data — auto-updated by scheduled task ────────────────────
 // Do NOT edit the HTML file for data changes — update this file only.
 
-const DATA_FILE_TIMESTAMP  = '2026-06-30T14:37:16Z';
+const DATA_FILE_TIMESTAMP  = '2026-06-30T15:54:33Z';
 const AS_OF_DATE           = 'June 29, 2026';
 const DAILY_LABEL          = 'Jun 29';
 const WEEKLY_LABEL         = 'WB Jun 29';
@@ -29,7 +29,7 @@ const TEAM_PROFILES = {
   'Enterprise': {
     reps: 38, color: '#FD3300',
     periods: {
-      daily:   { act:{pg1:61,  vip:44,  clubs:79},  tgt:{pg1:150,  vip:150,  clubs:100}  },
+      daily:   { act:{pg1:13,  vip:9,   clubs:13},  tgt:{pg1:150,  vip:150,  clubs:100}  },
       weekly:  { act:{pg1:32,   vip:19,   clubs:44},   tgt:{pg1:600,  vip:600,  clubs:400}  },
       monthly: { act:{pg1:1827, vip:1168, clubs:1618}, tgt:{pg1:2400, vip:2400, clubs:1600} },
     },
@@ -66,7 +66,7 @@ const TEAM_PROFILES = {
   'Team Mark': {
     reps: 9, color: '#7B726C',
     periods: {
-      daily:   { act:{pg1:12,  vip:10,  clubs:13},  tgt:{pg1:32,  vip:32,  clubs:22}  },
+      daily:   { act:{pg1:1,   vip:1,   clubs:3},   tgt:{pg1:32,  vip:32,  clubs:22}  },
       weekly:  { act:{pg1:0,   vip:0,   clubs:0},   tgt:{pg1:127, vip:127, clubs:85}  },
       monthly: { act:{pg1:299, vip:260, clubs:195}, tgt:{pg1:506, vip:506, clubs:337} },
     },

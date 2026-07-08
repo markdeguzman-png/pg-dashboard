@@ -58,7 +58,7 @@ const TEAM_PROFILES = {
     note: null,
   },
   'Team Lee': {
-    reps: 12, color: '#B3AAA3',
+    reps: 17, color: '#B3AAA3',
     periods: null,
     hasTrend: false,
     note: 'PTG breakdown not available in current source — showing conversion rates',
@@ -369,6 +369,11 @@ const CUSTOMER_CARE_REPS = [
   ['Reynaldo Calde Jr',       {daily:{pg1:0, vip:0,clubs:0, csat_num:0, csat_den:0},  weekly:{pg1:0, vip:0,clubs:0, csat_num:0,  csat_den:0},  monthly:{pg1:11, vip:0,clubs:3, csat_num:47, csat_den:49}}],
   ['Houda Ashraf Sayyed',     {daily:{pg1:0, vip:0,clubs:0, csat_num:0, csat_den:0},  weekly:{pg1:0, vip:0,clubs:0, csat_num:0,  csat_den:0},  monthly:{pg1:5,  vip:1,clubs:5, csat_num:80, csat_den:103}}],
   ['Kathlene Tiampo',         {daily:{pg1:0, vip:0,clubs:0, csat_num:0, csat_den:0},  weekly:{pg1:1, vip:0,clubs:3, csat_num:14, csat_den:16}, monthly:{pg1:5,  vip:0,clubs:9, csat_num:60, csat_den:71}}],
+  ['Amie B. Montederamos',   {daily:{pg1:0, vip:0,clubs:0, csat_num:0, csat_den:0},  weekly:{pg1:0, vip:0,clubs:0, csat_num:0,  csat_den:0},  monthly:{pg1:0,  vip:0,clubs:0, csat_num:0,  csat_den:0}}],
+  ['Emmanuel Sandoval',       {daily:{pg1:0, vip:0,clubs:0, csat_num:0, csat_den:0},  weekly:{pg1:0, vip:0,clubs:0, csat_num:0,  csat_den:0},  monthly:{pg1:0,  vip:0,clubs:0, csat_num:0,  csat_den:0}}],
+  ['Emmanuella Frago',        {daily:{pg1:0, vip:0,clubs:0, csat_num:0, csat_den:0},  weekly:{pg1:0, vip:0,clubs:0, csat_num:0,  csat_den:0},  monthly:{pg1:0,  vip:0,clubs:0, csat_num:0,  csat_den:0}}],
+  ['Khalid Siddig',           {daily:{pg1:0, vip:0,clubs:0, csat_num:0, csat_den:0},  weekly:{pg1:0, vip:0,clubs:0, csat_num:0,  csat_den:0},  monthly:{pg1:0,  vip:0,clubs:0, csat_num:0,  csat_den:0}}],
+  ['Pauline Dimaculangan',    {daily:{pg1:0, vip:0,clubs:0, csat_num:0, csat_den:0},  weekly:{pg1:0, vip:0,clubs:0, csat_num:0,  csat_den:0},  monthly:{pg1:0,  vip:0,clubs:0, csat_num:0,  csat_den:0}}],
 ];
 
 // ── Contactable ───────────────────────────────────────────────────────────

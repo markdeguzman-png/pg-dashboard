@@ -1,7 +1,7 @@
 // ── PG Dashboard Data — auto-updated by scheduled task ────────────────────
 // Do NOT edit the HTML file for data changes — update this file only.
 
-const DATA_FILE_TIMESTAMP  = '2026-07-08T20:14:11Z';
+const DATA_FILE_TIMESTAMP  = '2026-07-09T02:06:57Z';
 const AS_OF_DATE           = 'July 8, 2026';
 const DAILY_LABEL          = 'Jul 8';
 const WEEKLY_LABEL         = 'WB Jul 6';
@@ -29,7 +29,7 @@ const TEAM_PROFILES = {
   'Enterprise': {
     reps: 38, color: '#FD3300',
     periods: {
-      daily:   { act:{pg1:44,   vip:39,   clubs:41},   tgt:{pg1:150,  vip:150,  clubs:100}  },
+      daily:   { act:{pg1:52,   vip:45,   clubs:57},   tgt:{pg1:150,  vip:150,  clubs:100}  },
       weekly:  { act:{pg1:145,  vip:130,  clubs:162},  tgt:{pg1:600,  vip:600,  clubs:400}  },
       monthly: { act:{pg1:274,  vip:236,  clubs:343},  tgt:{pg1:2400, vip:2400, clubs:1600} },
     },
@@ -40,7 +40,7 @@ const TEAM_PROFILES = {
   'Team Anne': {
     reps: 13, color: '#FD3300',
     periods: {
-      daily:   { act:{pg1:14,  vip:13,  clubs:14},   tgt:{pg1:52,  vip:52,  clubs:35}  },
+      daily:   { act:{pg1:16,  vip:15,  clubs:17},   tgt:{pg1:52,  vip:52,  clubs:35}  },
       weekly:  { act:{pg1:0,   vip:0,   clubs:0},    tgt:{pg1:206, vip:206, clubs:137} },
       monthly: { act:{pg1:529, vip:425, clubs:535},  tgt:{pg1:822, vip:822, clubs:548} },
     },
@@ -50,7 +50,7 @@ const TEAM_PROFILES = {
   'Team Jen': {
     reps: 8, color: '#DB2C00',
     periods: {
-      daily:   { act:{pg1:9,   vip:7,   clubs:5},   tgt:{pg1:32,  vip:32,  clubs:22}  },
+      daily:   { act:{pg1:9,   vip:7,   clubs:9},   tgt:{pg1:32,  vip:32,  clubs:22}  },
       weekly:  { act:{pg1:0,   vip:0,   clubs:0},   tgt:{pg1:127, vip:127, clubs:85}  },
       monthly: { act:{pg1:293, vip:230, clubs:336}, tgt:{pg1:506, vip:506, clubs:337} },
     },
@@ -66,7 +66,7 @@ const TEAM_PROFILES = {
   'Team Mark': {
     reps: 9, color: '#7B726C',
     periods: {
-      daily:   { act:{pg1:1,   vip:6,   clubs:4},   tgt:{pg1:32,  vip:32,  clubs:22}  },
+      daily:   { act:{pg1:2,   vip:7,   clubs:5},   tgt:{pg1:32,  vip:32,  clubs:22}  },
       weekly:  { act:{pg1:11,  vip:10,  clubs:12},  tgt:{pg1:127, vip:127, clubs:85}  },
       monthly: { act:{pg1:2,   vip:2,   clubs:3},   tgt:{pg1:506, vip:506, clubs:337} },
     },
@@ -76,7 +76,7 @@ const TEAM_PROFILES = {
   'Team Philip': {
     reps: 10, color: '#DFD9D5',
     periods: {
-      daily:   { act:{pg1:0,   vip:1,  clubs:0},    tgt:{pg1:9,   vip:9,   clubs:9}   },
+      daily:   { act:{pg1:0,   vip:2,  clubs:0},    tgt:{pg1:9,   vip:9,   clubs:9}   },
       weekly:  { act:{pg1:0,   vip:0,  clubs:0},    tgt:{pg1:45,  vip:45,  clubs:45}  },
       monthly: { act:{pg1:421, vip:8,  clubs:351},  tgt:{pg1:200, vip:200, clubs:200} },
     },
@@ -86,7 +86,7 @@ const TEAM_PROFILES = {
   'Team Remen': {
     reps: 9, color: '#ECE9E4',
     periods: {
-      daily:   { act:{pg1:8,   vip:8,   clubs:9},    tgt:{pg1:36,  vip:36,  clubs:24}  },
+      daily:   { act:{pg1:10,  vip:10,  clubs:13},   tgt:{pg1:36,  vip:36,  clubs:24}  },
       weekly:  { act:{pg1:8,   vip:7,   clubs:9},    tgt:{pg1:143, vip:143, clubs:95}  },
       monthly: { act:{pg1:299, vip:260, clubs:195},  tgt:{pg1:569, vip:569, clubs:379} },
     },
@@ -112,9 +112,9 @@ const WEEKLY = {
 
 const DAILY = {
   labels: ['5/9','5/10','5/11','5/12','5/13','5/14','5/15','5/18','5/19','5/20','5/21','5/22','5/25','5/26','5/27','5/28','5/29','5/30','5/31','6/1','6/2','6/3','6/4','6/5','6/8','6/9','6/10','6/11','6/12','6/13','6/14','6/15','6/16','6/17','6/18','6/19','6/22','6/23','6/24','6/25','6/26','6/29','6/30','7/1','7/2','7/3','7/6','7/7','7/8'],
-  pg1:    [14,4,85,70,86,80,70,101,83,89,77,65,100,102,116,103,91,29,15,139,124,137,110,82,157,97,51,81,70,19,15,86,67,81,60,70,71,69,71,50,45,62,54,48,57,24,61,67,44],
-  vip:    [0,0,0,0,0,8,1,58,73,73,55,37,84,80,75,76,65,17,8,102,86,92,76,60,119,68,26,55,32,11,7,58,42,48,36,41,35,41,38,26,27,44,37,43,48,15,58,58,39],
-  clubs:  [14,13,61,73,68,62,63,45,57,54,42,43,36,43,51,40,48,12,9,62,61,72,61,64,63,69,63,81,74,20,15,74,68,77,75,72,85,69,85,75,77,79,44,61,49,71,93,58,41],
+  pg1:    [14,4,85,70,86,80,70,101,83,89,77,65,100,102,116,103,91,29,15,139,124,137,110,82,157,97,51,81,70,19,15,86,67,81,60,70,71,69,71,50,45,62,54,48,57,24,61,67,52],
+  vip:    [0,0,0,0,0,8,1,58,73,73,55,37,84,80,75,76,65,17,8,102,86,92,76,60,119,68,26,55,32,11,7,58,42,48,36,41,35,41,38,26,27,44,37,43,48,15,58,58,45],
+  clubs:  [14,13,61,73,68,62,63,45,57,54,42,43,36,43,51,40,48,12,9,62,61,72,61,64,63,69,63,81,74,20,15,74,68,77,75,72,85,69,85,75,77,79,44,61,49,71,93,58,57],
 };
 
 // Team Anne full trend — aligned with MONTHLY/WEEKLY/DAILY label arrays

@@ -1,7 +1,7 @@
 // ── PG Dashboard Data — auto-updated by scheduled task ────────────────────
 // Do NOT edit the HTML file for data changes — update this file only.
 
-const DATA_FILE_TIMESTAMP  = '2026-07-20T07:35:00Z';
+const DATA_FILE_TIMESTAMP  = '2026-07-21T19:17:46Z';
 const AS_OF_DATE           = 'July 17, 2026';
 const DAILY_LABEL          = 'Jul 17';
 const WEEKLY_LABEL         = 'WB Jul 13';
@@ -30,8 +30,8 @@ const TEAM_PROFILES = {
     reps: 38, color: '#FD3300',
     periods: {
       daily:   { act:{pg1:22,   vip:0,    clubs:36},   tgt:{pg1:150,  vip:150,  clubs:100}  },
-      weekly:  { act:{pg1:145,  vip:6,    clubs:243},  tgt:{pg1:600,  vip:600,  clubs:400}  },
-      monthly: { act:{pg1:562,  vip:333,  clubs:769},  tgt:{pg1:2400, vip:2400, clubs:1600} },
+      weekly:  { act:{pg1:179,  vip:6,    clubs:267},  tgt:{pg1:600,  vip:600,  clubs:400}  },
+      monthly: { act:{pg1:596,  vip:333,  clubs:793},  tgt:{pg1:2400, vip:2400, clubs:1600} },
     },
     conv: { sold:1070, calls:6179 },
     hasTrend: true,
@@ -98,16 +98,16 @@ const TEAM_PROFILES = {
 const MONTHLY = {
   labels:        ['Jan','Feb','Mar','Apr','May','Jun','Jul MTD'],
   displayLabels: ['Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026','Jun 2026','Jul 2026 (MTD)'],
-  pg1:           [2938, 1842, 2615, 2069, 1707, 1898, 562],
+  pg1:           [2938, 1842, 2615, 2069, 1707, 1898, 596],
   vip:           [3055, 1859, 2338, 1966,  710, 1223, 333],
-  clubs:         [1399, 1539, 2120, 2037, 1187, 1689, 769],
+  clubs:         [1399, 1539, 2120, 2037, 1187, 1689, 793],
 };
 
 const WEEKLY = {
   labels: ['4/13','4/20','4/27','5/4','5/11','5/18','5/25','6/1','6/8','6/15','6/22','6/29','7/6','7/13'],
-  pg1:    [459, 559, 327, 298, 401, 415, 556, 621, 463, 382, 329, 245, 262, 145],
+  pg1:    [459, 559, 327, 298, 401, 415, 556, 621, 463, 382, 329, 245, 262, 179],
   vip:    [518, 420, 195,   0,   9, 296, 405, 427, 309, 234, 179, 187, 211,   6],
-  clubs:  [502, 406, 377, 280, 345, 241, 239, 362, 379, 408, 425, 304, 311, 243],
+  clubs:  [502, 406, 377, 280, 345, 241, 239, 362, 379, 408, 425, 304, 311, 267],
 };
 
 const DAILY = {
@@ -288,27 +288,27 @@ const PHONE_SETTERS_TARGETS = {
 };
 const PHONE_SETTERS_MONTHLY = {
   labels:   ['Feb','Mar','Apr','May','Jun','Jul MTD'],
-  sets:     [689,  1078, 469, 506, 475, 390],
-  show:     [336,  457,  288, 304, 263, 199],
-  closed:   [130,  122,  99,  93,  106, 71],
-  cash_rev: [null, null, null, null, 594505, 539226],
+  sets:     [689,  1078, 469, 506, 475, 395],
+  show:     [336,  457,  288, 304, 263, 222],
+  closed:   [130,  122,  99,  93,  106, 73],
+  cash_rev: [null, null, null, null, 594505, 602861],
   cash_ref: [null, null, null, null, 0, 0],
 };
 const PHONE_SETTERS_WEEKLY = {
   labels:   ['4/20','4/27','5/4','5/11','5/18','5/25','6/1','6/8','6/15','6/22','6/29','7/6','7/13'],
-  sets:     [101, 71, 141, 120, 119, 106, 121, 124, 116, 100, 119, 163, 123],
-  show:     [56,  36,  70,  81,  79,  62,  53,  78,  62,  49, 66, 57, 70],
-  closed:   [26,  14,  17,  19,  23,  28,  21,  33,  25,  28, 21, 30, 24],
-  cash_rev: [178294,89000,112312,155478,134952,167118,130663,179745,138467,130663,186422,175642,183008],
+  sets:     [101, 71, 141, 120, 119, 106, 121, 124, 116, 100, 119, 163, 172],
+  show:     [56,  36,  70,  81,  79,  62,  53,  78,  62,  49, 66, 57, 95],
+  closed:   [26,  14,  17,  19,  23,  28,  21,  33,  25,  28, 21, 30, 27],
+  cash_rev: [178294,89000,112312,155478,134952,167118,130663,179745,138467,130663,186422,175642,210225],
   cash_ref: [0,     -500, -5000, -6000, -4000, -4000, 0,     -6100, -9500, 0, -7555, -8500, 0],
 };
 const PHONE_SETTERS_DAILY = {
-  labels:   ['6/3','6/4','6/5','6/6','6/7','6/8','6/9','6/10','6/11','6/12','6/13','6/14','6/15','6/16','6/17','6/18','6/19','6/22','6/23','6/24','6/25','6/26','6/29','6/30','7/1','7/2','7/3','7/6','7/7','7/8','7/9','7/10','7/11','7/12','7/13','7/14','7/15','7/16'],
-  sets:     [33, 33, 14,  4,  2, 21, 35, 22, 20, 24,  1,  2, 24, 29, 13, 24, 23, 39, 39, 29, 19, 18, 24, 33, 19, 24, 15, 19, 37, 29, 39, 28, 17,  2, 20, 35, 40, 28],
-  show:     [ 6,  9,  9,  9,  0, 14, 11, 12, 12, 21,  8,  0, 16,  7, 12, 11, 11, 16, 22, 12, 11,  8, 15,  9,  9, 23,  8,  9, 15, 15, 18, 0, 10,  2,  9, 21, 27, 13],
-  closed:   [ 1,  3,  5,  5,  0,  4,  7,  3,  5,  7,  7,  0,  5,  1,  4,  6,  6,  3,  9,  6,  6,  2,  4,  5,  4,  4,  4,  9,  8,  7,  6, 0,  3,  0,  2,  4, 10,  8],
-  cash_rev: [3000,12833,36830,24000,0,29600,32200,17300,24450,37095,39100,0,30250,6500,7500,36200,45667,25050,54330,29900,0,8750,30349,36030,29305,56388,28600,52665,49358,42706,30913,0,24036,0,19051,40413,75379,48166],
-  cash_ref: [0,   0,   0,   0,   0,-4100,-2000,0,    0,    0,    0,   0,0,    -2000,0,  0, -7500, 0, 0, -2000, 0, 0, 0,-1000,-1055,-5500,0,-6500,-2000,0,0,0,0,0,0,0,0,0],
+  labels:   ['6/3','6/4','6/5','6/6','6/7','6/8','6/9','6/10','6/11','6/12','6/13','6/14','6/15','6/16','6/17','6/18','6/19','6/22','6/23','6/24','6/25','6/26','6/29','6/30','7/1','7/2','7/3','7/6','7/7','7/8','7/9','7/10','7/11','7/12','7/13','7/14','7/15','7/16','7/17','7/18','7/19'],
+  sets:     [33, 33, 14,  4,  2, 21, 35, 22, 20, 24,  1,  2, 24, 29, 13, 24, 23, 39, 39, 29, 19, 18, 24, 33, 19, 24, 15, 19, 37, 29, 39, 28, 17,  2, 20, 35, 40, 28, 26, 23,  2],
+  show:     [ 6,  9,  9,  9,  0, 14, 11, 12, 12, 21,  8,  0, 16,  7, 12, 11, 11, 16, 22, 12, 11,  8, 15,  9,  9, 23,  8,  9, 15, 15, 18, 0, 10,  2,  9, 21, 27, 13, 13, 11,  0],
+  closed:   [ 1,  3,  5,  5,  0,  4,  7,  3,  5,  7,  7,  0,  5,  1,  4,  6,  6,  3,  9,  6,  6,  2,  4,  5,  4,  4,  4,  9,  8,  7,  6, 0,  3,  0,  2,  4, 10,  8,  1,  2,  0],
+  cash_rev: [3000,12833,36830,24000,0,29600,32200,17300,24450,37095,39100,0,30250,6500,7500,36200,45667,25050,54330,29900,0,8750,30349,36030,29305,56388,28600,52665,49358,42706,30913,0,24036,0,19051,40413,75379,48166,7550,17500,2167],
+  cash_ref: [0,   0,   0,   0,   0,-4100,-2000,0,    0,    0,    0,   0,0,    -2000,0,  0, -7500, 0, 0, -2000, 0, 0, 0,-1000,-1055,-5500,0,-6500,-2000,0,0,0,0,0,0,0,0,0,0,0,0],
 };
 const PHONE_SETTERS_REP_TARGETS = {
   daily:   { sets:  3, show:  2, cash:   5000 },
@@ -318,15 +318,15 @@ const PHONE_SETTERS_REP_TARGETS = {
 // [name, {daily:{sets,show,cash_rev,cash_ref}, weekly:{...}, monthly:{...}}]
 // Cash = cash_rev + cash_ref; monthly MTD only (not tracked per-rep at daily/weekly level)
 const PHONE_SETTERS_REPS = [
-  ['Jhaziel Gonzales',          {daily:{sets:4,show:1,cash_rev:0,cash_ref:0}, weekly:{sets:12,show:5,cash_rev:0,cash_ref:0}, monthly:{sets:39,show:16,cash_rev:1055,cash_ref:-1055}}],
-  ['Tommy Tecson',              {daily:{sets:0,show:0,cash_rev:0,cash_ref:0}, weekly:{sets:6,show:4,cash_rev:15000,cash_ref:-2000}, monthly:{sets:20,show:15,cash_rev:15000,cash_ref:-2000}}],
-  ['Phoebe Estel Ymil Collado', {daily:{sets:2,show:1,cash_rev:0,cash_ref:0}, weekly:{sets:13,show:7,cash_rev:26371,cash_ref:0}, monthly:{sets:57,show:28,cash_rev:37509,cash_ref:0}}],
-  ['Vian Perez',                {daily:{sets:2,show:1,cash_rev:0,cash_ref:0}, weekly:{sets:7,show:4,cash_rev:26500,cash_ref:0}, monthly:{sets:26,show:14,cash_rev:49000,cash_ref:-3500}}],
-  ['Rafael John Abayan',        {daily:{sets:4,show:2,cash_rev:0,cash_ref:0}, weekly:{sets:9,show:6,cash_rev:17663,cash_ref:0}, monthly:{sets:24,show:15,cash_rev:27413,cash_ref:0}}],
-  ['Richard Ian Alvarez',       {daily:{sets:2,show:0,cash_rev:0,cash_ref:0}, weekly:{sets:10,show:3,cash_rev:16000,cash_ref:0}, monthly:{sets:35,show:17,cash_rev:40500,cash_ref:-2000}}],
-  ['Heinrich Abarquez',         {daily:{sets:6,show:3,cash_rev:0,cash_ref:0}, weekly:{sets:17,show:8,cash_rev:23858,cash_ref:-6500}, monthly:{sets:54,show:27,cash_rev:38958,cash_ref:-6500}}],
-  ['Dan Emmanuel Nicolas',      {daily:{sets:0,show:0,cash_rev:0,cash_ref:0}, weekly:{sets:9,show:5,cash_rev:10500,cash_ref:0}, monthly:{sets:24,show:10,cash_rev:14000,cash_ref:0}}],
-  ['Julius Vizcayno',           {daily:{sets:2,show:2,cash_rev:0,cash_ref:0}, weekly:{sets:9,show:8,cash_rev:16750,cash_ref:0}, monthly:{sets:36,show:20,cash_rev:34000,cash_ref:0}}],
+  ['Jhaziel Gonzales',          {daily:{sets:4,show:1,cash_rev:0,cash_ref:0}, weekly:{sets:16,show:8,cash_rev:0,cash_ref:0}, monthly:{sets:39,show:19,cash_rev:1055,cash_ref:-1055}}],
+  ['Tommy Tecson',              {daily:{sets:0,show:0,cash_rev:0,cash_ref:0}, weekly:{sets:9,show:5,cash_rev:15000,cash_ref:-2000}, monthly:{sets:23,show:16,cash_rev:15000,cash_ref:-2000}}],
+  ['Phoebe Estel Ymil Collado', {daily:{sets:2,show:1,cash_rev:0,cash_ref:0}, weekly:{sets:24,show:12,cash_rev:26371,cash_ref:0}, monthly:{sets:56,show:32,cash_rev:37509,cash_ref:0}}],
+  ['Vian Perez',                {daily:{sets:2,show:1,cash_rev:0,cash_ref:0}, weekly:{sets:9,show:5,cash_rev:26500,cash_ref:0}, monthly:{sets:25,show:15,cash_rev:49000,cash_ref:-3500}}],
+  ['Rafael John Abayan',        {daily:{sets:4,show:2,cash_rev:0,cash_ref:0}, weekly:{sets:9,show:6,cash_rev:17663,cash_ref:0}, monthly:{sets:24,show:16,cash_rev:27413,cash_ref:0}}],
+  ['Richard Ian Alvarez',       {daily:{sets:2,show:0,cash_rev:0,cash_ref:0}, weekly:{sets:13,show:4,cash_rev:16000,cash_ref:0}, monthly:{sets:36,show:18,cash_rev:40500,cash_ref:-2000}}],
+  ['Heinrich Abarquez',         {daily:{sets:6,show:3,cash_rev:0,cash_ref:0}, weekly:{sets:26,show:14,cash_rev:23858,cash_ref:-6500}, monthly:{sets:55,show:32,cash_rev:38958,cash_ref:-6500}}],
+  ['Dan Emmanuel Nicolas',      {daily:{sets:0,show:0,cash_rev:0,cash_ref:0}, weekly:{sets:12,show:8,cash_rev:10500,cash_ref:0}, monthly:{sets:25,show:12,cash_rev:14000,cash_ref:0}}],
+  ['Julius Vizcayno',           {daily:{sets:2,show:2,cash_rev:0,cash_ref:0}, weekly:{sets:13,show:9,cash_rev:16750,cash_ref:0}, monthly:{sets:35,show:21,cash_rev:34000,cash_ref:0}}],
   ['Philip Josh Caperig',       {daily:{sets:0,show:0,cash_rev:0,cash_ref:0}, weekly:{sets:0,show:0,cash_rev:0,cash_ref:0}, monthly:{sets:0,show:0,cash_rev:0,cash_ref:0}}],
 ];
 

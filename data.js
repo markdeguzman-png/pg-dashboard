@@ -1,7 +1,7 @@
 // ── PG Dashboard Data — auto-updated by scheduled task ────────────────────
 // Do NOT edit the HTML file for data changes — update this file only.
 
-const DATA_FILE_TIMESTAMP  = '2026-07-22T21:39:55Z';
+const DATA_FILE_TIMESTAMP  = '2026-07-23T12:37:15Z';
 const AS_OF_DATE           = 'July 17, 2026';
 const DAILY_LABEL          = 'Jul 17';
 const WEEKLY_LABEL         = 'WB Jul 13';
@@ -291,7 +291,7 @@ const PHONE_SETTERS_MONTHLY = {
   sets:     [689,  1078, 469, 506, 475, 395],
   show:     [336,  457,  288, 304, 263, 222],
   closed:   [130,  122,  99,  93,  106, 73],
-  cash_rev: [null, null, null, null, 594505, 621861],
+  cash_rev: [null, null, null, null, 594505, 645611],
   cash_ref: [null, null, null, null, 0, 0],
 };
 const PHONE_SETTERS_WEEKLY = {

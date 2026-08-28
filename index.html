@@ -2087,6 +2087,62 @@ renderConversions('Enterprise');
 renderSetters();
 renderCC();
 renderCRCharts('daily');
+
+// ── Live reload — auto-refresh whenever data.js is updated ────────────────
+(function initLiveReload(){
+  var POLL_MS   = 60000;   // re-check data.js once a minute
+  var FIRST_MS  = 5000;    // first check 5s after load
+  var TS_RE     = /DATA_FILE_TIMESTAMP\s*=\s*['"]([^'"]+)['"]/;
+  var loadedTs  = (typeof DATA_FILE_TIMESTAMP !== 'undefined') ? DATA_FILE_TIMESTAMP : null;
+  var checks    = 0;
+
+  console.log(
+    '%c[PG Dashboard] live reload armed',
+    'color:#FD3300;font-weight:bold',
+    '\n  loaded data.js : ' + loadedTs +
+    '\n  as of          : ' + (typeof AS_OF_DATE !== 'undefined' ? AS_OF_DATE : '?') +
+    '\n  poll interval  : ' + (POLL_MS / 1000) + 's'
+  );
+
+  async function checkForUpdate(reason){
+    checks++;
+    var now = new Date().toLocaleTimeString();
+    try {
+      var res = await fetch('data.js?_=' + Date.now(), { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var match  = (await res.text()).match(TS_RE);
+      var remote = match ? match[1] : null;
+
+      if (!remote) {
+        console.warn('[PG Dashboard] ' + now + ' — check #' + checks +
+                     ' (' + reason + '): DATA_FILE_TIMESTAMP not found in data.js');
+        return;
+      }
+      if (remote === loadedTs) {
+        console.log('[PG Dashboard] ' + now + ' — check #' + checks +
+                    ' (' + reason + '): no change (' + remote + ')');
+        return;
+      }
+      console.log(
+        '%c[PG Dashboard] ' + now + ' — NEW DATA detected — reloading',
+        'color:#2D7D46;font-weight:bold',
+        '\n  was : ' + loadedTs +
+        '\n  now : ' + remote
+      );
+      loadedTs = remote;
+      location.reload();
+    } catch (err) {
+      console.warn('[PG Dashboard] ' + now + ' — check #' + checks +
+                   ' (' + reason + '): update check failed —', err.message);
+    }
+  }
+
+  setInterval(function(){ checkForUpdate('interval'); }, POLL_MS);
+  setTimeout(function(){ checkForUpdate('startup'); }, FIRST_MS);
+  document.addEventListener('visibilitychange', function(){
+    if (!document.hidden) checkForUpdate('tab-focus');
+  });
+})();
 </script>
 </body>
 </html>

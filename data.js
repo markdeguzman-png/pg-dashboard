@@ -1,16 +1,16 @@
 // ── PG Dashboard Data — auto-updated by scheduled task ────────────────────
 // Do NOT edit the HTML file for data changes — update this file only.
 
-const DATA_FILE_TIMESTAMP  = '2026-09-10T15:42:37Z';
-const AS_OF_DATE           = 'August 28, 2026';
-const DAILY_LABEL          = 'Aug 28';
-const WEEKLY_LABEL         = 'WB Aug 24';
+const DATA_FILE_TIMESTAMP  = '2026-09-21T17:15:38Z';
+const AS_OF_DATE           = 'September 18, 2026';
+const DAILY_LABEL          = 'Sep 18';
+const WEEKLY_LABEL         = 'WB Sep 14';
 
-const DAYS_WORKED          = 20;
-const DAYS_REMAINING       = 1;
-const DAYS_TOTAL           = 21;
-const DAYS_WORKED_RANGE    = 'Aug 3–7, 10–14, 17–21, 24–28';
-const DAYS_REMAINING_RANGE = 'Aug 31';
+const DAYS_WORKED          = 14;
+const DAYS_REMAINING       = 8;
+const DAYS_TOTAL           = 22;
+const DAYS_WORKED_RANGE    = 'Sep 1–4, 7–11, 14–18';
+const DAYS_REMAINING_RANGE = 'Sep 21–25, 28–30';
 
 const ENTERPRISE_TARGETS = {
   daily:   { pg1:150,  vip:150,  clubs:100  },
@@ -29,9 +29,9 @@ const TEAM_PROFILES = {
   'Enterprise': {
     reps: 38, color: '#FD3300',
     periods: {
-      daily:   { act:{pg1:29,   vip:0,    clubs:63},   tgt:{pg1:150,  vip:150,  clubs:100}  },
-      weekly:  { act:{pg1:149,  vip:0,    clubs:326},  tgt:{pg1:600,  vip:600,  clubs:400}  },
-      monthly: { act:{pg1:738,  vip:0,    clubs:1591},  tgt:{pg1:2400, vip:2400, clubs:1600} },
+      daily:   { act:{pg1:16,   vip:0,    clubs:87},   tgt:{pg1:150,  vip:150,  clubs:100}  },
+      weekly:  { act:{pg1:16,   vip:0,    clubs:87},   tgt:{pg1:600,  vip:600,  clubs:400}  },
+      monthly: { act:{pg1:180,  vip:0,    clubs:620},  tgt:{pg1:2400, vip:2400, clubs:1600} },
     },
     conv: { sold:1070, calls:6179 },
     hasTrend: true,
@@ -40,9 +40,9 @@ const TEAM_PROFILES = {
   'Team Anne': {
     reps: 13, color: '#FD3300',
     periods: {
-      daily:   { act:{pg1:11,   vip:0,   clubs:20},    tgt:{pg1:52,  vip:52,  clubs:35}  },
-      weekly:  { act:{pg1:53,  vip:0,   clubs:94},   tgt:{pg1:206, vip:206, clubs:137} },
-      monthly: { act:{pg1:263, vip:0, clubs:479},  tgt:{pg1:822, vip:822, clubs:548} },
+      daily:   { act:{pg1:3,   vip:0,   clubs:17},    tgt:{pg1:52,  vip:52,  clubs:35}  },
+      weekly:  { act:{pg1:3,  vip:0,   clubs:17},   tgt:{pg1:206, vip:206, clubs:137} },
+      monthly: { act:{pg1:58, vip:0, clubs:143},  tgt:{pg1:822, vip:822, clubs:548} },
     },
     hasTrend: true,
     note: null,
@@ -50,9 +50,9 @@ const TEAM_PROFILES = {
   'Team Jen': {
     reps: 8, color: '#DB2C00',
     periods: {
-      daily:   { act:{pg1:9,   vip:0,   clubs:17},  tgt:{pg1:32,  vip:32,  clubs:22}  },
-      weekly:  { act:{pg1:39,  vip:0,   clubs:86},  tgt:{pg1:127, vip:127, clubs:85}  },
-      monthly: { act:{pg1:212, vip:0,  clubs:509}, tgt:{pg1:506, vip:506, clubs:337} },
+      daily:   { act:{pg1:7,   vip:0,   clubs:37},  tgt:{pg1:32,  vip:32,  clubs:22}  },
+      weekly:  { act:{pg1:7,  vip:0,   clubs:37},  tgt:{pg1:127, vip:127, clubs:85}  },
+      monthly: { act:{pg1:48, vip:0,  clubs:213}, tgt:{pg1:506, vip:506, clubs:337} },
     },
     hasTrend: true,
     note: null,
@@ -66,9 +66,9 @@ const TEAM_PROFILES = {
   'Team Mark': {
     reps: 9, color: '#7B726C',
     periods: {
-      daily:   { act:{pg1:2,   vip:0,   clubs:3},   tgt:{pg1:32,  vip:32,  clubs:22}  },
-      weekly:  { act:{pg1:6,   vip:0,   clubs:21},   tgt:{pg1:127, vip:127, clubs:85}  },
-      monthly: { act:{pg1:16,  vip:0,  clubs:94},  tgt:{pg1:506, vip:506, clubs:337} },
+      daily:   { act:{pg1:1,   vip:0,   clubs:15},   tgt:{pg1:32,  vip:32,  clubs:22}  },
+      weekly:  { act:{pg1:1,   vip:0,   clubs:15},   tgt:{pg1:127, vip:127, clubs:85}  },
+      monthly: { act:{pg1:6,  vip:0,  clubs:49},  tgt:{pg1:506, vip:506, clubs:337} },
     },
     hasTrend: true,
     note: null,
@@ -86,9 +86,9 @@ const TEAM_PROFILES = {
   'Team Remen': {
     reps: 9, color: '#ECE9E4',
     periods: {
-      daily:   { act:{pg1:4,   vip:0,   clubs:11},    tgt:{pg1:36,  vip:36,  clubs:24}  },
-      weekly:  { act:{pg1:33,  vip:0,   clubs:59},   tgt:{pg1:143, vip:143, clubs:95}  },
-      monthly: { act:{pg1:136, vip:0,  clubs:215},  tgt:{pg1:569, vip:569, clubs:379} },
+      daily:   { act:{pg1:4,   vip:0,   clubs:7},    tgt:{pg1:36,  vip:36,  clubs:24}  },
+      weekly:  { act:{pg1:4,  vip:0,   clubs:7},   tgt:{pg1:143, vip:143, clubs:95}  },
+      monthly: { act:{pg1:38, vip:0,  clubs:83},  tgt:{pg1:569, vip:569, clubs:379} },
     },
     hasTrend: true,
     note: null,
@@ -96,105 +96,105 @@ const TEAM_PROFILES = {
 };
 
 const MONTHLY = {
-  labels:        ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug MTD'],
-  displayLabels: ['Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026','Jun 2026','Jul 2026','Aug 2026 (MTD)'],
-  pg1:           [2938, 1842, 2615, 2069, 1707, 1898, 993, 738],
-  vip:           [3055, 1859, 2338, 1966, 710, 1223, 338, 0],
-  clubs:         [1399, 1539, 2120, 2037, 1187, 1689, 1515, 1591],
+  labels:        ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep MTD'],
+  displayLabels: ['Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026','Jun 2026','Jul 2026','Aug 2026','Sep 2026 (MTD)'],
+  pg1:           [2938, 1842, 2615, 2069, 1707, 1898, 993, 774, 180],
+  vip:           [3055, 1859, 2338, 1966, 710, 1223, 338, 0, 0],
+  clubs:         [1399, 1539, 2120, 2037, 1187, 1689, 1515, 1735, 620],
 };
 
 const WEEKLY = {
-  labels: ['4/13', '4/20', '4/27', '5/4', '5/11', '5/18', '5/25', '6/1', '6/8', '6/15', '6/22', '6/29', '7/6', '7/13', '7/20', '7/27', '8/3', '8/10', '8/17', '8/24'],
-  pg1:    [459, 559, 327, 298, 401, 415, 556, 621, 463, 382, 329, 245, 262, 179, 185, 212, 172, 156, 145, 149],
-  vip:    [518, 420, 195, 0, 9, 296, 405, 427, 309, 234, 179, 187, 211, 6, 1, 4, 0, 0, 0, 0],
-  clubs:    [502, 406, 377, 280, 345, 241, 239, 362, 379, 408, 425, 304, 311, 268, 330, 391, 352, 298, 388, 326],
+  labels: ['4/13', '4/20', '4/27', '5/4', '5/11', '5/18', '5/25', '6/1', '6/8', '6/15', '6/22', '6/29', '7/6', '7/13', '7/20', '7/27', '8/3', '8/10', '8/17', '8/24', '8/31', '9/7', '9/14'],
+  pg1:    [459, 559, 327, 298, 401, 415, 556, 621, 463, 382, 329, 245, 262, 179, 185, 212, 172, 156, 145, 149, 127, 37, 16],
+  vip:    [518, 420, 195, 0, 9, 296, 405, 427, 309, 234, 179, 187, 211, 6, 1, 4, 0, 0, 0, 0, 0, 0, 0],
+  clubs:    [502, 406, 377, 280, 345, 241, 239, 362, 379, 408, 425, 304, 311, 268, 330, 391, 352, 298, 388, 326, 442, 121, 87],
 };
 
 const DAILY = {
-  labels: ['5/9', '5/10', '5/11', '5/12', '5/13', '5/14', '5/15', '5/18', '5/19', '5/20', '5/21', '5/22', '5/25', '5/26', '5/27', '5/28', '5/29', '5/30', '5/31', '6/1', '6/2', '6/3', '6/4', '6/5', '6/8', '6/9', '6/10', '6/11', '6/12', '6/13', '6/14', '6/15', '6/16', '6/17', '6/18', '6/19', '6/22', '6/23', '6/24', '6/25', '6/26', '6/29', '6/30', '7/1', '7/2', '7/3', '7/6', '7/7', '7/8', '7/9', '7/10', '7/13', '7/14', '7/15', '7/16', '7/17', '7/20', '7/21', '7/22', '7/23', '7/24', '7/27', '7/28', '7/29', '7/30', '7/31', '8/3', '8/4', '8/5', '8/6', '8/7', '8/10', '8/11', '8/12', '8/13', '8/14', '8/17', '8/18', '8/19', '8/20', '8/21', '8/24', '8/25', '8/26', '8/27', '8/28'],
-  pg1:    [14,4,85,70,86,80,70,101,83,89,77,65,100,102,116,103,91,29,15,139,124,137,110,82,157,97,51,81,70,19,15,86,67,81,60,70,71,69,71,50,45,62,54,48,57,24,61,67,52,41,41,29,34,23,31,22,19,29,40,40,42,51,46,36,43,36,35,39,34,38,26,41,26,21,38,30,27,42,20,27,29,24,35,28,33,29],
-  vip:    [0,0,0,0,0,8,1,58,73,73,55,37,84,80,75,76,65,17,8,102,86,92,76,60,119,68,26,55,32,11,7,58,42,48,36,41,35,41,38,26,27,44,37,43,48,15,58,58,45,30,20,6,0,0,0,0,0,0,0,0,1,2,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-  clubs:  [14,13,61,73,68,62,63,45,57,54,42,43,36,43,51,40,48,12,9,62,61,72,61,64,63,69,63,81,74,20,15,74,68,77,75,72,85,69,85,75,77,79,44,61,49,71,93,57,57,56,48,54,44,51,52,36,53,42,58,62,56,92,82,79,78,60,73,77,84,78,40,56,69,56,68,49,81,94,76,64,73,80,58,52,73,63],
+  labels: ['5/9', '5/10', '5/11', '5/12', '5/13', '5/14', '5/15', '5/18', '5/19', '5/20', '5/21', '5/22', '5/25', '5/26', '5/27', '5/28', '5/29', '5/30', '5/31', '6/1', '6/2', '6/3', '6/4', '6/5', '6/8', '6/9', '6/10', '6/11', '6/12', '6/13', '6/14', '6/15', '6/16', '6/17', '6/18', '6/19', '6/22', '6/23', '6/24', '6/25', '6/26', '6/29', '6/30', '7/1', '7/2', '7/3', '7/6', '7/7', '7/8', '7/9', '7/10', '7/13', '7/14', '7/15', '7/16', '7/17', '7/20', '7/21', '7/22', '7/23', '7/24', '7/27', '7/28', '7/29', '7/30', '7/31', '8/3', '8/4', '8/5', '8/6', '8/7', '8/10', '8/11', '8/12', '8/13', '8/14', '8/17', '8/18', '8/19', '8/20', '8/21', '8/24', '8/25', '8/26', '8/27', '8/28', '8/31', '9/1', '9/2', '9/3', '9/4', '9/7', '9/8', '9/9', '9/10', '9/11', '9/14', '9/15', '9/16', '9/17', '9/18'],
+  pg1:    [14,4,85,70,86,80,70,101,83,89,77,65,100,102,116,103,91,29,15,139,124,137,110,82,157,97,51,81,70,19,15,86,67,81,60,70,71,69,71,50,45,62,54,48,57,24,61,67,52,41,41,29,34,23,31,22,19,29,40,40,42,51,46,36,43,36,35,39,34,38,26,41,26,21,38,30,27,42,20,27,29,24,35,28,33,29,22,28,27,32,18,15,22,0,0,0,0,0,0,0,16],
+  vip:    [0,0,0,0,0,8,1,58,73,73,55,37,84,80,75,76,65,17,8,102,86,92,76,60,119,68,26,55,32,11,7,58,42,48,36,41,35,41,38,26,27,44,37,43,48,15,58,58,45,30,20,6,0,0,0,0,0,0,0,0,1,2,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  clubs:  [14,13,61,73,68,62,63,45,57,54,42,43,36,43,51,40,48,12,9,62,61,72,61,64,63,69,63,81,74,20,15,74,68,77,75,72,85,69,85,75,77,79,44,61,49,71,93,57,57,56,48,54,44,51,52,36,53,42,58,62,56,92,82,79,78,60,73,77,84,78,40,56,69,56,68,49,81,94,76,64,73,80,58,52,73,63,88,95,78,96,85,47,74,0,0,0,0,0,0,0,87],
 };
 
 // Team Anne full trend — aligned with MONTHLY/WEEKLY/DAILY label arrays
 // ANNE_MONTHLY: 6 values, null for Jan (no data), Feb–Jun MTD present
 const ANNE_MONTHLY = {
-  labels: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug MTD'],
-  pg1:    [null, 546, 1113, 944, 609, 529, 185, 263],
-  vip:    [null, 408, 910, 721, 289, 425, 112, 0],
-  clubs:  [null, 240, 305, 287, 353, 535, 255, 479],
+  labels: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep MTD'],
+  pg1:    [null, 546, 1113, 944, 609, 529, 185, 271, 58],
+  vip:    [null, 408, 910, 721, 289, 425, 112, 0, 0],
+  clubs:  [null, 240, 305, 287, 353, 535, 255, 498, 143],
 };
 
-// ANNE_WEEKLY: 14 values aligned with WEEKLY.labels (4/13–7/13)
+// ANNE_WEEKLY: 14 values aligned with WEEKLY.labels (4/13–7/13); newest 3 appended out of index alignment (see memory: known length-mismatch)
 const ANNE_WEEKLY = {
-  labels: ['4/13','4/20','4/27','5/4','5/11','5/18','5/25','6/1','6/8','6/15','6/22','6/29','7/6','7/13'],
-  pg1:    [225, 244, 137,  94, 131, 156, 213, 211, 120, 70, 15, 0, 81, 51],
-  vip:    [184, 167,  80,   0,   1, 110, 178, 189, 100, 50, 13, 0, 68,  4],
-  clubs:  [ 84,  70,  74,  98,  74,  72,  77, 109, 123, 92, 24, 0, 107, 77],
+  labels: ['4/13','4/20','4/27','5/4','5/11','5/18','5/25','6/1','6/8','6/15','6/22','6/29','7/6','7/13','8/31','9/7','9/14'],
+  pg1:    [225, 244, 137,  94, 131, 156, 213, 211, 120, 70, 15, 0, 81, 51, 41, 7, 3],
+  vip:    [184, 167,  80,   0,   1, 110, 178, 189, 100, 50, 13, 0, 68,  4, 0, 0, 0],
+  clubs:  [ 84,  70,  74,  98,  74,  72,  77, 109, 123, 92, 24, 0, 107, 77, 99, 22, 17],
 };
 
 // ANNE_DAILY: 54 values aligned with DAILY.labels (5/9–7/17); sparse — grows as daily task runs; array is known short of DAILY.labels (see memory)
 const ANNE_DAILY = {
-  pg1:   [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,15,null,18,12,21,24,20,16,9,3,12,7,10,7],
-  vip:   [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,11,null,14,12,16,20,18,15,8,3,4,0,0,0],
-  clubs: [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,39,null,23,18,24,29,25,17,13,5,23,15,22,8],
+  pg1:   [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,15,null,18,12,21,24,20,16,9,3,12,7,10,7,3,9,10,14,5,3,4,0,0,0,0,0,0,0,3],
+  vip:   [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,11,null,14,12,16,20,18,15,8,3,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  clubs: [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,39,null,23,18,24,29,25,17,13,5,23,15,22,8,14,25,22,12,26,12,10,0,0,0,0,0,0,0,17],
 };
 
 // Team Remen full trend — sourced from GD Sched aggregate tab
 // REMEN_MONTHLY: 6 values aligned with MONTHLY.labels; null for Jan (not in GD)
 const REMEN_MONTHLY = {
-  pg1:   [null, 896, 343, 288, 228, 299, 134, 136],
-  vip:   [null, 742, 271, 224, 106, 260, 74, 0],
-  clubs: [null, 231, 198, 189, 136, 195, 190, 215],
+  pg1:   [null, 896, 343, 288, 228, 299, 134, 140, 38],
+  vip:   [null, 742, 271, 224, 106, 260, 74, 0, 0],
+  clubs: [null, 231, 198, 189, 136, 195, 190, 242, 83],
 };
 
 // REMEN_WEEKLY: 16 values aligned with WEEKLY.labels; null for 4/13–4/27 (before GD tab started)
 const REMEN_WEEKLY = {
-  pg1:   [null, null, null, 49, 41, 66, 71, 90, 71, 76, 54, 8, 50, 21, 18, 15],
-  vip:   [null, null, null,  0,  0, 54, 52, 80, 67, 68, 38, 7, 46,  1,  0,  0],
-  clubs: [null, null, null, 35, 33, 27, 30, 48, 45, 55, 38, 9, 58, 25, 39, 13],
+  pg1:   [null, null, null, 49, 41, 66, 71, 90, 71, 76, 54, 8, 50, 21, 18, 15,27,6,4],
+  vip:   [null, null, null,  0,  0, 54, 52, 80, 67, 68, 38, 7, 46,  1,  0,  0,0,0,0],
+  clubs: [null, null, null, 35, 33, 27, 30, 48, 45, 55, 38, 9, 58, 25, 39, 13,62,16,7],
 };
 
 // REMEN_DAILY: 60 values aligned with DAILY.labels; data starts 6/17 (positions 33–41); array is known short of DAILY.labels (see memory)
 const REMEN_DAILY = {
-  pg1:   [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null, 9,14,16,12,15, 7, 9, 6, 8,12,11, 5, 8,10,11, 8,12, 5, 4, 5, 3, 3, 3, 4, 5,11, 4],
-  vip:   [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null, 9,14,14, 8,12, 6, 5, 2, 7,10,13, 9,10,10,12, 7, 7, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  clubs: [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null, 5, 8,12, 8, 9, 3, 3, 9, 9, 3,13, 7,13, 5,11,23, 3, 6, 3, 5, 0, 8,14, 9, 8,13, 0],
+  pg1:   [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null, 9,14,16,12,15, 7, 9, 6, 8,12,11, 5, 8,10,11, 8,12, 5, 4, 5, 3, 3, 3, 4, 5,11, 4,4,9,8,3,3,4,2,0,0,0,0,0,0,0,4],
+  vip:   [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null, 9,14,14, 8,12, 6, 5, 2, 7,10,13, 9,10,10,12, 7, 7, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  clubs: [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null, 5, 8,12, 8, 9, 3, 3, 9, 9, 3,13, 7,13, 5,11,23, 3, 6, 3, 5, 0, 8,14, 9, 8,13, 0,7,8,16,14,17,4,12,0,0,0,0,0,0,0,7],
 };
 
 // Team Jen trend arrays — sparse until daily task starts maintaining them
 const JEN_MONTHLY = {
-  pg1:   [null, null, null, null, null, 293, 234, 212],
-  vip:   [null, null, null, null, null, 230, 82, 0],
-  clubs: [null, null, null, null, null, 336, 331, 509],
+  pg1:   [null, null, null, null, null, 293, 234, 223, 48],
+  vip:   [null, null, null, null, null, 230, 82, 0, 0],
+  clubs: [null, null, null, null, null, 336, 331, 546, 213],
 };
 const JEN_WEEKLY = {
-  pg1:   [null,null,null,null,null,null,null,null,null,null,60,0,63,41,51,28],
-  vip:   [null,null,null,null,null,null,null,null,null,null,50,0,50, 0, 0, 0],
-  clubs: [null,null,null,null,null,null,null,null,null,null,87,0,72,73,66,43],
+  pg1:   [null,null,null,null,null,null,null,null,null,null,60,0,63,41,51,28,35,12,7],
+  vip:   [null,null,null,null,null,null,null,null,null,null,50,0,50, 0, 0, 0,0,0,0],
+  clubs: [null,null,null,null,null,null,null,null,null,null,87,0,72,73,66,43,151,43,37],
 };
 const JEN_DAILY = {
-  pg1:   [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,8,0,11,12,12,16,19,11,8,6,4,8,8,7,6,12,11,15,19,9],
-  vip:   [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,4,0,8,10,16,14,17,9,7,3,0,0,0,0,0,0,0,0,0,0],
-  clubs: [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,12,0,4,16,12,25,17,5,8,8,10,19,13,17,11,13,11,14,26,17],
+  pg1:   [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,8,0,11,12,12,16,19,11,8,6,4,8,8,7,6,12,11,15,19,9,10,7,8,7,3,4,8,0,0,0,0,0,0,0,7],
+  vip:   [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,4,0,8,10,16,14,17,9,7,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  clubs: [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,12,0,4,16,12,25,17,5,8,8,10,19,13,17,11,13,11,14,26,17,37,33,32,36,13,15,28,0,0,0,0,0,0,0,37],
 };
 
 // Team Mark trend arrays — sparse until daily task starts maintaining them
 const MARK_MONTHLY = {
-  pg1:   [null, null, null, null, null, 218, 29, 16],
-  vip:   [null, null, null, null, null, 216, 35, 0],
-  clubs: [null, null, null, null, null, 120, 90, 94],
+  pg1:   [null, null, null, null, null, 218, 29, 16, 6],
+  vip:   [null, null, null, null, null, 216, 35, 0, 0],
+  clubs: [null, null, null, null, null, 120, 90, 100, 49],
 };
 const MARK_WEEKLY = {
-  pg1:   [null,null,null,null,null,null,null,null,null,null,76,11,17, 0, 4, 0],
-  vip:   [null,null,null,null,null,null,null,null,null,null,68,10,28, 0, 0, 0],
-  clubs: [null,null,null,null,null,null,null,null,null,null,55,12,21,14,27, 7],
+  pg1:   [null,null,null,null,null,null,null,null,null,null,76,11,17, 0, 4, 0,4,1,1],
+  vip:   [null,null,null,null,null,null,null,null,null,null,68,10,28, 0, 0, 0,0,0,0],
+  clubs: [null,null,null,null,null,null,null,null,null,null,55,12,21,14,27, 7,25,15,15],
 };
 const MARK_DAILY = {
-  pg1:   [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,9,0,4,2,3,3,2,4,5,2,0,0,0,0,1,0,2,1,0,0],
-  vip:   [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,5,0,4,2,5,5,7,6,6,1,0,0,0,0,0,0,0,0,0,0],
-  clubs: [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,3,0,4,3,1,2,2,8,4,2,3,6,3,6,5,4,8,4,3,4],
+  pg1:   [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,9,0,4,2,3,3,2,4,5,2,0,0,0,0,1,0,2,1,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,1],
+  vip:   [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,5,0,4,2,5,5,7,6,6,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  clubs: [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,3,0,4,3,1,2,2,8,4,2,3,6,3,6,5,4,8,4,3,4,6,6,2,2,9,4,11,0,0,0,0,0,0,0,15],
 };
 
 // Lookup maps for renderPG1TrendChart — add new teams here when arrays are ready
@@ -206,37 +206,37 @@ const TEAM_TREND_MONTHLY = { 'Team Anne':ANNE_MONTHLY, 'Team Remen':REMEN_MONTHL
 // Indexes align with DAILY.labels / WEEKLY.labels / MONTHLY.labels respectively
 const CONVERSIONS = [
   { team:'Team Anne', color:'#FD3300', reps:[
-    ['Romuel Sabile','28.65%',0.2865,{daily:{pg1:2,vip:0,clubs:2},weekly:{pg1:9,vip:0,clubs:8},monthly:{pg1:46,vip:0,clubs:37}}],
-    ['Jemar Namora','31.77%',0.3177,{daily:{pg1:0,vip:0,clubs:3},weekly:{pg1:4,vip:0,clubs:29},monthly:{pg1:27,vip:0,clubs:80}}],
+    ['Romuel Sabile','28.65%',0.2865,{daily:{pg1:1,vip:0,clubs:7},weekly:{pg1:1,vip:0,clubs:7},monthly:{pg1:12,vip:0,clubs:21}}],
+    ['Jemar Namora','31.77%',0.3177,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:8,vip:0,clubs:35}}],
     ['Jesica Jumao-as','28.86%',0.2886,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:0,vip:0,clubs:0}}],
-    ['Kenneth Semira','33.82%',0.3382,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:6,vip:0,clubs:38}}],
-    ['Laurice Pentinio','27.67%',0.2767,{daily:{pg1:1,vip:0,clubs:3},weekly:{pg1:7,vip:0,clubs:11},monthly:{pg1:21,vip:0,clubs:84}}],
-    ['Rubilyn Estrada','33.02%',0.3302,{daily:{pg1:4,vip:0,clubs:3},weekly:{pg1:8,vip:0,clubs:8},monthly:{pg1:43,vip:0,clubs:56}}],
+    ['Kenneth Semira','33.82%',0.3382,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:0,vip:0,clubs:0}}],
+    ['Laurice Pentinio','27.67%',0.2767,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:3,vip:0,clubs:9}}],
+    ['Rubilyn Estrada','33.02%',0.3302,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:9,vip:0,clubs:20}}],
     ['Sitti Besas','27.06%',0.2706,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:0,vip:0,clubs:0}}],
-    ['Christian Buceron','27.22%',0.2722,{daily:{pg1:1,vip:0,clubs:3},weekly:{pg1:8,vip:0,clubs:15},monthly:{pg1:38,vip:0,clubs:91}}],
-    ['Andrea Isabel Balon','25.74%',0.2574,{daily:{pg1:3,vip:0,clubs:3},weekly:{pg1:4,vip:0,clubs:18},monthly:{pg1:36,vip:0,clubs:44}}],
+    ['Christian Buceron','27.22%',0.2722,{daily:{pg1:2,vip:0,clubs:10},weekly:{pg1:2,vip:0,clubs:10},monthly:{pg1:7,vip:0,clubs:36}}],
+    ['Andrea Isabel Balon','25.74%',0.2574,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:11,vip:0,clubs:14}}],
     ['Ian Ashley Sarmiento','21.67%',0.2167,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:0,vip:0,clubs:0}}],
-    ['Chelei Bago','24.22%',0.2422,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:9,vip:0,clubs:0},monthly:{pg1:33,vip:0,clubs:23}}],
-    ['Audrey Banares','25.78%',0.2578,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:2,vip:0,clubs:3}}],
-    ['Prince Wendell De Luna','19.75%',0.1975,{daily:{pg1:0,vip:0,clubs:3},weekly:{pg1:4,vip:0,clubs:5},monthly:{pg1:11,vip:0,clubs:23}}],
+    ['Chelei Bago','24.22%',0.2422,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:3,vip:0,clubs:6}}],
+    ['Audrey Banares','25.78%',0.2578,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:0,vip:0,clubs:0}}],
+    ['Prince Wendell De Luna','19.75%',0.1975,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:5,vip:0,clubs:2}}],
   ]},
   { team:'Team Jen', color:'#DB2C00', reps:[
-    ['Nezy Kea Buenaventura','28.68%',0.2868,{daily:{pg1:5,vip:0,clubs:2},weekly:{pg1:18,vip:0,clubs:11},monthly:{pg1:57,vip:0,clubs:52}}],
-    ['Belle Diaz','43.41%',0.4341,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:2,vip:0,clubs:19},monthly:{pg1:62,vip:0,clubs:200}}],
-    ['Kuh-Kuh Doringo','31.90%',0.319,{daily:{pg1:2,vip:0,clubs:4},weekly:{pg1:7,vip:0,clubs:24},monthly:{pg1:36,vip:0,clubs:104}}],
-    ['Elbrando Tibon','21.43%',0.2143,{daily:{pg1:1,vip:0,clubs:8},weekly:{pg1:1,vip:0,clubs:16},monthly:{pg1:15,vip:0,clubs:87}}],
+    ['Nezy Kea Buenaventura','28.68%',0.2868,{daily:{pg1:0,vip:0,clubs:4},weekly:{pg1:0,vip:0,clubs:4},monthly:{pg1:6,vip:0,clubs:13}}],
+    ['Belle Diaz','43.41%',0.4341,{daily:{pg1:2,vip:0,clubs:16},weekly:{pg1:2,vip:0,clubs:16},monthly:{pg1:16,vip:0,clubs:88}}],
+    ['Kuh-Kuh Doringo','31.90%',0.319,{daily:{pg1:0,vip:0,clubs:10},weekly:{pg1:0,vip:0,clubs:10},monthly:{pg1:4,vip:0,clubs:55}}],
+    ['Elbrando Tibon','21.43%',0.2143,{daily:{pg1:2,vip:0,clubs:0},weekly:{pg1:2,vip:0,clubs:0},monthly:{pg1:8,vip:0,clubs:21}}],
     ['Mayzelyn Revuelto','24.24%',0.2424,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:0,vip:0,clubs:0}}],
     ['Adrian Bundalian Gabriel','16.67%',0.1667,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:0,vip:0,clubs:0}}],
-    ['Mark Ryan Francis','18.52%',0.1852,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:2,vip:0,clubs:4},monthly:{pg1:10,vip:0,clubs:26}}],
-    ['Charlyn Baylon','6.09%',0.0609,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:1,vip:0,clubs:0}}],
-    ['Maria Lourdes Ortiz','9.59%',0.0959,{daily:{pg1:1,vip:0,clubs:3},weekly:{pg1:9,vip:0,clubs:12},monthly:{pg1:31,vip:0,clubs:40}}],
+    ['Mark Ryan Francis','18.52%',0.1852,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:2,vip:0,clubs:16}}],
+    ['Charlyn Baylon','6.09%',0.0609,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:0,vip:0,clubs:0}}],
+    ['Maria Lourdes Ortiz','9.59%',0.0959,{daily:{pg1:3,vip:0,clubs:7},weekly:{pg1:3,vip:0,clubs:7},monthly:{pg1:12,vip:0,clubs:20}}],
   ]},
   { team:'Team Lee', color:'#7B726C', reps:[
-    ['Kikumi Keeshia Matsuo','19.37%',0.1937,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:0,vip:0,clubs:2}}],
-    ['Melody Tubio Libradilla','15.47%',0.1547,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:0,vip:0,clubs:3}}],
+    ['Kikumi Keeshia Matsuo','19.37%',0.1937,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:0,vip:0,clubs:0}}],
+    ['Melody Tubio Libradilla','15.47%',0.1547,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:0,vip:0,clubs:0}}],
     ['Thomas John Lommen','13.80%',0.138,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:0,vip:0,clubs:0}}],
     ['Lucky Sardia','13.67%',0.1367,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:0,vip:0,clubs:0}}],
-    ['Rheena Jayne Tomakin','15.11%',0.1511,{daily:{pg1:0,vip:0,clubs:1},weekly:{pg1:0,vip:0,clubs:1},monthly:{pg1:0,vip:0,clubs:2}}],
+    ['Rheena Jayne Tomakin','15.11%',0.1511,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:0,vip:0,clubs:0}}],
     ['Jacinto Jr Basada','11.20%',0.112,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:0,vip:0,clubs:0}}],
     ['Micha Aborquez','11.26%',0.1126,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:0,vip:0,clubs:0}}],
     ['Marvin Tingin','8.94%',0.0894,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:0,vip:0,clubs:0}}],
@@ -249,8 +249,8 @@ const CONVERSIONS = [
     ['Alvin Alan Comia','26.62%',0.2662,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:0,vip:0,clubs:0}}],
     ['Gerald Mark Lee Rabonza','37.10%',0.371,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:0,vip:0,clubs:0}}],
     ['Rose Shamae Morica','23.12%',0.2312,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:0,vip:0,clubs:0}}],
-    ['Aldrin Jay Leones','20.92%',0.2092,{daily:{pg1:2,vip:0,clubs:3},weekly:{pg1:6,vip:0,clubs:21},monthly:{pg1:16,vip:0,clubs:94}}],
-    ['Monette Soltes','28.57%',0.2857,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:0,vip:0,clubs:0}}],
+    ['Aldrin Jay Leones','20.92%',0.2092,{daily:{pg1:1,vip:0,clubs:13},weekly:{pg1:1,vip:0,clubs:13},monthly:{pg1:6,vip:0,clubs:47}}],
+    ['Monette Soltes','28.57%',0.2857,{daily:{pg1:0,vip:0,clubs:2},weekly:{pg1:0,vip:0,clubs:2},monthly:{pg1:0,vip:0,clubs:2}}],
     ['Reynan Sularan','23.33%',0.2333,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:0,vip:0,clubs:0}}],
     ['Dan Dominique Arizala Casem','25.35%',0.2535,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:0,vip:0,clubs:0}}],
     ['Dexter Cagas Arbas','20.00%',0.2,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:0,vip:0,clubs:0}}],
@@ -269,11 +269,11 @@ const CONVERSIONS = [
     ['Jessika Elliott','0.00%',0,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:0,vip:0,clubs:0}}],
   ]},
   { team:'Team Remen', color:'#ECE9E4', reps:[
-    ['Daniel Aliyu','57.58%',0.5758,{daily:{pg1:0,vip:0,clubs:2},weekly:{pg1:6,vip:0,clubs:12},monthly:{pg1:26,vip:0,clubs:45}}],
+    ['Daniel Aliyu','57.58%',0.5758,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:9,vip:0,clubs:17}}],
     ['Jho-May Acosta','37.14%',0.3714,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:0,vip:0,clubs:0}}],
     ['Martin Lorenzo Savellano','34.21%',0.3421,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:0,vip:0,clubs:0}}],
-    ['Venus Marie Cartalla','33.33%',0.3333,{daily:{pg1:2,vip:0,clubs:7},weekly:{pg1:10,vip:0,clubs:38},monthly:{pg1:48,vip:0,clubs:126}}],
-    ['Jackie Rose Paet','27.24%',0.2724,{daily:{pg1:2,vip:0,clubs:2},weekly:{pg1:17,vip:0,clubs:9},monthly:{pg1:62,vip:0,clubs:44}}],
+    ['Venus Marie Cartalla','33.33%',0.3333,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:6,vip:0,clubs:43}}],
+    ['Jackie Rose Paet','27.24%',0.2724,{daily:{pg1:4,vip:0,clubs:7},weekly:{pg1:4,vip:0,clubs:7},monthly:{pg1:23,vip:0,clubs:23}}],
     ['Romalyn Magallon','28.14%',0.2814,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:0,vip:0,clubs:0}}],
     ['Aileen Mendez','24.58%',0.2458,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:0,vip:0,clubs:0}}],
     ['Kevin Jabagat','10.47%',0.1047,{daily:{pg1:0,vip:0,clubs:0},weekly:{pg1:0,vip:0,clubs:0},monthly:{pg1:0,vip:0,clubs:0}}],
@@ -318,15 +318,15 @@ const PHONE_SETTERS_REP_TARGETS = {
 // [name, {daily:{sets,show,cash_rev,cash_ref}, weekly:{...}, monthly:{...}}]
 // Cash = cash_rev + cash_ref; monthly MTD only (not tracked per-rep at daily/weekly level)
 const PHONE_SETTERS_REPS = [
-  ['Jhaziel Gonzales',          {daily:{sets:0,show:0,cash_rev:0,cash_ref:0}, weekly:{sets:7,show:5,cash_rev:0,cash_ref:0}, monthly:{sets:45,show:27,cash_rev:1055,cash_ref:-1055}}],
-  ['Tommy Tecson',          {daily:{sets:0,show:0,cash_rev:0,cash_ref:0}, weekly:{sets:0,show:0,cash_rev:0,cash_ref:0}, monthly:{sets:0,show:0,cash_rev:15000,cash_ref:-2000}}],
-  ['Phoebe Estel Ymil Collado',          {daily:{sets:1,show:1,cash_rev:0,cash_ref:0}, weekly:{sets:12,show:11,cash_rev:0,cash_ref:0}, monthly:{sets:78,show:57,cash_rev:37509,cash_ref:0}}],
-  ['Vian Perez',          {daily:{sets:3,show:3,cash_rev:0,cash_ref:0}, weekly:{sets:10,show:9,cash_rev:0,cash_ref:0}, monthly:{sets:43,show:23,cash_rev:49000,cash_ref:-3500}}],
-  ['Rafael John Abayan',          {daily:{sets:3,show:3,cash_rev:0,cash_ref:0}, weekly:{sets:11,show:10,cash_rev:0,cash_ref:0}, monthly:{sets:52,show:36,cash_rev:27413,cash_ref:0}}],
-  ['Richard Ian Alvarez',          {daily:{sets:3,show:2,cash_rev:0,cash_ref:0}, weekly:{sets:13,show:8,cash_rev:0,cash_ref:0}, monthly:{sets:51,show:32,cash_rev:40500,cash_ref:-2000}}],
-  ['Heinrich Abarquez',          {daily:{sets:4,show:2,cash_rev:0,cash_ref:0}, weekly:{sets:13,show:6,cash_rev:0,cash_ref:0}, monthly:{sets:82,show:44,cash_rev:38958,cash_ref:-6500}}],
-  ['Dan Emmanuel Nicolas',          {daily:{sets:3,show:1,cash_rev:0,cash_ref:0}, weekly:{sets:12,show:7,cash_rev:0,cash_ref:0}, monthly:{sets:51,show:26,cash_rev:14000,cash_ref:0}}],
-  ['Julius Vizcayno',          {daily:{sets:1,show:1,cash_rev:0,cash_ref:0}, weekly:{sets:9,show:7,cash_rev:0,cash_ref:0}, monthly:{sets:54,show:30,cash_rev:34000,cash_ref:0}}],
+  ['Jhaziel Gonzales',          {daily:{sets:0,show:0,cash_rev:0,cash_ref:0}, weekly:{sets:0,show:0,cash_rev:0,cash_ref:0}, monthly:{sets:15,show:12,cash_rev:34000,cash_ref:0}}],
+  ['Tommy Tecson',          {daily:{sets:0,show:0,cash_rev:0,cash_ref:0}, weekly:{sets:0,show:0,cash_rev:0,cash_ref:0}, monthly:{sets:0,show:0,cash_rev:0,cash_ref:0}}],
+  ['Phoebe Estel Ymil Collado',          {daily:{sets:0,show:0,cash_rev:0,cash_ref:0}, weekly:{sets:0,show:0,cash_rev:0,cash_ref:0}, monthly:{sets:16,show:8,cash_rev:50383,cash_ref:0}}],
+  ['Vian Perez',          {daily:{sets:0,show:0,cash_rev:0,cash_ref:0}, weekly:{sets:0,show:0,cash_rev:0,cash_ref:0}, monthly:{sets:12,show:4,cash_rev:13750,cash_ref:0}}],
+  ['Rafael John Abayan',          {daily:{sets:0,show:0,cash_rev:0,cash_ref:0}, weekly:{sets:0,show:0,cash_rev:0,cash_ref:0}, monthly:{sets:10,show:5,cash_rev:5417,cash_ref:0}}],
+  ['Richard Ian Alvarez',          {daily:{sets:0,show:0,cash_rev:0,cash_ref:0}, weekly:{sets:0,show:0,cash_rev:0,cash_ref:0}, monthly:{sets:10,show:5,cash_rev:11753,cash_ref:0}}],
+  ['Heinrich Abarquez',          {daily:{sets:0,show:0,cash_rev:0,cash_ref:0}, weekly:{sets:0,show:0,cash_rev:0,cash_ref:0}, monthly:{sets:22,show:12,cash_rev:28499,cash_ref:-2000}}],
+  ['Dan Emmanuel Nicolas',          {daily:{sets:0,show:0,cash_rev:0,cash_ref:0}, weekly:{sets:0,show:0,cash_rev:0,cash_ref:0}, monthly:{sets:4,show:4,cash_rev:2000,cash_ref:0}}],
+  ['Julius Vizcayno',          {daily:{sets:0,show:0,cash_rev:0,cash_ref:0}, weekly:{sets:0,show:0,cash_rev:0,cash_ref:0}, monthly:{sets:18,show:12,cash_rev:12498,cash_ref:0}}],
   ['Philip Josh Caperig',          {daily:{sets:0,show:0,cash_rev:0,cash_ref:0}, weekly:{sets:0,show:0,cash_rev:0,cash_ref:0}, monthly:{sets:0,show:0,cash_rev:0,cash_ref:0}}],
 ];
 

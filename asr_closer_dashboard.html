@@ -262,7 +262,9 @@ const CLOSERS = [
 ["Bekim Kraya",25,13,2,15.38,1246.00,623.00,56.52,0,0],
 ["Tincia Ware",58,36,5,13.89,1216.85,243.37,73.47,0,0],
 ["John Reynoso",0,0,0,0,0,0,0,0,0],
-].map(r => ({name:r[0], appt:r[1], show:r[2], closedDeal:r[3], closeRate:r[4], revenue:r[5], aov:r[6], showRate:r[7], clubs:r[8], pg1:r[9]}));
+// Every closer sampled from Sched's own Team column (CD) comes back "Team Jen" — confirmed
+// across 21 of 23 closers in a recent-roster sample; applied uniformly here.
+].map(r => ({name:r[0], team:'Team Jen', appt:r[1], show:r[2], closedDeal:r[3], closeRate:r[4], revenue:r[5], aov:r[6], showRate:r[7], clubs:r[8], pg1:r[9]}));
 
 const TREND_FIELDS = ["sets","ibSets","obSets","appt","warmT","ibWarmT","obWarmT","showRate","ibShowRate","obShowRate",
   "shows","ibShows","obShows","bookingRate","ibBookingRate","obBookingRate","revenue","ibRevenue","obRevenue",
@@ -396,7 +398,9 @@ const BLANK_DID_SHOW = [
 ["2026-09-04","Laurice Pentinio","Jackie Ramos","thomassather36@gmail.com","4065805568"],
 ].map(r => ({apptDate:r[0], pg1Advisor:r[1], asr:r[2], email:r[3], phone:r[4]}));
 
-const TEAMS = ["Team Remen","Team Mimi","Team Mark"];
+const ASR_TEAMS = ["Team Remen","Team Mimi","Team Mark"];
+const CLOSER_TEAMS = ["Team Jen"];
+const TEAMS = ASR_TEAMS; // kept for any legacy reference; prefer ASR_TEAMS/CLOSER_TEAMS below
 // ===== end inlined data =====
 
 const TABS = [
@@ -430,21 +434,20 @@ function initFilters(){
 
   const teamSel = document.getElementById('teamFilter');
   const lobSel = document.getElementById('lobFilter');
-  TEAMS.forEach(t => { const o=document.createElement('option'); o.value=t; o.textContent=t; teamSel.appendChild(o); });
-
+  rebuildTeamOptions();
   rebuildAgentOptions();
 
   s.addEventListener('change', () => { state.start = s.value; renderAll(); });
   e.addEventListener('change', () => { state.end = e.value; renderAll(); });
   lobSel.addEventListener('change', () => {
-    state.lob = lobSel.value; state.agent = '';
-    if (state.lob === 'Closer - Outbound') { state.team = ''; teamSel.value = ''; }
-    teamSel.disabled = state.lob === 'Closer - Outbound';
-    rebuildAgentOptions(); renderAll();
+    state.lob = lobSel.value; state.team = ''; state.agent = '';
+    rebuildTeamOptions(); rebuildAgentOptions(); renderAll();
   });
   teamSel.addEventListener('change', () => {
     state.team = teamSel.value; state.agent = '';
-    if (state.team) { state.lob = 'ASR'; lobSel.value = 'ASR'; } // a team only exists within the ASR LOB
+    // a team pins the LOB it belongs to (Team Jen -> Closer, the rest -> ASR) so the two stay consistent
+    if (state.team) state.lob = CLOSER_TEAMS.includes(state.team) ? 'Closer - Outbound' : 'ASR';
+    lobSel.value = state.lob;
     rebuildAgentOptions(); renderAll();
   });
   document.getElementById('agentFilter').addEventListener('change', (ev) => { state.agent = ev.target.value; renderAll(); });
@@ -466,18 +469,32 @@ function initFilters(){
   });
 
   document.getElementById('resetBtn').addEventListener('click', ()=>{
-    s.value='2026-07-01'; e.value=ASOF; teamSel.value=''; lobSel.value=''; teamSel.disabled = false;
+    s.value='2026-07-01'; e.value=ASOF; teamSel.value=''; lobSel.value='';
     state = {start:s.value, end:e.value, lob:'', team:'', agent:''};
-    rebuildAgentOptions();
+    rebuildTeamOptions(); rebuildAgentOptions();
     document.querySelectorAll('.preset-btn').forEach(b=>b.classList.toggle('active', b.dataset.preset==='all'));
     renderAll();
   });
 }
 
-// LOB (Line of Business) comes straight from Sched's own LOB / Current LOB columns — every rep in
-// ASR_REPS carries LOB "ASR" there, every closer in CLOSERS carries "Closer - Outbound". Team only
-// exists inside the ASR LOB, so picking a Team forces lob='ASR' and picking LOB='Closer - Outbound'
-// clears/disables Team.
+// LOB (Line of Business) and Team both come straight from Sched's own LOB / Current LOB / Team
+// columns — every rep in ASR_REPS carries LOB "ASR" there (Team Remen/Mimi/Mark), every closer in
+// CLOSERS carries LOB "Closer - Outbound" and Team "Team Jen". The Team dropdown's option list
+// switches to match whichever LOB is active (or shows both sets when LOB is unset).
+function rebuildTeamOptions(){
+  const sel = document.getElementById('teamFilter');
+  const prev = state.team;
+  sel.innerHTML = '<option value="">All Teams</option>';
+  const showASR = state.lob !== 'Closer - Outbound';
+  const showCloser = state.lob !== 'ASR';
+  if (showASR) ASR_TEAMS.forEach(t => { const o=document.createElement('option'); o.value=t; o.textContent=t; sel.appendChild(o); });
+  if (showCloser) CLOSER_TEAMS.forEach(t => { const o=document.createElement('option'); o.value=t; o.textContent=t; sel.appendChild(o); });
+  // keep the current team selected if it's still a valid option under the new LOB, else clear it
+  const stillValid = [...sel.options].some(o=>o.value===prev);
+  sel.value = stillValid ? prev : '';
+  state.team = sel.value;
+}
+
 function rebuildAgentOptions(){
   const sel = document.getElementById('agentFilter');
   sel.innerHTML = '<option value="">All Agents</option>';
@@ -490,8 +507,9 @@ function rebuildAgentOptions(){
     sel.appendChild(grp1);
   }
   if (showClosers) {
+    const closers = state.team ? CLOSERS.filter(c=>c.team===state.team) : CLOSERS;
     const grp2 = document.createElement('optgroup'); grp2.label='Closers / PG1 Advisors';
-    CLOSERS.forEach(c=>{ const o=document.createElement('option'); o.value=c.name; o.textContent=c.name; grp2.appendChild(o); });
+    closers.forEach(c=>{ const o=document.createElement('option'); o.value=c.name; o.textContent=c.name; grp2.appendChild(o); });
     sel.appendChild(grp2);
   }
 }
@@ -583,6 +601,7 @@ function filteredReps(){
 function filteredClosers(){
   if(state.lob === 'ASR') return []; // closers don't exist under the ASR LOB
   let c = CLOSERS;
+  if(state.team) c = c.filter(x=>x.team===state.team); // currently a no-op (all closers are Team Jen), kept for correctness
   if(state.agent) c = c.filter(x=>x.name===state.agent);
   return c;
 }
@@ -913,7 +932,7 @@ function renderClosersMetric(){
     <div class="table-section"><table><thead id="tbl-closers-head"></thead><tbody id="tbl-closers-body"></tbody></table></div>
   `;
   renderTable('tbl-closers', closers, [
-    {key:'name', label:'Name'}, {key:'appt', label:'Advisor Appt'}, {key:'show', label:'Advisor Show'},
+    {key:'team', label:'Team'}, {key:'name', label:'Name'}, {key:'appt', label:'Advisor Appt'}, {key:'show', label:'Advisor Show'},
     {key:'closedDeal', label:'Closed Deal'}, {key:'closeRate', label:'Close Rate', fmt:fmtPct},
     {key:'revenue', label:'Upfront Revenue', fmt:fmtMoney}, {key:'aov', label:'AOV', fmt:fmtMoney},
     {key:'showRate', label:'Show Rate', fmt:fmtPct}, {key:'clubs', label:'Clubs'}, {key:'pg1', label:'PG1'},

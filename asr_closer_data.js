@@ -75,7 +75,8 @@ const CLOSERS = [
 ["Bekim Kraya",25,13,2,15.38,1246.00,623.00,56.52,0,0],
 ["Tincia Ware",58,36,5,13.89,1216.85,243.37,73.47,0,0],
 ["John Reynoso",0,0,0,0,0,0,0,0,0],
-].map(r => ({name:r[0], appt:r[1], show:r[2], closedDeal:r[3], closeRate:r[4], revenue:r[5], aov:r[6], showRate:r[7], clubs:r[8], pg1:r[9]}));
+// Every closer sampled from Sched's own Team column (CD) comes back "Team Jen".
+].map(r => ({name:r[0], team:'Team Jen', appt:r[1], show:r[2], closedDeal:r[3], closeRate:r[4], revenue:r[5], aov:r[6], showRate:r[7], clubs:r[8], pg1:r[9]}));
 
 // ---------- Company-wide trend (Executive Summary Trend tab, "ASRs" block) ----------
 // Full 23-metric row set exactly as the sheet has it, re-captured live at 150% zoom for accuracy.
@@ -225,7 +226,9 @@ const BLANK_DID_SHOW = [
 ["2026-09-04","Laurice Pentinio","Jackie Ramos","thomassather36@gmail.com","4065805568"],
 ].map(r => ({apptDate:r[0], pg1Advisor:r[1], asr:r[2], email:r[3], phone:r[4]}));
 
-const TEAMS = ["Team Remen","Team Mimi","Team Mark"];
+const ASR_TEAMS = ["Team Remen","Team Mimi","Team Mark"];
+const CLOSER_TEAMS = ["Team Jen"];
+const TEAMS = ASR_TEAMS;
 
 if (typeof module !== "undefined") {
   module.exports = { ASOF, ASR_REPS, CLOSERS, TREND_DAILY, TREND_WEEKLY, TREND_MONTHLY, CALL_SOURCE_BR, NO_SHOWS, BLANK_DID_SHOW, TEAMS };

@@ -1003,6 +1003,7 @@ function renderClosersMetric(){
     closeRate: closers.length? sum(closers,'closedDeal')/Math.max(sum(closers,'show'),1)*100:0,
     revenue: sum(closers,'revenue'), aov: avg(closers,'aov'), showRate: avg(closers,'showRate'), clubs:sum(closers,'clubs'), pg1:sum(closers,'pg1') };
   p.innerHTML = `
+    <div class="scope-banner">Date range doesn't apply here — Closers Metric is a single captured snapshot from the sheet (per-closer figures weren't captured broken out by day/week/month). Team and Agent filters above still narrow it live.</div>
     <div class="metrics-container">
       ${kpiTile('Advisor Appt', fmtInt(total.appt))}
       ${kpiTile('Advisor Show', fmtInt(total.show))}
@@ -1027,6 +1028,7 @@ function renderRepPerMetric(){
   const p = document.getElementById('panel-4');
   const reps = filteredReps();
   p.innerHTML = `
+    <div class="scope-banner">Date range doesn't apply here — Rep per Metric is a single captured snapshot from the sheet (per-rep figures weren't captured broken out by day/week/month). Team and Agent filters above still narrow it live.</div>
     <div class="metrics-container">
       ${kpiTile('Sets', fmtInt(sum(reps,'sets')))}
       ${kpiTile('Appointments', fmtInt(sum(reps,'appt')))}
@@ -1052,6 +1054,7 @@ function renderRepPerMetric(){
 function renderASRDailyMetric(){
   const p = document.getElementById('panel-5');
   p.innerHTML = `
+    <div class="scope-banner">Date range doesn't apply here — ASR Daily Metric is a single captured snapshot from the sheet (per-rep figures weren't captured broken out by day/week/month). Team and Agent filters above still narrow it live.</div>
     <div class="section-title">Team-grouped rep detail</div>
     <div class="note">Mirrors the sheet's team-grouped layout with subtotal rows; respects Team / Agent filters above.</div>
     <div class="table-section"><table><thead id="tbl-asrdaily-head"></thead><tbody id="tbl-asrdaily-body"></tbody></table></div>
@@ -1082,6 +1085,7 @@ function renderCallSourceBR(){
   if(state.agent) rows = rows.filter(r=>r.name===state.agent);
   else if(state.team){ const names = new Set(ASR_REPS.filter(r=>r.team===state.team).map(r=>r.name)); rows = rows.filter(r=>names.has(r.name)); }
   p.innerHTML = `
+    <div class="scope-banner">Date range doesn't apply here — BR % per Call Source is a single captured snapshot from the sheet (not captured broken out by day/week/month). Team and Agent filters above still narrow it live.</div>
     <div class="section-title">Booking Rate % by IVR call source</div>
     <div class="note">Sample of reps captured live from BR % per Call Source (booking rate can exceed 100% when one rep books multiple appointments from fewer unique inbound calls in the source data).</div>
     <div class="table-section"><table><thead id="tbl-br-head"></thead><tbody id="tbl-br-body"></tbody></table></div>

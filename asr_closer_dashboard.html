@@ -59,10 +59,10 @@
     margin-bottom:18px;
     border-radius:8px;
     display:flex;
-    flex-wrap:wrap;
+    flex-direction:column;
     gap:16px;
-    align-items:flex-end;
   }
+  .date-row, .dim-row{ display:flex; flex-wrap:wrap; gap:16px; align-items:flex-end; }
   .filter-group{ display:flex; flex-direction:column; gap:6px; min-width:150px; }
   .filter-group.grow{ flex:1; min-width:220px; }
   .filter-group label{ font-size:11px; color:var(--gray); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; }
@@ -143,32 +143,37 @@
   </div>
 
   <div class="filters">
-    <div class="filter-group">
-      <label>Start Date</label>
-      <input type="date" id="startDate">
-    </div>
-    <div class="filter-group">
-      <label>End Date</label>
-      <input type="date" id="endDate">
-    </div>
-    <div class="filter-group">
-      <label>Team</label>
-      <select id="teamFilter"><option value="">All Teams</option></select>
-    </div>
-    <div class="filter-group grow">
-      <label>Agent</label>
-      <select id="agentFilter"><option value="">All Agents</option></select>
-    </div>
-    <div class="filter-group">
-      <label>Quick Range</label>
-      <div class="presets">
-        <button class="preset-btn" data-preset="7">Last 7d</button>
-        <button class="preset-btn" data-preset="30">Last 30d</button>
-        <button class="preset-btn" data-preset="90">Last 3mo</button>
-        <button class="preset-btn active" data-preset="all">All</button>
+    <div class="date-row">
+      <div class="filter-group">
+        <label>Start Date</label>
+        <input type="date" id="startDate">
+      </div>
+      <div class="filter-group">
+        <label>End Date</label>
+        <input type="date" id="endDate">
+      </div>
+      <div class="filter-group">
+        <label>Quick Range</label>
+        <div class="presets">
+          <button class="preset-btn" data-preset="7">Last 7d</button>
+          <button class="preset-btn" data-preset="30">Last 30d</button>
+          <button class="preset-btn" data-preset="mtd">Month to Date</button>
+          <button class="preset-btn" data-preset="90">Last 3mo</button>
+          <button class="preset-btn active" data-preset="all">All</button>
+        </div>
       </div>
     </div>
-    <button class="reset-btn" id="resetBtn">Reset Filters</button>
+    <div class="dim-row">
+      <div class="filter-group">
+        <label>Team</label>
+        <select id="teamFilter"><option value="">All Teams</option></select>
+      </div>
+      <div class="filter-group grow">
+        <label>Agent</label>
+        <select id="agentFilter"><option value="">All Agents</option></select>
+      </div>
+      <button class="reset-btn" id="resetBtn">Reset Filters</button>
+    </div>
   </div>
   <div class="gran-note" id="granNote"></div>
 
@@ -394,7 +399,14 @@ let sortState = {}; // per table id -> {col, dir}
 function fmtInt(n){ return Math.round(n).toLocaleString(); }
 function fmtMoney(n){ return '$' + Math.round(n).toLocaleString(); }
 function fmtPct(n){ return (Math.round(n*10)/10).toFixed(1) + '%'; }
-function dstr(d){ return d.toISOString().slice(0,10); }
+// Timezone-safe YYYY-MM-DD formatter. `d` is always constructed as LOCAL midnight in this file
+// (e.g. `new Date(y, m, 1)`), so formatting via toISOString() (which converts to UTC first) would
+// silently roll the date back by one day for any viewer east of UTC — this reads the same local
+// fields the Date was built from instead.
+function dstr(d){
+  const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
 
 function initFilters(){
   document.getElementById('asofLabel').textContent = ASOF;
@@ -422,6 +434,7 @@ function initFilters(){
       const end = new Date(ASOF+'T00:00:00');
       let start;
       if(p==='all'){ start = new Date('2026-07-01T00:00:00'); }
+      else if(p==='mtd'){ start = new Date(end.getFullYear(), end.getMonth(), 1); }
       else { start = new Date(end); start.setDate(start.getDate() - (+p - 1)); }
       s.value = dstr(start); e.value = dstr(end);
       state.start = s.value; state.end = e.value;
@@ -460,12 +473,12 @@ function inRange(dateStr){
 function addDaysStr(dateStr, n){
   const d = new Date(dateStr+'T00:00:00');
   d.setDate(d.getDate()+n);
-  return d.toISOString().slice(0,10);
+  return dstr(d);
 }
 function endOfMonthStr(monthStr){
   const [y,m] = monthStr.split('-').map(Number);
   const d = new Date(y, m, 0); // day 0 of next month = last day of this month
-  return d.toISOString().slice(0,10);
+  return dstr(d);
 }
 // Only the START of the selection has to fall inside a granularity's real coverage window.
 // The END is deliberately not checked against the window's upper bound: the most recent

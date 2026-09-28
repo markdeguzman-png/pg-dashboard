@@ -457,22 +457,55 @@ function inRange(dateStr){
 }
 
 // pick finest granularity that has data in range
+function addDaysStr(dateStr, n){
+  const d = new Date(dateStr+'T00:00:00');
+  d.setDate(d.getDate()+n);
+  return d.toISOString().slice(0,10);
+}
+function endOfMonthStr(monthStr){
+  const [y,m] = monthStr.split('-').map(Number);
+  const d = new Date(y, m, 0); // day 0 of next month = last day of this month
+  return d.toISOString().slice(0,10);
+}
+function fitsWindow(min, max){
+  return state.start >= min && state.end <= max;
+}
+
+// Picks the FINEST granularity whose real data window fully covers the selected range —
+// e.g. picking a range that spans more than the ~10 rolling daily columns falls back to
+// Weekly, and a range spanning more than the Weekly window falls back to Monthly, instead
+// of silently summing only the days/weeks that happen to overlap (which under-counts and
+// makes different ranges look identical).
 function trendForRange(){
-  const daily = TREND_DAILY.filter(r=>inRange(r.date));
-  if(daily.length) return {gran:'daily', rows:daily, label:r=>r.date.slice(5)};
-  const weekly = TREND_WEEKLY.filter(r=>inRange(r.weekBeginning));
-  if(weekly.length) return {gran:'weekly', rows:weekly, label:r=>'WB '+r.weekBeginning.slice(5)};
-  const monthly = TREND_MONTHLY.filter(r=> (r.month+'-01') >= state.start.slice(0,7)+'-01' && (r.month+'-01') <= state.end.slice(0,7)+'-28');
-  return {gran:'monthly', rows: monthly.length?monthly:TREND_MONTHLY, label:r=>r.month};
+  const dailyMin = TREND_DAILY[0].date, dailyMax = TREND_DAILY[TREND_DAILY.length-1].date;
+  const weeklyMin = TREND_WEEKLY[0].weekBeginning, weeklyMax = addDaysStr(TREND_WEEKLY[TREND_WEEKLY.length-1].weekBeginning, 6);
+  const monthlyMin = TREND_MONTHLY[0].month+'-01', monthlyMax = endOfMonthStr(TREND_MONTHLY[TREND_MONTHLY.length-1].month);
+
+  if (fitsWindow(dailyMin, dailyMax)) {
+    return {gran:'daily', rows: TREND_DAILY.filter(r=>inRange(r.date)), label:r=>r.date.slice(5)};
+  }
+  if (fitsWindow(weeklyMin, weeklyMax)) {
+    const rows = TREND_WEEKLY.filter(r => r.weekBeginning <= state.end && addDaysStr(r.weekBeginning,6) >= state.start);
+    return {gran:'weekly', rows, label:r=>'WB '+r.weekBeginning.slice(5)};
+  }
+  const rows = TREND_MONTHLY.filter(r => (r.month+'-01') <= state.end && endOfMonthStr(r.month) >= state.start);
+  return {gran:'monthly', rows: rows.length?rows:TREND_MONTHLY, label:r=>r.month};
 }
 
 function closerTrendForRange(){
-  const daily = CLOSER_TREND_DAILY.filter(r=>inRange(r.date));
-  if(daily.length) return {gran:'daily', rows:daily, label:r=>r.date.slice(5)};
-  const weekly = CLOSER_TREND_WEEKLY.filter(r=>inRange(r.weekBeginning));
-  if(weekly.length) return {gran:'weekly', rows:weekly, label:r=>'WB '+r.weekBeginning.slice(5)};
-  const monthly = CLOSER_TREND_MONTHLY.filter(r=> (r.month+'-01') >= state.start.slice(0,7)+'-01' && (r.month+'-01') <= state.end.slice(0,7)+'-28');
-  return {gran:'monthly', rows: monthly.length?monthly:CLOSER_TREND_MONTHLY, label:r=>r.month};
+  const dailyMin = CLOSER_TREND_DAILY[0].date, dailyMax = CLOSER_TREND_DAILY[CLOSER_TREND_DAILY.length-1].date;
+  const weeklyMin = CLOSER_TREND_WEEKLY[0].weekBeginning, weeklyMax = addDaysStr(CLOSER_TREND_WEEKLY[CLOSER_TREND_WEEKLY.length-1].weekBeginning, 6);
+  const monthlyMin = CLOSER_TREND_MONTHLY[0].month+'-01', monthlyMax = endOfMonthStr(CLOSER_TREND_MONTHLY[CLOSER_TREND_MONTHLY.length-1].month);
+
+  if (fitsWindow(dailyMin, dailyMax)) {
+    return {gran:'daily', rows: CLOSER_TREND_DAILY.filter(r=>inRange(r.date)), label:r=>r.date.slice(5)};
+  }
+  if (fitsWindow(weeklyMin, weeklyMax)) {
+    const rows = CLOSER_TREND_WEEKLY.filter(r => r.weekBeginning <= state.end && addDaysStr(r.weekBeginning,6) >= state.start);
+    return {gran:'weekly', rows, label:r=>'WB '+r.weekBeginning.slice(5)};
+  }
+  const rows = CLOSER_TREND_MONTHLY.filter(r => (r.month+'-01') <= state.end && endOfMonthStr(r.month) >= state.start);
+  return {gran:'monthly', rows: rows.length?rows:CLOSER_TREND_MONTHLY, label:r=>r.month};
 }
 
 function closerMetricCols(periodKey, periodLabel){

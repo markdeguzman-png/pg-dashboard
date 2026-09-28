@@ -165,6 +165,8 @@
       <div class="filter-group">
         <label>Quick Range</label>
         <div class="presets">
+          <button class="preset-btn" data-preset="today">Today</button>
+          <button class="preset-btn" data-preset="yesterday">Yesterday</button>
           <button class="preset-btn" data-preset="7">Last 7d</button>
           <button class="preset-btn" data-preset="30">Last 30d</button>
           <button class="preset-btn" data-preset="mtd">Month to Date</button>
@@ -468,9 +470,11 @@ function initFilters(){
       document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
       btn.classList.add('active');
       const p = btn.dataset.preset;
-      const end = new Date(ASOF+'T00:00:00');
+      let end = new Date(ASOF+'T00:00:00');
       let start;
-      if(p==='all'){ start = new Date('2026-07-01T00:00:00'); }
+      if(p==='today'){ start = new Date(end); }
+      else if(p==='yesterday'){ start = new Date(end); start.setDate(start.getDate()-1); end = new Date(start); }
+      else if(p==='all'){ start = new Date('2026-07-01T00:00:00'); }
       else if(p==='mtd'){ start = new Date(end.getFullYear(), end.getMonth(), 1); }
       else { start = new Date(end); start.setDate(start.getDate() - (+p - 1)); }
       s.value = dstr(start); e.value = dstr(end);

@@ -476,20 +476,24 @@ function fitsWindow(min, max){
 // Weekly, and a range spanning more than the Weekly window falls back to Monthly, instead
 // of silently summing only the days/weeks that happen to overlap (which under-counts and
 // makes different ranges look identical).
+// chartRows is deliberately NOT range-filtered the same way as rows/KPIs: a chart with a single
+// point reads as broken, so it always shows the fullest real trend window for the active
+// granularity (last ~30 days when daily, all 6 weeks when weekly, all 3 months when monthly) —
+// while the KPI tiles/table above stay exact to the selected date range.
 function trendForRange(){
   const dailyMin = TREND_DAILY[0].date, dailyMax = TREND_DAILY[TREND_DAILY.length-1].date;
   const weeklyMin = TREND_WEEKLY[0].weekBeginning, weeklyMax = addDaysStr(TREND_WEEKLY[TREND_WEEKLY.length-1].weekBeginning, 6);
   const monthlyMin = TREND_MONTHLY[0].month+'-01', monthlyMax = endOfMonthStr(TREND_MONTHLY[TREND_MONTHLY.length-1].month);
 
   if (fitsWindow(dailyMin, dailyMax)) {
-    return {gran:'daily', rows: TREND_DAILY.filter(r=>inRange(r.date)), label:r=>r.date.slice(5)};
+    return {gran:'daily', rows: TREND_DAILY.filter(r=>inRange(r.date)), chartRows: TREND_DAILY.slice(-30), label:r=>r.date.slice(5)};
   }
   if (fitsWindow(weeklyMin, weeklyMax)) {
     const rows = TREND_WEEKLY.filter(r => r.weekBeginning <= state.end && addDaysStr(r.weekBeginning,6) >= state.start);
-    return {gran:'weekly', rows, label:r=>'WB '+r.weekBeginning.slice(5)};
+    return {gran:'weekly', rows, chartRows: TREND_WEEKLY.slice(), label:r=>'WB '+r.weekBeginning.slice(5)};
   }
   const rows = TREND_MONTHLY.filter(r => (r.month+'-01') <= state.end && endOfMonthStr(r.month) >= state.start);
-  return {gran:'monthly', rows: rows.length?rows:TREND_MONTHLY, label:r=>r.month};
+  return {gran:'monthly', rows: rows.length?rows:TREND_MONTHLY, chartRows: TREND_MONTHLY.slice(-3), label:r=>r.month};
 }
 
 function closerTrendForRange(){
@@ -498,14 +502,14 @@ function closerTrendForRange(){
   const monthlyMin = CLOSER_TREND_MONTHLY[0].month+'-01', monthlyMax = endOfMonthStr(CLOSER_TREND_MONTHLY[CLOSER_TREND_MONTHLY.length-1].month);
 
   if (fitsWindow(dailyMin, dailyMax)) {
-    return {gran:'daily', rows: CLOSER_TREND_DAILY.filter(r=>inRange(r.date)), label:r=>r.date.slice(5)};
+    return {gran:'daily', rows: CLOSER_TREND_DAILY.filter(r=>inRange(r.date)), chartRows: CLOSER_TREND_DAILY.slice(-30), label:r=>r.date.slice(5)};
   }
   if (fitsWindow(weeklyMin, weeklyMax)) {
     const rows = CLOSER_TREND_WEEKLY.filter(r => r.weekBeginning <= state.end && addDaysStr(r.weekBeginning,6) >= state.start);
-    return {gran:'weekly', rows, label:r=>'WB '+r.weekBeginning.slice(5)};
+    return {gran:'weekly', rows, chartRows: CLOSER_TREND_WEEKLY.slice(), label:r=>'WB '+r.weekBeginning.slice(5)};
   }
   const rows = CLOSER_TREND_MONTHLY.filter(r => (r.month+'-01') <= state.end && endOfMonthStr(r.month) >= state.start);
-  return {gran:'monthly', rows: rows.length?rows:CLOSER_TREND_MONTHLY, label:r=>r.month};
+  return {gran:'monthly', rows: rows.length?rows:CLOSER_TREND_MONTHLY, chartRows: CLOSER_TREND_MONTHLY.slice(-3), label:r=>r.month};
 }
 
 function closerMetricCols(periodKey, periodLabel){
@@ -689,6 +693,7 @@ function fullMetricCols(periodKey, periodLabel){
 function renderExecSummary(t){
   const p = document.getElementById('panel-0');
   const rows = t.rows;
+  const chartWindowNote = t.gran==='daily' ? `last ${t.chartRows.length} days` : (t.gran==='weekly' ? `last ${t.chartRows.length} weeks` : `last ${t.chartRows.length} months`);
   p.innerHTML = `
     <div class="metrics-container">
       ${kpiTile('Sets', fmtInt(sum(rows,'sets')), `IB ${fmtInt(sum(rows,'ibSets'))} · OB ${fmtInt(sum(rows,'obSets'))}`)}
@@ -702,35 +707,35 @@ function renderExecSummary(t){
       ${kpiTile('90 sec Calls', fmtInt(sum(rows,'calls90s')), `IB ${fmtInt(sum(rows,'ibCalls90s'))} · OB ${fmtInt(sum(rows,'obCalls90s'))}`)}
     </div>
     <div class="chart-card">
-      <h3>Sets — Total / IB / OB</h3>
+      <h3>Sets — Total / IB / OB <span style="color:var(--gray); font-weight:400; text-transform:none; letter-spacing:0">(${chartWindowNote})</span></h3>
       <div class="legend"><span><i style="background:var(--s-orange)"></i>Total</span><span><i style="background:var(--s-blue)"></i>IB</span><span><i style="background:var(--s-aqua)"></i>OB</span></div>
       <div id="chart-exec-sets"></div>
     </div>
     <div class="chart-card">
-      <h3>Warm Transfer % — Total / IB / OB</h3>
+      <h3>Warm Transfer % — Total / IB / OB <span style="color:var(--gray); font-weight:400; text-transform:none; letter-spacing:0">(${chartWindowNote})</span></h3>
       <div class="legend"><span><i style="background:var(--s-orange)"></i>Total</span><span><i style="background:var(--s-blue)"></i>IB</span><span><i style="background:var(--s-aqua)"></i>OB</span></div>
       <div id="chart-exec-warmt"></div>
     </div>
     <div class="chart-card">
-      <h3>Upfront Revenue over time</h3>
+      <h3>Upfront Revenue over time <span style="color:var(--gray); font-weight:400; text-transform:none; letter-spacing:0">(${chartWindowNote})</span></h3>
       <div class="legend"><span><i style="background:var(--s-aqua)"></i>Revenue ($)</span></div>
       <div id="chart-exec-rev"></div>
     </div>
     <div class="section-title">Period detail — all 23 metrics, as shown on the sheet</div>
-    <div class="note">Daily rows don't carry an IB/OB Revenue split in the source (only Weekly/Monthly do) — shown as "—".</div>
+    <div class="note">Daily rows don't carry an IB/OB Revenue split in the source (only Weekly/Monthly do) — shown as "—". The table below reflects your exact date selection; the charts above always show the fuller ${chartWindowNote} trend so the line reads clearly.</div>
     <div class="table-section"><table><thead id="tbl-exec-head"></thead><tbody id="tbl-exec-body"></tbody></table></div>
   `;
-  lineChart('chart-exec-sets', rows, [
+  lineChart('chart-exec-sets', t.chartRows, [
     {key:'sets', name:'Sets', color:getVar('--s-orange')},
     {key:'ibSets', name:'IB Sets', color:getVar('--s-blue')},
     {key:'obSets', name:'OB Sets', color:getVar('--s-aqua')},
   ], t.label);
-  lineChart('chart-exec-warmt', rows, [
+  lineChart('chart-exec-warmt', t.chartRows, [
     {key:'warmT', name:'Warm Transfer %', color:getVar('--s-orange'), fmt:fmtPct},
     {key:'ibWarmT', name:'IB Warm Transfer %', color:getVar('--s-blue'), fmt:fmtPct},
     {key:'obWarmT', name:'OB Warm Transfer %', color:getVar('--s-aqua'), fmt:fmtPct},
   ], t.label);
-  lineChart('chart-exec-rev', rows, [{key:'revenue', name:'Revenue', color:getVar('--s-aqua'), fmt:fmtMoney}], t.label);
+  lineChart('chart-exec-rev', t.chartRows, [{key:'revenue', name:'Revenue', color:getVar('--s-aqua'), fmt:fmtMoney}], t.label);
   const periodLabel = t.gran==='daily'?'Date':(t.gran==='weekly'?'Week Beginning':'Month');
   const cols = fullMetricCols('period', periodLabel);
   const withPeriod = rows.map(r=>({...r, period: t.label(r)}));
@@ -793,6 +798,7 @@ function renderCloserTrend(){
   const p = document.getElementById('panel-2');
   const ct = closerTrendForRange();
   const rows = ct.rows;
+  const chartWindowNote = ct.gran==='daily' ? `last ${ct.chartRows.length} days` : (ct.gran==='weekly' ? `last ${ct.chartRows.length} weeks` : `last ${ct.chartRows.length} months`);
   p.innerHTML = `
     <div class="metrics-container">
       ${kpiTile('Products Sold', fmtInt(sum(rows,'productsSold')))}
@@ -807,12 +813,12 @@ function renderCloserTrend(){
     </div>
     <div class="note">Showing ${ct.gran} granularity for ${state.start} → ${state.end} — same rolling-window behavior as the sheet (Daily for the last ~10 days, Weekly / Monthly further back).</div>
     <div class="chart-card">
-      <h3>Products Sold &amp; Closed Deal over time</h3>
+      <h3>Products Sold &amp; Closed Deal over time <span style="color:var(--gray); font-weight:400; text-transform:none; letter-spacing:0">(${chartWindowNote})</span></h3>
       <div class="legend"><span><i style="background:var(--s-orange)"></i>Products Sold</span><span><i style="background:var(--s-blue)"></i>Closed Deal</span></div>
       <div id="chart-closer-trend"></div>
     </div>
     <div class="chart-card">
-      <h3>Upfront Revenue over time</h3>
+      <h3>Upfront Revenue over time <span style="color:var(--gray); font-weight:400; text-transform:none; letter-spacing:0">(${chartWindowNote})</span></h3>
       <div class="legend"><span><i style="background:var(--s-aqua)"></i>Revenue ($)</span></div>
       <div id="chart-closer-rev"></div>
     </div>
@@ -822,11 +828,11 @@ function renderCloserTrend(){
     <div class="section-title">Period detail — all 10 metrics, as shown on the sheet</div>
     <div class="table-section"><table><thead id="tbl-closertrend-head"></thead><tbody id="tbl-closertrend-body"></tbody></table></div>
   `;
-  lineChart('chart-closer-trend', rows, [
+  lineChart('chart-closer-trend', ct.chartRows, [
     {key:'productsSold', name:'Products Sold', color:getVar('--s-orange')},
     {key:'closedDeal', name:'Closed Deal', color:getVar('--s-blue')},
   ], ct.label);
-  lineChart('chart-closer-rev', rows, [{key:'revenue', name:'Revenue', color:getVar('--s-aqua'), fmt:fmtMoney}], ct.label);
+  lineChart('chart-closer-rev', ct.chartRows, [{key:'revenue', name:'Revenue', color:getVar('--s-aqua'), fmt:fmtMoney}], ct.label);
   const closers = filteredClosers();
   const top = closers.slice().sort((a,b)=>b.revenue-a.revenue).slice(0,12);
   barChart('chart-closer-topbar', top, 'revenue', r=>r.name, getVar('--s-aqua'), fmtMoney);

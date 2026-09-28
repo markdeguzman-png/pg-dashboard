@@ -103,6 +103,12 @@
 
   .section-title{ font-size:14px; color:var(--light-gray); text-transform:uppercase; letter-spacing:0.5px; margin:26px 0 12px; font-weight:700; }
   .note{ font-size:11px; color:var(--gray); margin-bottom:14px; font-style:italic; }
+  .scope-banner{
+    background:rgba(253,51,0,0.08); border:1px solid rgba(253,51,0,0.35); border-radius:6px;
+    padding:10px 14px; font-size:12px; color:var(--light-gray); margin-bottom:16px;
+  }
+  .scope-banner b{ color:var(--white); }
+  .scope-banner.blocked{ background:rgba(227,73,72,0.10); border-color:rgba(227,73,72,0.45); color:var(--white); font-weight:600; }
 
   .metrics-container{ display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:16px; margin-bottom:10px; }
   .metric{ background:linear-gradient(135deg,var(--panel) 0%,var(--black) 100%); border:1px solid var(--line);
@@ -549,6 +555,20 @@ function fitsWindow(min, max){
 // granularity (last ~30 days when daily, all 6 weeks when weekly, all 3 months when monthly) —
 // while the KPI tiles/table above stay exact to the selected date range.
 function trendForRange(){
+  // LOB gate: this is the ASR company trend (sourced from the sheet's "ASRs" block); if the
+  // Closer LOB is active there is nothing here to show — CLOSER Trend View is the equivalent.
+  if (state.lob === 'Closer - Outbound') {
+    return { gran:'monthly', rows:[], chartRows:[], label:r=>r.month, blocked:true,
+      blockedReason:'LOB is set to Closer, but this is the ASR company trend — switch LOB to ASR or All to see it (or open CLOSER Trend View).' };
+  }
+  // Team scope: a specific ASR team only has real detail at Monthly granularity (Executive
+  // Summary Trend's per-team blocks), so picking a Team narrows this tab to Monthly and to that
+  // team's own numbers instead of the full-company Daily/Weekly/Monthly arrays.
+  if (state.team) {
+    const all = TEAM_MONTHLY.filter(r=>r.team===state.team);
+    const rows = all.filter(r => (r.month+'-01') <= state.end && endOfMonthStr(r.month) >= state.start);
+    return { gran:'monthly', rows: rows.length?rows:all, chartRows: all, label:r=>r.month, teamScoped:true };
+  }
   const dailyMin = TREND_DAILY[0].date, dailyMax = TREND_DAILY[TREND_DAILY.length-1].date;
   const weeklyMin = TREND_WEEKLY[0].weekBeginning, weeklyMax = addDaysStr(TREND_WEEKLY[TREND_WEEKLY.length-1].weekBeginning, 6);
   const monthlyMin = TREND_MONTHLY[0].month+'-01', monthlyMax = endOfMonthStr(TREND_MONTHLY[TREND_MONTHLY.length-1].month);
@@ -565,6 +585,14 @@ function trendForRange(){
 }
 
 function closerTrendForRange(){
+  // LOB gate: this is the Closer company trend; if the ASR LOB is active, nothing here applies —
+  // Executive Summary Trend is the ASR equivalent.
+  if (state.lob === 'ASR') {
+    return { gran:'monthly', rows:[], chartRows:[], label:r=>r.month, blocked:true,
+      blockedReason:'LOB is set to ASR, but this is the Closer company trend — switch LOB to Closer or All to see it (or open Executive Summary Trend).' };
+  }
+  // Team: every closer is on Team Jen, so a Team selection here (if it's Team Jen) never
+  // narrows anything further — company totals already equal the Team Jen totals.
   const dailyMin = CLOSER_TREND_DAILY[0].date, dailyMax = CLOSER_TREND_DAILY[CLOSER_TREND_DAILY.length-1].date;
   const weeklyMin = CLOSER_TREND_WEEKLY[0].weekBeginning, weeklyMax = addDaysStr(CLOSER_TREND_WEEKLY[CLOSER_TREND_WEEKLY.length-1].weekBeginning, 6);
   const monthlyMin = CLOSER_TREND_MONTHLY[0].month+'-01', monthlyMax = endOfMonthStr(CLOSER_TREND_MONTHLY[CLOSER_TREND_MONTHLY.length-1].month);
@@ -765,7 +793,13 @@ function renderExecSummary(t){
   const p = document.getElementById('panel-0');
   const rows = t.rows;
   const chartWindowNote = t.gran==='daily' ? `last ${t.chartRows.length} days` : (t.gran==='weekly' ? `last ${t.chartRows.length} weeks` : `last ${t.chartRows.length} months`);
+  const scopeBanner = t.blocked
+    ? `<div class="scope-banner blocked">⚠ ${t.blockedReason}</div>`
+    : (t.teamScoped
+        ? `<div class="scope-banner">Scoped to <b>${state.team}</b> — the sheet only keeps per-team detail at Monthly granularity, so this is showing Jul/Aug/Sep for this team only.${state.agent?` The Agent filter (<b>${state.agent}</b>) doesn't narrow this company/team trend further — see Rep per Metric for that person's own totals.`:''}</div>`
+        : (state.agent ? `<div class="scope-banner">The Agent filter (<b>${state.agent}</b>) doesn't narrow this company-wide trend — see Rep per Metric for that person's own totals.</div>` : ''));
   p.innerHTML = `
+    ${scopeBanner}
     <div class="metrics-container">
       ${kpiTile('Sets', fmtInt(sum(rows,'sets')), `IB ${fmtInt(sum(rows,'ibSets'))} · OB ${fmtInt(sum(rows,'obSets'))}`)}
       ${kpiTile('Appointments', fmtInt(sum(rows,'appt')))}
@@ -828,7 +862,12 @@ function renderASRTrend(t){
   const latestMonth = "2026-09";
   const latest = teamsToShow.map(team => TEAM_MONTHLY.find(r=>r.team===team && r.month===latestMonth)).filter(Boolean);
 
+  const scopeBanner = state.lob === 'Closer - Outbound'
+    ? `<div class="scope-banner blocked">⚠ LOB is set to Closer, but this is the ASR team trend — switch LOB to ASR or All to see it.</div>`
+    : (state.agent ? `<div class="scope-banner">The Agent filter (<b>${state.agent}</b>) doesn't narrow this team trend — see Rep per Metric for that person's own totals.</div>` : '');
+
   p.innerHTML = `
+    ${scopeBanner}
     <div class="metrics-container">
       ${kpiTile('Sets (Sep, selected teams)', fmtInt(sum(latest,'sets')), `IB ${fmtInt(sum(latest,'ibSets'))} · OB ${fmtInt(sum(latest,'obSets'))}`)}
       ${kpiTile('Warm Transfer %', fmtPct(avg(latest,'warmT')))}
@@ -870,7 +909,11 @@ function renderCloserTrend(){
   const ct = closerTrendForRange();
   const rows = ct.rows;
   const chartWindowNote = ct.gran==='daily' ? `last ${ct.chartRows.length} days` : (ct.gran==='weekly' ? `last ${ct.chartRows.length} weeks` : `last ${ct.chartRows.length} months`);
+  const scopeBanner = ct.blocked
+    ? `<div class="scope-banner blocked">⚠ ${ct.blockedReason}</div>`
+    : (state.agent ? `<div class="scope-banner">The Agent filter (<b>${state.agent}</b>) doesn't narrow this company-wide trend — see Closers Metric for that person's own totals.</div>` : '');
   p.innerHTML = `
+    ${scopeBanner}
     <div class="metrics-container">
       ${kpiTile('Products Sold', fmtInt(sum(rows,'productsSold')))}
       ${kpiTile('Appointments', fmtInt(sum(rows,'appointments')), `less cancelled: ${fmtInt(sum(rows,'apptsLessCancelled'))}`)}

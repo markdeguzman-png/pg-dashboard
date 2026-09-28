@@ -73,6 +73,7 @@
     padding:10px 12px; background:#F4F2F0; border:1px solid var(--light-gray);
     border-radius:4px; color:var(--black); font-size:13px; font-family:inherit;
   }
+  .filter-group select:disabled{ opacity:.45; cursor:not-allowed; }
   .presets{ display:flex; gap:6px; flex-wrap:wrap; }
   .preset-btn{
     padding:8px 12px; background:transparent; border:1px solid var(--light-gray);
@@ -167,6 +168,14 @@
       </div>
     </div>
     <div class="dim-row">
+      <div class="filter-group">
+        <label>LOB</label>
+        <select id="lobFilter">
+          <option value="">All LOBs</option>
+          <option value="ASR">ASR</option>
+          <option value="Closer - Outbound">Closer</option>
+        </select>
+      </div>
       <div class="filter-group">
         <label>Team</label>
         <select id="teamFilter"><option value="">All Teams</option></select>
@@ -396,7 +405,7 @@ const TABS = [
 ];
 const SERIES_COLORS = ['var(--s-blue)','var(--s-orange)','var(--s-aqua)','var(--s-yellow)','var(--s-magenta)','var(--s-violet)'];
 
-let state = { start:null, end:null, team:'', agent:'' };
+let state = { start:null, end:null, lob:'', team:'', agent:'' };
 let sortState = {}; // per table id -> {col, dir}
 
 function fmtInt(n){ return Math.round(n).toLocaleString(); }
@@ -420,13 +429,24 @@ function initFilters(){
   state.start = s.value; state.end = e.value;
 
   const teamSel = document.getElementById('teamFilter');
+  const lobSel = document.getElementById('lobFilter');
   TEAMS.forEach(t => { const o=document.createElement('option'); o.value=t; o.textContent=t; teamSel.appendChild(o); });
 
   rebuildAgentOptions();
 
   s.addEventListener('change', () => { state.start = s.value; renderAll(); });
   e.addEventListener('change', () => { state.end = e.value; renderAll(); });
-  teamSel.addEventListener('change', () => { state.team = teamSel.value; state.agent=''; rebuildAgentOptions(); renderAll(); });
+  lobSel.addEventListener('change', () => {
+    state.lob = lobSel.value; state.agent = '';
+    if (state.lob === 'Closer - Outbound') { state.team = ''; teamSel.value = ''; }
+    teamSel.disabled = state.lob === 'Closer - Outbound';
+    rebuildAgentOptions(); renderAll();
+  });
+  teamSel.addEventListener('change', () => {
+    state.team = teamSel.value; state.agent = '';
+    if (state.team) { state.lob = 'ASR'; lobSel.value = 'ASR'; } // a team only exists within the ASR LOB
+    rebuildAgentOptions(); renderAll();
+  });
   document.getElementById('agentFilter').addEventListener('change', (ev) => { state.agent = ev.target.value; renderAll(); });
 
   document.querySelectorAll('.preset-btn').forEach(btn=>{
@@ -446,22 +466,30 @@ function initFilters(){
   });
 
   document.getElementById('resetBtn').addEventListener('click', ()=>{
-    s.value='2026-07-01'; e.value=ASOF; teamSel.value='';
-    state = {start:s.value, end:e.value, team:'', agent:''};
+    s.value='2026-07-01'; e.value=ASOF; teamSel.value=''; lobSel.value=''; teamSel.disabled = false;
+    state = {start:s.value, end:e.value, lob:'', team:'', agent:''};
     rebuildAgentOptions();
     document.querySelectorAll('.preset-btn').forEach(b=>b.classList.toggle('active', b.dataset.preset==='all'));
     renderAll();
   });
 }
 
+// LOB (Line of Business) comes straight from Sched's own LOB / Current LOB columns — every rep in
+// ASR_REPS carries LOB "ASR" there, every closer in CLOSERS carries "Closer - Outbound". Team only
+// exists inside the ASR LOB, so picking a Team forces lob='ASR' and picking LOB='Closer - Outbound'
+// clears/disables Team.
 function rebuildAgentOptions(){
   const sel = document.getElementById('agentFilter');
   sel.innerHTML = '<option value="">All Agents</option>';
-  const reps = state.team ? ASR_REPS.filter(r=>r.team===state.team) : ASR_REPS;
-  const grp1 = document.createElement('optgroup'); grp1.label='ASR / Setters';
-  reps.forEach(r=>{ const o=document.createElement('option'); o.value=r.name; o.textContent=r.name; grp1.appendChild(o); });
-  sel.appendChild(grp1);
-  if(!state.team){
+  const showASR = state.lob !== 'Closer - Outbound';
+  const showClosers = state.lob !== 'ASR';
+  if (showASR) {
+    const reps = state.team ? ASR_REPS.filter(r=>r.team===state.team) : ASR_REPS;
+    const grp1 = document.createElement('optgroup'); grp1.label='ASR / Setters';
+    reps.forEach(r=>{ const o=document.createElement('option'); o.value=r.name; o.textContent=r.name; grp1.appendChild(o); });
+    sel.appendChild(grp1);
+  }
+  if (showClosers) {
     const grp2 = document.createElement('optgroup'); grp2.label='Closers / PG1 Advisors';
     CLOSERS.forEach(c=>{ const o=document.createElement('option'); o.value=c.name; o.textContent=c.name; grp2.appendChild(o); });
     sel.appendChild(grp2);
@@ -546,12 +574,14 @@ function closerMetricCols(periodKey, periodLabel){
 }
 
 function filteredReps(){
+  if(state.lob === 'Closer - Outbound') return []; // ASR reps don't exist under the Closer LOB
   let reps = ASR_REPS;
   if(state.team) reps = reps.filter(r=>r.team===state.team);
   if(state.agent) reps = reps.filter(r=>r.name===state.agent);
   return reps;
 }
 function filteredClosers(){
+  if(state.lob === 'ASR') return []; // closers don't exist under the ASR LOB
   let c = CLOSERS;
   if(state.agent) c = c.filter(x=>x.name===state.agent);
   return c;
@@ -769,7 +799,7 @@ function getVar(name){ return getComputedStyle(document.body).getPropertyValue(n
 // 2. ASR Trend View — real per-team monthly rollup from the sheet's own Executive Summary Trend team blocks
 function renderASRTrend(t){
   const p = document.getElementById('panel-1');
-  const teamsToShow = state.team ? [state.team] : TEAMS;
+  const teamsToShow = (state.lob === 'Closer - Outbound') ? [] : (state.team ? [state.team] : TEAMS);
   const monthsInRange = TREND_MONTHLY.filter(r=>inRange(r.month+'-01') || true).map(r=>r.month); // all 3 real months captured
   let teamMonthRows = TEAM_MONTHLY.filter(r=> teamsToShow.includes(r.team));
   // restrict to months overlapping the selected date range when possible
@@ -931,7 +961,7 @@ function renderASRDailyMetric(){
     {key:'revenue', label:'Upfront Revenue', fmt:fmtMoney},
   ];
   let rows = [];
-  const teamsToShow = state.team ? [state.team] : TEAMS;
+  const teamsToShow = (state.lob === 'Closer - Outbound') ? [] : (state.team ? [state.team] : TEAMS);
   teamsToShow.forEach(team=>{
     let reps = ASR_REPS.filter(r=>r.team===team);
     if(state.agent) reps = reps.filter(r=>r.name===state.agent);
@@ -946,7 +976,7 @@ function renderASRDailyMetric(){
 // 7. BR % per Call Source
 function renderCallSourceBR(){
   const p = document.getElementById('panel-6');
-  let rows = CALL_SOURCE_BR;
+  let rows = state.lob === 'Closer - Outbound' ? [] : CALL_SOURCE_BR;
   if(state.agent) rows = rows.filter(r=>r.name===state.agent);
   else if(state.team){ const names = new Set(ASR_REPS.filter(r=>r.team===state.team).map(r=>r.name)); rows = rows.filter(r=>names.has(r.name)); }
   p.innerHTML = `
@@ -966,7 +996,7 @@ function renderCallSourceBR(){
 // 8. NO SHOWS
 function renderNoShows(){
   const p = document.getElementById('panel-7');
-  let rows = NO_SHOWS.filter(r=>inRange(r.apptDate));
+  let rows = state.lob === 'Closer - Outbound' ? [] : NO_SHOWS.filter(r=>inRange(r.apptDate));
   if(state.agent) rows = rows.filter(r=>r.asr===state.agent);
   else if(state.team){ const names = new Set(ASR_REPS.filter(r=>r.team===state.team).map(r=>r.name)); rows = rows.filter(r=>names.has(r.asr)); }
   p.innerHTML = `
@@ -984,7 +1014,7 @@ function renderNoShows(){
 // 9. BLANK Did Member Show
 function renderBlankDidShow(){
   const p = document.getElementById('panel-8');
-  let rows = BLANK_DID_SHOW.filter(r=>inRange(r.apptDate));
+  let rows = state.lob === 'Closer - Outbound' ? [] : BLANK_DID_SHOW.filter(r=>inRange(r.apptDate));
   if(state.agent) rows = rows.filter(r=>r.asr===state.agent || r.pg1Advisor===state.agent);
   else if(state.team){ const names = new Set(ASR_REPS.filter(r=>r.team===state.team).map(r=>r.name)); rows = rows.filter(r=>names.has(r.asr)); }
   p.innerHTML = `

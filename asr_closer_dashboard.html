@@ -59,12 +59,15 @@
     margin-bottom:18px;
     border-radius:8px;
     display:flex;
-    flex-direction:column;
+    flex-wrap:wrap;
     gap:16px;
+    align-items:flex-end;
   }
-  .date-row, .dim-row{ display:flex; flex-wrap:wrap; gap:16px; align-items:flex-end; }
+  /* display:contents unwraps these groupings so their children lay out directly in the
+     .filters row (one line on wide screens) while still wrapping together on narrow ones */
+  .date-row, .dim-row{ display:contents; }
   .filter-group{ display:flex; flex-direction:column; gap:6px; min-width:150px; }
-  .filter-group.grow{ flex:1; min-width:220px; }
+  .filter-group.grow{ flex:0 1 240px; min-width:180px; }
   .filter-group label{ font-size:11px; color:var(--gray); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; }
   .filter-group select, .filter-group input[type=date]{
     padding:10px 12px; background:#F4F2F0; border:1px solid var(--light-gray);

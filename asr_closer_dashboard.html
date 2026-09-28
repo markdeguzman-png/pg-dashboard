@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Performance Golf — ASR &amp; Closer Report Dashboard</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  :root{
+    --orange:#FD3300;
+    --dark-orange:#DB2C00;
+    --black:#1D1A1A;
+    --panel:#2A2A2A;
+    --gray:#7B726C;
+    --light-gray:#DFD9D5;
+    --white:#FFFFFF;
+    --line:#333;
+    --good:#4CAF50;
+    --warn:#eda100;
+    --bad:#e34948;
+    /* categorical series — PG orange holds slot 2 of the validated 8-hue order, rest untouched */
+    --s-blue:#3987e5;
+    --s-orange:#FD3300;
+    --s-aqua:#199e70;
+    --s-yellow:#c98500;
+    --s-magenta:#d55181;
+    --s-violet:#9085e9;
+  }
+
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+    background:var(--black);
+    color:var(--white);
+    padding:20px;
+  }
+
+  .header{
+    background:linear-gradient(135deg, var(--black) 0%, rgba(253,51,0,0.12) 100%);
+    border-bottom:3px solid var(--orange);
+    padding:26px 30px;
+    margin-bottom:22px;
+    border-radius:8px;
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    flex-wrap:wrap;
+    gap:12px;
+  }
+  .header h1{ font-size:28px; color:var(--orange); margin-bottom:6px; }
+  .header p{ font-size:13px; color:var(--gray); text-transform:uppercase; letter-spacing:1px; }
+  .header .asof{ font-size:12px; color:var(--light-gray); text-align:right; }
+  .header .asof b{ color:var(--white); }
+
+  .filters{
+    background:var(--panel);
+    border:1px solid var(--line);
+    padding:18px 20px;
+    margin-bottom:18px;
+    border-radius:8px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:16px;
+    align-items:flex-end;
+  }
+  .filter-group{ display:flex; flex-direction:column; gap:6px; min-width:150px; }
+  .filter-group.grow{ flex:1; min-width:220px; }
+  .filter-group label{ font-size:11px; color:var(--gray); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; }
+  .filter-group select, .filter-group input[type=date]{
+    padding:10px 12px; background:#F4F2F0; border:1px solid var(--light-gray);
+    border-radius:4px; color:var(--black); font-size:13px; font-family:inherit;
+  }
+  .presets{ display:flex; gap:6px; flex-wrap:wrap; }
+  .preset-btn{
+    padding:8px 12px; background:transparent; border:1px solid var(--light-gray);
+    color:var(--light-gray); border-radius:4px; font-size:12px; cursor:pointer; font-weight:600;
+  }
+  .preset-btn:hover, .preset-btn.active{ background:var(--orange); border-color:var(--orange); color:var(--white); }
+  .reset-btn{
+    padding:10px 16px; background:transparent; border:1px solid var(--orange); color:var(--orange);
+    border-radius:4px; font-size:12px; font-weight:700; cursor:pointer; text-transform:uppercase;
+  }
+  .reset-btn:hover{ background:var(--orange); color:var(--white); }
+  .gran-note{ font-size:11px; color:var(--gray); margin-top:4px; }
+
+  .tabs{
+    display:flex; gap:4px; margin-bottom:20px; border-bottom:2px solid var(--line);
+    overflow-x:auto; padding-bottom:1px;
+  }
+  .tab{
+    padding:11px 18px; background:transparent; border:none; color:var(--gray); cursor:pointer;
+    font-size:13px; font-weight:600; white-space:nowrap; border-bottom:3px solid transparent; transition:all .2s;
+  }
+  .tab.active{ color:var(--orange); border-bottom-color:var(--orange); }
+  .tab:hover{ color:var(--white); }
+
+  .tab-content{ display:none; }
+  .tab-content.active{ display:block; }
+
+  .section-title{ font-size:14px; color:var(--light-gray); text-transform:uppercase; letter-spacing:0.5px; margin:26px 0 12px; font-weight:700; }
+  .note{ font-size:11px; color:var(--gray); margin-bottom:14px; font-style:italic; }
+
+  .metrics-container{ display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:16px; margin-bottom:10px; }
+  .metric{ background:linear-gradient(135deg,var(--panel) 0%,var(--black) 100%); border:1px solid var(--line);
+    padding:20px; border-radius:8px; border-left:4px solid var(--orange); }
+  .metric-label{ font-size:11px; color:var(--gray); text-transform:uppercase; letter-spacing:1px; font-weight:700; margin-bottom:10px; }
+  .metric-value{ font-size:32px; font-weight:700; color:var(--orange); line-height:1; font-variant-numeric:tabular-nums; }
+  .metric-sub{ font-size:11px; color:var(--gray); margin-top:6px; }
+
+  .chart-card{ background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:18px; margin-top:18px; }
+  .chart-card h3{ font-size:13px; color:var(--light-gray); text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px; }
+  .legend{ display:flex; gap:14px; font-size:11px; color:var(--gray); margin:6px 0 10px; flex-wrap:wrap; }
+  .legend span{ display:inline-flex; align-items:center; gap:5px; }
+  .legend i{ width:10px; height:10px; border-radius:2px; display:inline-block; }
+
+  .table-section{ background:linear-gradient(135deg,var(--panel) 0%,var(--black) 100%);
+    border:1px solid var(--line); border-radius:8px; overflow:auto; margin-top:18px; max-height:560px; }
+  table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  thead{ background:#3a3a3a; border-bottom:2px solid var(--orange); position:sticky; top:0; z-index:1; }
+  th{ padding:11px 12px; text-align:left; color:var(--white); font-weight:700; text-transform:uppercase; font-size:10.5px; letter-spacing:.4px; white-space:nowrap;
+      cursor:pointer; user-select:none; }
+  th:hover{ color:var(--orange); }
+  th.sorted::after{ content:' ▾'; color:var(--orange); }
+  td{ padding:9px 12px; border-bottom:1px solid var(--line); color:var(--white); white-space:nowrap; font-variant-numeric:tabular-nums; }
+  tbody tr:hover{ background:rgba(253,51,0,0.07); }
+  tbody tr.subtotal{ background:rgba(253,51,0,0.10); font-weight:700; }
+  .no-data{ text-align:center; padding:40px 20px; color:var(--gray); }
+  .pill{ padding:2px 8px; border-radius:10px; font-size:10.5px; font-weight:700; }
+  .pill.good{ background:rgba(76,175,80,.18); color:var(--good); }
+  .pill.bad{ background:rgba(227,73,72,.18); color:var(--bad); }
+
+  .update-time{ text-align:right; font-size:11px; color:var(--gray); padding:14px 4px 4px; }
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <div>
+      <h1>⚡ PERFORMANCE GOLF</h1>
+      <p>ASR &amp; Closer Report — Operations Dashboard</p>
+    </div>
+    <div class="asof">Source data as of <b id="asofLabel">—</b><br>Recreated from the live "ASR - Closer Report" sheet</div>
+  </div>
+
+  <div class="filters">
+    <div class="filter-group">
+      <label>Start Date</label>
+      <input type="date" id="startDate">
+    </div>
+    <div class="filter-group">
+      <label>End Date</label>
+      <input type="date" id="endDate">
+    </div>
+    <div class="filter-group">
+      <label>Team</label>
+      <select id="teamFilter"><option value="">All Teams</option></select>
+    </div>
+    <div class="filter-group grow">
+      <label>Agent</label>
+      <select id="agentFilter"><option value="">All Agents</option></select>
+    </div>
+    <div class="filter-group">
+      <label>Quick Range</label>
+      <div class="presets">
+        <button class="preset-btn" data-preset="7">Last 7d</button>
+        <button class="preset-btn" data-preset="30">Last 30d</button>
+        <button class="preset-btn" data-preset="90">Last 3mo</button>
+        <button class="preset-btn active" data-preset="all">All</button>
+      </div>
+    </div>
+    <button class="reset-btn" id="resetBtn">Reset Filters</button>
+  </div>
+  <div class="gran-note" id="granNote"></div>
+
+  <div class="tabs" id="tabBar"></div>
+
+  <div id="panels"></div>
+
+  <div class="update-time">Rendered <span id="renderTime">—</span> · Filters apply live to every tab</div>
+
+<script>
+// ===== inlined data (see asr_closer_data.js for the commented, standalone copy) =====
+const ASOF = "2026-09-28";
+
+const ASR_REPS = [
+["Team Remen","Sitti Besas",226,182,126,32,69.23,51.59,20447.22,46.60,32.37,60.66],
+["Team Remen","Romalyn Magallon",214,149,118,49,64.32,42.02,14799.20,50.52,50.62,70.77],
+["Team Remen","Marc Bryan Paguinto",209,181,96,58,53.04,35.42,10202.74,64.11,40.35,69.14],
+["Team Remen","Homaboroma OrluOrlu",198,161,86,47,53.42,32.56,9990.39,46.15,29.71,66.84],
+["Team Remen","Thomas John Lommen",196,183,121,33,66.12,38.84,13316.28,40.92,27.17,56.44],
+["Team Remen","Alvin Alan Comia",180,177,130,30,73.45,38.46,15821.28,42.95,30.07,64.63],
+["Team Remen","Omar Abdallah Mahmoud",182,175,125,35,72.67,39.20,13882.59,46.31,42.62,43.07],
+["Team Remen","Marlon Estebat",178,164,119,25,72.56,33.61,12712.94,39.12,33.15,41.05],
+["Team Remen","Jacinto Jr Basada",130,116,80,15,68.97,50.00,14539.62,34.58,33.33,35.64],
+["Team Remen","Abet Belano",120,112,82,21,73.21,52.44,12297.93,35.82,34.10,37.65],
+["Team Remen","Melody Tubio Libradilla",79,77,52,10,67.53,38.46,4987.49,38.16,17.19,47.55],
+["Team Remen","Eden Mesfin",4,2,1,0,50.00,0.00,0,0,0,0],
+["Team Mimi","Monette Soltes",186,129,124,33,71.26,60.48,22762.37,50.00,47.47,53.55],
+["Team Mimi","Audrey Banares",143,133,80,26,62.02,53.75,14729.43,50.18,43.79,57.58],
+["Team Mimi","Prince Wendell De Luna",135,119,95,14,79.83,54.74,15307.32,58.44,65.91,48.48],
+["Team Mimi","Micha Aborquez",120,105,73,21,68.20,43.84,9647.49,43.64,39.35,49.17],
+["Team Mimi","Lucky Sardia",113,106,73,8,68.87,54.79,11075.50,36.36,32.73,44.44],
+["Team Mimi","Laurice Pentinio",113,105,90,4,85.71,58.89,14598.92,42.16,43.54,37.29],
+["Team Mimi","Rheena Jayne Tomakin",112,99,74,15,74.75,56.76,12736.98,49.78,43.59,53.06],
+["Team Mimi","Chelei Bago",104,94,67,17,71.28,34.33,7150.05,46.85,40.00,59.74],
+["Team Mimi","Charlyn Baylon",103,98,74,14,75.51,39.19,7765.52,38.58,23.15,49.06],
+["Team Mimi","Andrea Isabel Balon",86,73,58,8,79.45,43.10,6135.25,27.22,16.49,44.26],
+["Team Mimi","Emmanuella Frago",80,71,58,7,70.42,54.00,8290.20,40.00,32.93,44.92],
+["Team Mimi","Jireh Bless Espejo",38,37,25,8,67.57,32.00,2162.97,35.51,23.53,41.10],
+["Team Mimi","Hera Pearl Baldo",10,8,5,1,62.50,20.00,359.00,0,0,0],
+["Team Mimi","Jeiven Adrian Marasigan",5,3,3,0,100.00,0.00,0,0,0,0],
+["Team Mimi","Gerard Cadacio",2,2,0,0,0.00,0.00,0,0,0,0],
+["Team Mark","Marwin Ray Reyes",160,149,97,32,65.10,41.24,12998.27,52.46,35.51,66.47],
+["Team Mark","Gerome Maca",153,133,102,33,76.69,33.33,14019.03,48.26,19.30,64.53],
+["Team Mark","Nicolo Gerard C. Gonzalez",142,114,65,35,57.02,38.46,13054.48,55.25,20.00,57.76],
+["Team Mark","Jackie Ramos",141,134,86,27,64.18,44.19,14936.78,38.74,25.00,48.58],
+["Team Mark","Kim Paolo B. Planas",129,119,85,12,71.43,54.12,19035.83,37.94,32.88,41.75],
+["Team Mark","Emmanuel Sandoval",121,108,77,16,71.30,59.74,10282.00,45.83,43.36,47.68],
+["Team Mark","Carlo Palma",104,92,57,25,61.96,31.58,5757.08,45.41,22.73,54.60],
+["Team Mark","Maria Asuncion Lansang",85,77,56,10,72.73,44.64,7583.25,32.95,14.41,46.94],
+["Team Mark","Dennis Alillo",78,67,38,14,56.72,34.21,3596.84,24.76,10.00,28.24],
+].map(r => ({team:r[0], name:r[1], sets:r[2], appt:r[3], show:r[4], noShow:r[5], showRate:r[6], closeRate:r[7], revenue:r[8], bookingRate:r[9], ibBR:r[10], obBR:r[11]}));
+
+const CLOSERS = [
+["Belle Diaz",421,320,208,65.00,65903.90,316.85,86.96,167,29],
+["Amie B. Montederamos",335,276,144,52.17,46970.90,326.19,79.54,131,25],
+["Venus Marie Cartalla",330,230,136,59.13,43135.11,317.17,79.04,116,19],
+["Pauline Dimaculangan",329,164,109,66.46,39448.30,361.91,58.36,91,24],
+["Jemar Namora",364,220,88,40.00,30050.77,341.49,74.07,89,12],
+["Daniel Aliyu",338,221,108,48.87,28721.30,265.94,77.54,81,33],
+["Aldrin Jay Leones",335,244,114,46.72,28537.92,250.33,81.33,95,11],
+["Kuh-Kuh Doringo",295,173,105,60.69,26399.60,251.42,71.19,72,13],
+["Christian Buceron",323,118,63,53.39,25666.87,407.41,53.75,64,19],
+["Elbrando Tibon",249,147,46,31.29,21463.17,466.59,75.38,51,19],
+["Reynan Sularan",306,204,82,40.20,21460.80,261.72,76.12,52,25],
+["Rubilyn Estrada",304,196,89,45.41,20387.79,229.08,73.13,67,19],
+["Romuel Sabile",342,156,62,39.74,18237.10,294.15,61.66,54,25],
+["Nezy Kea Buenaventura",199,121,48,39.67,16918.05,352.46,71.18,43,22],
+["Jackie Rose Paet",239,160,48,30.00,13734.64,286.14,72.40,34,44],
+["Mark Ryan Francis",222,121,41,33.88,13452.01,328.10,59.61,46,6],
+["Maria Lourdes Ortiz",202,139,49,35.25,11134.56,227.24,75.54,41,26],
+["Abdullah Ahmed Khan",232,113,28,24.78,10666.09,380.93,61.41,26,19],
+["Edelson Libunao",109,67,17,25.37,4082.10,240.12,68.37,10,0],
+["Shane Cregan",30,18,3,16.67,1335.00,445.00,62.07,0,0],
+["Bekim Kraya",25,13,2,15.38,1246.00,623.00,56.52,0,0],
+["Tincia Ware",58,36,5,13.89,1216.85,243.37,73.47,0,0],
+["John Reynoso",0,0,0,0,0,0,0,0,0],
+].map(r => ({name:r[0], appt:r[1], show:r[2], closedDeal:r[3], closeRate:r[4], revenue:r[5], aov:r[6], showRate:r[7], clubs:r[8], pg1:r[9]}));
+
+const TREND_FIELDS = ["sets","ibSets","obSets","appt","warmT","ibWarmT","obWarmT","showRate","ibShowRate","obShowRate",
+  "shows","ibShows","obShows","bookingRate","ibBookingRate","obBookingRate","revenue","ibRevenue","obRevenue",
+  "closedDeal","calls90s","ibCalls90s","obCalls90s"];
+function rowsToObjs(keyName, rows, fields){
+  return rows.map(r => { const o = {[keyName]: r[0]}; fields.forEach((f,i)=> o[f]=r[i+1]); return o; });
+}
+
+const TREND_DAILY = rowsToObjs('date', [
+  ["2026-09-18",218,88,130,177,42.20,69.32,23.85,70.06,85.33,58.82,124,64,60,46.68,37.29,56.28,22463,null,null,65,467,236,231],
+  ["2026-09-19",50,30,20,96,72.00,90.00,45.00,59.38,79.49,45.61,57,31,26,41.67,38.96,46.51,11980,null,null,35,120,77,43],
+  ["2026-09-20",39,15,24,52,41.03,86.67,12.50,71.15,84.21,63.64,37,16,21,41.49,26.32,64.86,5890,null,null,20,94,57,37],
+  ["2026-09-21",253,74,179,154,33.99,56.76,24.58,77.27,84.62,73.53,119,44,75,44.08,28.35,57.19,16451,null,null,53,574,261,313],
+  ["2026-09-22",198,86,112,198,40.40,62.79,23.21,66.67,83.10,57.48,132,59,73,43.33,36.91,50.00,17472,null,null,51,457,233,224],
+  ["2026-09-23",190,68,122,150,29.47,55.88,14.75,62.16,70.15,55.56,92,47,45,42.79,32.38,52.14,13549,null,null,38,444,210,234],
+  ["2026-09-24",157,64,93,150,27.39,45.31,15.05,58.00,73.08,50.00,87,38,49,40.89,35.16,46.04,12764,null,null,36,384,182,202],
+  ["2026-09-25",160,70,90,90,30.00,51.43,13.33,60.67,65.52,57.61,91,38,53,49.69,38.67,63.83,17250,null,null,42,322,181,141],
+  ["2026-09-26",46,23,23,46,43.48,73.91,13.04,67.78,74.42,61.70,61,32,29,0,0,0,9334,null,null,25,0,0,0],
+  ["2026-09-27",35,11,24,46,17.14,45.45,4.17,47.83,33.33,57.14,22,6,16,0,0,0,2270,null,null,8,0,0,0],
+], TREND_FIELDS);
+
+const TREND_WEEKLY = rowsToObjs('weekBeginning', [
+  ["2026-08-17",1204,452,752,1193,21.68,38.72,11.44,71.92,79.91,67.25,858,358,501,38.73,29.48,47.72,105885,68798,37087,308,3109,1533,1576],
+  ["2026-08-24",1157,369,788,1064,32.41,52.30,23.10,72.93,75.42,71.29,776,267,504,37.27,24.57,49.19,82931,46873,36058,274,3104,1502,1602],
+  ["2026-08-31",1337,442,895,1144,38.74,64.93,25.81,74.48,81.53,70.56,852,331,520,41.00,29.33,51.03,101828,53899,47929,375,3261,1507,1754],
+  ["2026-09-07",1302,459,843,1030,33.49,54.90,21.83,68.45,75.20,64.52,705,285,420,43.30,33.58,51.40,82946,44757,38189,284,3007,1367,1640],
+  ["2026-09-14",1284,522,762,1206,44.08,70.88,25.72,70.15,80.67,62.52,846,409,437,43.81,35.37,52.37,135166,86717,48449,404,2931,1476,1455],
+  ["2026-09-21",1039,396,643,936,32.63,55.81,18.35,64.53,73.13,59.13,604,264,340,47.64,37.11,57.72,89091,52136,36955,253,2181,1067,1114],
+], TREND_FIELDS);
+
+const TREND_MONTHLY = rowsToObjs('month', [
+  ["2026-07",3618,1367,1845,2911,8.37,11.70,7.75,65.82,67.06,68.13,1916,786,917,36.89,29.17,36.03,175169,84713,76548,522,9808,4687,5121],
+  ["2026-08",5286,1781,3505,5026,23.53,38.69,15.83,71.85,76.29,69.43,3611,1316,2294,37.94,null,47.35,384259,216787,167473,1236,13934,6531,7403],
+  ["2026-09",4656,1740,2916,4152,37.65,61.90,23.18,69.10,77.57,63.86,2869,1231,1638,43.59,34.11,52.26,389878,226370,164503,1259,10681,5101,5580],
+], TREND_FIELDS);
+
+const TEAM_MONTHLY = [
+  ["Team Remen","2026-07",1264,675,575,968,8.78,9.19,8.52,66.74,66.26,67.10,646,379,257,35.18,33.32,36.69,47488,34645,12545,160,3593,2026,1567],
+  ["Team Remen","2026-08",2040,708,1332,1926,20.64,33.62,13.74,70.72,75.22,68.20,1362,513,847,42.62,32.51,51.05,144119,77805,66314,460,4787,2178,2609],
+  ["Team Remen","2026-09",1977,748,1229,1743,34.85,55.61,22.21,66.95,74.29,62.34,1167,500,667,45.64,34.89,56.17,144180,82995,61185,468,4332,2144,2188],
+  ["Team Mimi","2026-07",1045,622,412,854,13.97,14.79,13.11,68.27,69.41,65.10,583,379,194,33.43,30.05,39.02,65679,46349,17719,187,3126,2070,1056],
+  ["Team Mimi","2026-08",1432,540,892,1315,26.05,42.22,16.26,73.76,79.68,69.88,970,396,573,36.06,27.18,44.96,116236,75697,40539,373,3971,1987,1984],
+  ["Team Mimi","2026-09",1418,693,725,1283,45.63,67.10,25.10,72.41,79.75,65.17,929,508,421,43.42,37.89,50.45,136116,97849,38267,463,3266,1829,1437],
+  ["Team Mark","2026-07",904,24,828,792,4.54,4.17,4.83,67.68,55.56,70.28,536,10,447,38.92,7.04,41.78,50083,989,44326,143,2323,341,1982],
+  ["Team Mark","2026-08",1747,495,1252,1659,24.67,42.42,17.65,73.12,77.61,71.31,1213,364,850,35.54,22.68,45.81,117190,59596,57594,380,4916,2183,2733],
+  ["Team Mark","2026-09",1224,269,955,1086,32.35,67.66,22.41,68.23,80.32,64.64,741,200,541,41.27,26.22,49.23,108250,43427,64822,316,2966,1026,1940],
+].map(r => { const o = {team:r[0], month:r[1]}; TREND_FIELDS.forEach((f,i)=> o[f]=r[i+2]); return o; });
+
+const CALL_SOURCE_BR = [
+["Marc Bryan Paguinto",8,150.00,2,50.00,20,40.00,18,5.56],
+["Romalyn Magallon",25,8.00,7,900.00,69,57.97,117,8.55],
+["Prince Wendell De Luna",24,0.00,9,22.22,32,128.13,56,60.71],
+["Nicolo Gerard C. Gonzalez",1,300.00,0,0,10,0.00,11,27.27],
+["Marwin Ray Reyes",27,22.22,3,933.33,33,33.33,60,0.00],
+["Audrey Banares",33,33.33,10,30.00,7,28.57,89,57.30],
+["Monette Soltes",68,47.06,12,291.67,15,20.00,108,30.56],
+["Rheena Jayne Tomakin",16,100.00,3,0.00,4,50.00,46,30.43],
+["Chelei Bago",13,84.62,6,66.67,43,27.91,70,42.86],
+["Omar Abdallah Mahmoud",15,120.00,7,828.57,70,10.00,131,12.98],
+["Gerome Maca",7,71.43,2,50.00,39,30.77,34,0.00],
+["Homaboroma OrluOrlu",13,38.46,7,614.29,90,23.33,80,66.67],
+["Emmanuel Sandoval",15,53.33,4,0.00,22,54.55,39,66.67],
+["Sitti Besas",21,95.24,4,75.00,64,21.88,106,36.79],
+["Carlo Palma",4,100.00,1,100.00,25,36.00,31,0.00],
+["Alvin Alan Comia",16,143.75,5,1000.00,74,9.46,127,0.00],
+["Micha Aborquez",20,55.00,6,33.33,43,20.93,57,89.06],
+["Laurice Pentinio",17,111.76,3,142.86,54,18.52,109,42.20],
+["Thomas John Lommen",14,7.14,2,950.00,76,1.32,85,50.59],
+].map(r => ({name:r[0], ivr1Calls:r[1], ivr1BR:r[2], ivr2Calls:r[3], ivr2BR:r[4], ivr3Calls:r[5], ivr3BR:r[6], ivr4Calls:r[7], ivr4BR:r[8]}));
+
+const NO_SHOWS = [
+["2026-09-01","Abet Belano","gduffin@comcast.net","9254132433","No",1],
+["2026-09-01","Alex Edem","dremmers@ameritech.net","8155050690","No",1],
+["2026-09-01","Alex Edem","lynn@pioneerpropanecorp.com","7163075843","Cancelled",1],
+["2026-09-01","Alex Edem","tomboyle25@gmail.com","5163531220","No",1],
+["2026-09-01","Alex Edem","Twsbricker@aol.com","1716525363","No",1],
+["2026-09-01","Alvin Alan Comia","jgcello@naturesimagery.com","8434217788","Cancelled",1],
+["2026-09-01","Alvin Alan Comia","scottierod69@aol.com","3037487383","No",1],
+["2026-09-01","Asmaa Hisham","kevin@ricciconstructiongroup.co","2037101082","No",1],
+["2026-09-01","Audrey Banares","bolinhomes@gmail.com","5754306865","Cancelled",1],
+["2026-09-01","Audrey Banares","craig.arsenault5@gmail.com","9024391340","No",1],
+["2026-09-01","Audrey Banares","pswacon@hotmail.com","9522104770","No",1],
+["2026-09-01","Audrey Banares","tdhughes02@gmail.com","6613330737","Cancelled",1],
+["2026-09-01","Audrey Banares","timkosharek64@gmail.com","6089291757","No",1],
+["2026-09-01","Emmanuel Sandoval","bdiana504@gmail.com","9739538160","Cancelled",1],
+["2026-09-01","Emmanuel Sandoval","jmpaysagistes@gmail.com","5146179917","No",1],
+["2026-09-01","Emmanuel Sandoval","whitneyrenzelman@gmail.com","9702199986","No",1],
+["2026-09-01","Gabriella Abem","efettanucci@gmail.com","12164404343","No",1],
+["2026-09-01","Jacinto Jr Basada","barbaraneller@comcast.net","2485635292","Cancelled",1],
+["2026-09-01","Jacinto Jr Basada","jsgeorge4@gmail.com","4019654928","Cancelled",1],
+].map(r => ({apptDate:r[0], asr:r[1], email:r[2], phone:r[3], didShow:r[4], noShow:r[5]}));
+
+const BLANK_DID_SHOW = [
+["2026-09-02","Mark Ryan Francis","Jireh Bless Espejo","cheng999@gmail.com","8088007651"],
+["2026-09-03","Amie B. Montederamos","Rheena Jayne Tomakin","guardianimages@mac.com","6163641515"],
+["2026-09-03","Daniel Aliyu","Nicolo Gerard C. Gonzalez","ratki041@yahoo.com","9733906481"],
+["2026-09-03","Mark Ryan Francis","Homaboroma OrluOrlu","cjstyles1922@gmail.com","8039401319"],
+["2026-09-03","Mark Ryan Francis","Marc Bryan Paguinto","randall.i.scott@gmail.com","19175875900"],
+["2026-09-04","Abdullah Ahmed Khan","Carlo Palma","kevindevaughn33@gmail.com","3309366511"],
+["2026-09-04","Daniel Aliyu","Jacinto Jr Basada","jenny.burdette0430@gmail.com","8036403052"],
+["2026-09-04","Laurice Pentinio","Jackie Ramos","thomassather36@gmail.com","4065805568"],
+].map(r => ({apptDate:r[0], pg1Advisor:r[1], asr:r[2], email:r[3], phone:r[4]}));
+
+const TEAMS = ["Team Remen","Team Mimi","Team Mark"];
+// ===== end inlined data =====
+
+const TABS = [
+  "Executive Summary Trend","ASR Trend View","CLOSER Trend View","Closers Metric",
+  "Rep per Metric","ASR Daily Metric","BR % per Call Source","NO SHOWS","BLANK Did Member Show"
+];
+const SERIES_COLORS = ['var(--s-blue)','var(--s-orange)','var(--s-aqua)','var(--s-yellow)','var(--s-magenta)','var(--s-violet)'];
+
+let state = { start:null, end:null, team:'', agent:'' };
+let sortState = {}; // per table id -> {col, dir}
+
+function fmtInt(n){ return Math.round(n).toLocaleString(); }
+function fmtMoney(n){ return '$' + Math.round(n).toLocaleString(); }
+function fmtPct(n){ return (Math.round(n*10)/10).toFixed(1) + '%'; }
+function dstr(d){ return d.toISOString().slice(0,10); }
+
+function initFilters(){
+  document.getElementById('asofLabel').textContent = ASOF;
+  const minDate = TREND_DAILY[0].date, maxDate = ASOF;
+  const s = document.getElementById('startDate'), e = document.getElementById('endDate');
+  s.min = '2026-07-01'; s.max = ASOF; e.min='2026-07-01'; e.max = ASOF;
+  s.value = '2026-07-01'; e.value = ASOF;
+  state.start = s.value; state.end = e.value;
+
+  const teamSel = document.getElementById('teamFilter');
+  TEAMS.forEach(t => { const o=document.createElement('option'); o.value=t; o.textContent=t; teamSel.appendChild(o); });
+
+  rebuildAgentOptions();
+
+  s.addEventListener('change', () => { state.start = s.value; renderAll(); });
+  e.addEventListener('change', () => { state.end = e.value; renderAll(); });
+  teamSel.addEventListener('change', () => { state.team = teamSel.value; state.agent=''; rebuildAgentOptions(); renderAll(); });
+  document.getElementById('agentFilter').addEventListener('change', (ev) => { state.agent = ev.target.value; renderAll(); });
+
+  document.querySelectorAll('.preset-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const p = btn.dataset.preset;
+      const end = new Date(ASOF+'T00:00:00');
+      let start;
+      if(p==='all'){ start = new Date('2026-07-01T00:00:00'); }
+      else { start = new Date(end); start.setDate(start.getDate() - (+p - 1)); }
+      s.value = dstr(start); e.value = dstr(end);
+      state.start = s.value; state.end = e.value;
+      renderAll();
+    });
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', ()=>{
+    s.value='2026-07-01'; e.value=ASOF; teamSel.value='';
+    state = {start:s.value, end:e.value, team:'', agent:''};
+    rebuildAgentOptions();
+    document.querySelectorAll('.preset-btn').forEach(b=>b.classList.toggle('active', b.dataset.preset==='all'));
+    renderAll();
+  });
+}
+
+function rebuildAgentOptions(){
+  const sel = document.getElementById('agentFilter');
+  sel.innerHTML = '<option value="">All Agents</option>';
+  const reps = state.team ? ASR_REPS.filter(r=>r.team===state.team) : ASR_REPS;
+  const grp1 = document.createElement('optgroup'); grp1.label='ASR / Setters';
+  reps.forEach(r=>{ const o=document.createElement('option'); o.value=r.name; o.textContent=r.name; grp1.appendChild(o); });
+  sel.appendChild(grp1);
+  if(!state.team){
+    const grp2 = document.createElement('optgroup'); grp2.label='Closers / PG1 Advisors';
+    CLOSERS.forEach(c=>{ const o=document.createElement('option'); o.value=c.name; o.textContent=c.name; grp2.appendChild(o); });
+    sel.appendChild(grp2);
+  }
+}
+
+function inRange(dateStr){
+  return dateStr >= state.start && dateStr <= state.end;
+}
+
+// pick finest granularity that has data in range
+function trendForRange(){
+  const daily = TREND_DAILY.filter(r=>inRange(r.date));
+  if(daily.length) return {gran:'daily', rows:daily, label:r=>r.date.slice(5)};
+  const weekly = TREND_WEEKLY.filter(r=>inRange(r.weekBeginning));
+  if(weekly.length) return {gran:'weekly', rows:weekly, label:r=>'WB '+r.weekBeginning.slice(5)};
+  const monthly = TREND_MONTHLY.filter(r=> (r.month+'-01') >= state.start.slice(0,7)+'-01' && (r.month+'-01') <= state.end.slice(0,7)+'-28');
+  return {gran:'monthly', rows: monthly.length?monthly:TREND_MONTHLY, label:r=>r.month};
+}
+
+function filteredReps(){
+  let reps = ASR_REPS;
+  if(state.team) reps = reps.filter(r=>r.team===state.team);
+  if(state.agent) reps = reps.filter(r=>r.name===state.agent);
+  return reps;
+}
+function filteredClosers(){
+  let c = CLOSERS;
+  if(state.agent) c = c.filter(x=>x.name===state.agent);
+  return c;
+}
+
+function sum(arr, key){ return arr.reduce((s,r)=>s+(r[key]||0),0); }
+function avg(arr, key){ return arr.length? sum(arr,key)/arr.length : 0; }
+
+// ---------------- SVG line chart ----------------
+function lineChart(containerId, rows, series, xLabelFn){
+  const el = document.getElementById(containerId);
+  if(!rows.length){ el.innerHTML = '<div class="no-data">No data in this range</div>'; return; }
+  const W = el.clientWidth || 760, H = 220, padL=46, padR=16, padT=14, padB=28;
+  const plotW = W-padL-padR, plotH = H-padT-padB;
+  const n = rows.length;
+  const xStep = n>1 ? plotW/(n-1) : 0;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="overflow:visible">`;
+
+  // gridlines
+  const maxVal = Math.max(...series.map(s=>Math.max(...rows.map(r=>r[s.key]||0)))) || 1;
+  const niceMax = maxVal * 1.15;
+  for(let g=0; g<=4; g++){
+    const y = padT + plotH - (g/4)*plotH;
+    svg += `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#383835" stroke-width="1"/>`;
+    svg += `<text x="${padL-8}" y="${y+3}" font-size="9" fill="#898781" text-anchor="end">${fmtInt(niceMax*g/4)}</text>`;
+  }
+  // x labels (sparse)
+  rows.forEach((r,i)=>{
+    if(n<=10 || i%Math.ceil(n/8)===0 || i===n-1){
+      const x = padL + i*xStep;
+      svg += `<text x="${x}" y="${H-8}" font-size="9" fill="#898781" text-anchor="middle">${xLabelFn(r)}</text>`;
+    }
+  });
+
+  series.forEach((s,si)=>{
+    const color = s.color;
+    let pts = rows.map((r,i)=>{
+      const x = padL + i*xStep;
+      const y = padT + plotH - ((r[s.key]||0)/niceMax)*plotH;
+      return [x,y];
+    });
+    const path = pts.map((p,i)=> (i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+    svg += `<path d="${path}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+    pts.forEach((p,i)=>{
+      svg += `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.5" fill="${color}" stroke="#1D1A1A" stroke-width="1">`;
+      svg += `<title>${xLabelFn(rows[i])} · ${s.name}: ${s.fmt ? s.fmt(rows[i][s.key]) : fmtInt(rows[i][s.key])}</title></circle>`;
+    });
+  });
+  svg += `</svg>`;
+  el.innerHTML = svg;
+}
+
+function barChart(containerId, rows, key, nameFn, color, fmt){
+  const el = document.getElementById(containerId);
+  if(!rows.length){ el.innerHTML = '<div class="no-data">No data</div>'; return; }
+  const W = el.clientWidth || 760;
+  const rowH = 22, gap=6, padL=140, padR=60, padT=6;
+  const H = rows.length*(rowH+gap)+padT;
+  const maxVal = Math.max(...rows.map(r=>r[key]||0)) || 1;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}">`;
+  rows.forEach((r,i)=>{
+    const y = padT + i*(rowH+gap);
+    const w = ((r[key]||0)/maxVal) * (W-padL-padR);
+    svg += `<text x="${padL-8}" y="${y+rowH*0.68}" font-size="11" fill="#c3c2b7" text-anchor="end">${nameFn(r)}</text>`;
+    svg += `<rect x="${padL}" y="${y}" width="${Math.max(w,2)}" height="${rowH}" rx="4" fill="${color}">
+              <title>${nameFn(r)}: ${fmt?fmt(r[key]):fmtInt(r[key])}</title></rect>`;
+    svg += `<text x="${padL+w+8}" y="${y+rowH*0.68}" font-size="11" fill="#ffffff">${fmt?fmt(r[key]):fmtInt(r[key])}</text>`;
+  });
+  svg += `</svg>`;
+  el.innerHTML = svg;
+}
+
+// ---------------- sortable table ----------------
+function renderTable(tableId, rows, cols, opts){
+  opts = opts || {};
+  const tbody = document.getElementById(tableId+'-body');
+  const thead = document.getElementById(tableId+'-head');
+  if(!rows.length){ tbody.innerHTML = `<tr><td colspan="${cols.length}" class="no-data">No rows match the current filters</td></tr>`; }
+  const st = sortState[tableId];
+  let sorted = rows.slice();
+  if(st){
+    sorted.sort((a,b)=>{
+      const va=a[st.col], vb=b[st.col];
+      if(typeof va==='string') return st.dir*va.localeCompare(vb);
+      return st.dir*((va||0)-(vb||0));
+    });
+  }
+  thead.innerHTML = '<tr>' + cols.map(c=>`<th data-col="${c.key}" class="${st&&st.col===c.key?'sorted':''}">${c.label}</th>`).join('') + '</tr>';
+  thead.querySelectorAll('th').forEach(th=>{
+    th.addEventListener('click', ()=>{
+      const col = th.dataset.col;
+      const cur = sortState[tableId];
+      sortState[tableId] = { col, dir: (cur && cur.col===col) ? -cur.dir : -1 };
+      renderTable(tableId, rows, cols, opts);
+    });
+  });
+  tbody.innerHTML = sorted.map(r=>{
+    const cls = opts.rowClass ? opts.rowClass(r) : '';
+    return `<tr class="${cls}">` + cols.map(c=> `<td>${c.fmt ? c.fmt(r[c.key], r) : (r[c.key] ?? '')}</td>`).join('') + '</tr>';
+  }).join('');
+}
+
+// ---------------- panel builders ----------------
+function kpiTile(label, value, sub){
+  return `<div class="metric"><div class="metric-label">${label}</div><div class="metric-value">${value}</div>${sub?`<div class="metric-sub">${sub}</div>`:''}</div>`;
+}
+
+function buildPanels(){
+  const wrap = document.getElementById('panels');
+  wrap.innerHTML = TABS.map((t,i)=>`<div class="tab-content${i===0?' active':''}" id="panel-${i}"></div>`).join('');
+}
+
+function buildTabBar(){
+  const bar = document.getElementById('tabBar');
+  bar.innerHTML = TABS.map((t,i)=>`<button class="tab ${i===0?'active':''}" data-i="${i}">${t}</button>`).join('');
+  bar.querySelectorAll('.tab').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      bar.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.tab-content').forEach(p=>p.classList.remove('active'));
+      document.getElementById('panel-'+btn.dataset.i).classList.add('active');
+    });
+  });
+}
+
+function renderAll(){
+  const t = trendForRange();
+  document.getElementById('granNote').textContent =
+    `Showing ${t.gran} granularity for ${state.start} → ${state.end}` +
+    (t.gran!=='daily' ? ' — the source sheet only keeps ~10 rolling daily columns before rolling up into weekly / monthly buckets, so this recreation follows the same behavior.' : '.');
+  document.getElementById('renderTime').textContent = new Date().toLocaleString();
+
+  renderExecSummary(t);
+  renderASRTrend(t);
+  renderCloserTrend(t);
+  renderClosersMetric();
+  renderRepPerMetric();
+  renderASRDailyMetric();
+  renderCallSourceBR();
+  renderNoShows();
+  renderBlankDidShow();
+}
+
+// full 23-metric column set, shared by Executive Summary Trend & ASR Trend View team tables
+function fullMetricCols(periodKey, periodLabel){
+  return [
+    {key:periodKey, label:periodLabel},
+    {key:'sets', label:'Sets'}, {key:'ibSets', label:'IB Sets'}, {key:'obSets', label:'OB Sets'},
+    {key:'appt', label:'Appointments'},
+    {key:'warmT', label:'Warm Transfer %', fmt:fmtPct}, {key:'ibWarmT', label:'IB Warm Transfer %', fmt:fmtPct}, {key:'obWarmT', label:'OB Warm Transfer %', fmt:fmtPct},
+    {key:'showRate', label:'Show Rate %', fmt:fmtPct}, {key:'ibShowRate', label:'IB Show Rate %', fmt:fmtPct}, {key:'obShowRate', label:'OB Show Rate %', fmt:fmtPct},
+    {key:'shows', label:'Shows'}, {key:'ibShows', label:'IB Shows'}, {key:'obShows', label:'OB Shows'},
+    {key:'bookingRate', label:'Booking Rate %', fmt:fmtPct}, {key:'ibBookingRate', label:'IB Booking Rate %', fmt:fmtPct}, {key:'obBookingRate', label:'OB Booking Rate %', fmt:fmtPct},
+    {key:'revenue', label:'Upfront Revenue', fmt:v=>v==null?'—':fmtMoney(v)}, {key:'ibRevenue', label:'IB Revenue', fmt:v=>v==null?'—':fmtMoney(v)}, {key:'obRevenue', label:'OB Revenue', fmt:v=>v==null?'—':fmtMoney(v)},
+    {key:'closedDeal', label:'Closed Deal'},
+    {key:'calls90s', label:'90 sec Calls'}, {key:'ibCalls90s', label:'IB 90-sec Calls'}, {key:'obCalls90s', label:'OB 90-sec Calls'},
+  ];
+}
+
+// 1. Executive Summary Trend
+function renderExecSummary(t){
+  const p = document.getElementById('panel-0');
+  const rows = t.rows;
+  p.innerHTML = `
+    <div class="metrics-container">
+      ${kpiTile('Sets', fmtInt(sum(rows,'sets')), `IB ${fmtInt(sum(rows,'ibSets'))} · OB ${fmtInt(sum(rows,'obSets'))}`)}
+      ${kpiTile('Appointments', fmtInt(sum(rows,'appt')))}
+      ${kpiTile('Warm Transfer %', fmtPct(avg(rows,'warmT')), `IB ${fmtPct(avg(rows,'ibWarmT'))} · OB ${fmtPct(avg(rows,'obWarmT'))}`)}
+      ${kpiTile('Shows', fmtInt(sum(rows,'shows')), `IB ${fmtInt(sum(rows,'ibShows'))} · OB ${fmtInt(sum(rows,'obShows'))}`)}
+      ${kpiTile('Show Rate %', fmtPct(avg(rows,'showRate')), `IB ${fmtPct(avg(rows,'ibShowRate'))} · OB ${fmtPct(avg(rows,'obShowRate'))}`)}
+      ${kpiTile('Booking Rate %', fmtPct(avg(rows,'bookingRate')), `IB ${fmtPct(avg(rows,'ibBookingRate'))} · OB ${fmtPct(avg(rows,'obBookingRate'))}`)}
+      ${kpiTile('Upfront Revenue', fmtMoney(sum(rows,'revenue')))}
+      ${kpiTile('Closed Deal', fmtInt(sum(rows,'closedDeal')))}
+      ${kpiTile('90 sec Calls', fmtInt(sum(rows,'calls90s')), `IB ${fmtInt(sum(rows,'ibCalls90s'))} · OB ${fmtInt(sum(rows,'obCalls90s'))}`)}
+    </div>
+    <div class="chart-card">
+      <h3>Sets — Total / IB / OB</h3>
+      <div class="legend"><span><i style="background:var(--s-orange)"></i>Total</span><span><i style="background:var(--s-blue)"></i>IB</span><span><i style="background:var(--s-aqua)"></i>OB</span></div>
+      <div id="chart-exec-sets"></div>
+    </div>
+    <div class="chart-card">
+      <h3>Warm Transfer % — Total / IB / OB</h3>
+      <div class="legend"><span><i style="background:var(--s-orange)"></i>Total</span><span><i style="background:var(--s-blue)"></i>IB</span><span><i style="background:var(--s-aqua)"></i>OB</span></div>
+      <div id="chart-exec-warmt"></div>
+    </div>
+    <div class="chart-card">
+      <h3>Upfront Revenue over time</h3>
+      <div class="legend"><span><i style="background:var(--s-aqua)"></i>Revenue ($)</span></div>
+      <div id="chart-exec-rev"></div>
+    </div>
+    <div class="section-title">Period detail — all 23 metrics, as shown on the sheet</div>
+    <div class="note">Daily rows don't carry an IB/OB Revenue split in the source (only Weekly/Monthly do) — shown as "—".</div>
+    <div class="table-section"><table><thead id="tbl-exec-head"></thead><tbody id="tbl-exec-body"></tbody></table></div>
+  `;
+  lineChart('chart-exec-sets', rows, [
+    {key:'sets', name:'Sets', color:getVar('--s-orange')},
+    {key:'ibSets', name:'IB Sets', color:getVar('--s-blue')},
+    {key:'obSets', name:'OB Sets', color:getVar('--s-aqua')},
+  ], t.label);
+  lineChart('chart-exec-warmt', rows, [
+    {key:'warmT', name:'Warm Transfer %', color:getVar('--s-orange'), fmt:fmtPct},
+    {key:'ibWarmT', name:'IB Warm Transfer %', color:getVar('--s-blue'), fmt:fmtPct},
+    {key:'obWarmT', name:'OB Warm Transfer %', color:getVar('--s-aqua'), fmt:fmtPct},
+  ], t.label);
+  lineChart('chart-exec-rev', rows, [{key:'revenue', name:'Revenue', color:getVar('--s-aqua'), fmt:fmtMoney}], t.label);
+  const periodLabel = t.gran==='daily'?'Date':(t.gran==='weekly'?'Week Beginning':'Month');
+  const cols = fullMetricCols('period', periodLabel);
+  const withPeriod = rows.map(r=>({...r, period: t.label(r)}));
+  renderTable('tbl-exec', withPeriod, cols);
+}
+
+function getVar(name){ return getComputedStyle(document.body).getPropertyValue(name).trim() || name; }
+
+// 2. ASR Trend View — real per-team monthly rollup from the sheet's own Executive Summary Trend team blocks
+function renderASRTrend(t){
+  const p = document.getElementById('panel-1');
+  const teamsToShow = state.team ? [state.team] : TEAMS;
+  const monthsInRange = TREND_MONTHLY.filter(r=>inRange(r.month+'-01') || true).map(r=>r.month); // all 3 real months captured
+  let teamMonthRows = TEAM_MONTHLY.filter(r=> teamsToShow.includes(r.team));
+  // restrict to months overlapping the selected date range when possible
+  const wanted = teamMonthRows.filter(r => r.month >= state.start.slice(0,7) && r.month <= state.end.slice(0,7));
+  if(wanted.length) teamMonthRows = wanted;
+
+  const latestMonth = "2026-09";
+  const latest = teamsToShow.map(team => TEAM_MONTHLY.find(r=>r.team===team && r.month===latestMonth)).filter(Boolean);
+
+  p.innerHTML = `
+    <div class="metrics-container">
+      ${kpiTile('Sets (Sep, selected teams)', fmtInt(sum(latest,'sets')), `IB ${fmtInt(sum(latest,'ibSets'))} · OB ${fmtInt(sum(latest,'obSets'))}`)}
+      ${kpiTile('Warm Transfer %', fmtPct(avg(latest,'warmT')))}
+      ${kpiTile('Shows', fmtInt(sum(latest,'shows')))}
+      ${kpiTile('Booking Rate %', fmtPct(avg(latest,'bookingRate')))}
+      ${kpiTile('Upfront Revenue', fmtMoney(sum(latest,'revenue')))}
+      ${kpiTile('Closed Deal', fmtInt(sum(latest,'closedDeal')))}
+    </div>
+    <div class="chart-card">
+      <h3>Sets by team — Jul / Aug / Sep</h3>
+      <div class="legend">${teamsToShow.map((tm)=>`<span><i style="background:${getVar(['--s-orange','--s-blue','--s-aqua'][TEAMS.indexOf(tm)%3])}"></i>${tm}</span>`).join('')}</div>
+      <div id="chart-asr-teamlines"></div>
+    </div>
+    <div class="chart-card">
+      <h3>Sets by team (Sep, IB vs OB)</h3>
+      <div id="chart-asr-teambar"></div>
+    </div>
+    <div class="section-title">Team monthly detail — all 23 metrics, as shown on the sheet</div>
+    <div class="note">Real per-team rollups straight from Executive Summary Trend's own team blocks (Team Remen / Team Mimi / Team Mark), not a roster sum. Currently Monthly granularity only (Jul–Sep); the sheet doesn't keep per-team Weekly/Daily beyond the company-wide ASRs block.</div>
+    <div class="table-section"><table><thead id="tbl-asrteam-head"></thead><tbody id="tbl-asrteam-body"></tbody></table></div>
+  `;
+  // team lines chart: one line per team, using 'month' as x
+  const monthLabel = r => r.month.slice(5)+'/'+r.month.slice(2,4);
+  const series = teamsToShow.map((team,i)=>({key:'__t'+i, name:team, color: getVar(['--s-orange','--s-blue','--s-aqua'][TEAMS.indexOf(team)%3])}));
+  const merged = TREND_MONTHLY.map(mrow=>{
+    const o = {month:mrow.month};
+    teamsToShow.forEach((team,i)=>{ const tr = TEAM_MONTHLY.find(r=>r.team===team && r.month===mrow.month); o['__t'+i] = tr?tr.sets:0; });
+    return o;
+  });
+  lineChart('chart-asr-teamlines', merged, series, monthLabel);
+  const sepRows = teamsToShow.map(team=>TEAM_MONTHLY.find(r=>r.team===team && r.month==='2026-09')).filter(Boolean);
+  barChart('chart-asr-teambar', sepRows, 'sets', r=>r.team, getVar('--s-orange'));
+  renderTable('tbl-asrteam', teamMonthRows, fullMetricCols('month', 'Month'));
+}
+
+// 3. CLOSER Trend View
+function renderCloserTrend(t){
+  const p = document.getElementById('panel-2');
+  const rows = t.rows;
+  const closers = filteredClosers();
+  p.innerHTML = `
+    <div class="metrics-container">
+      ${kpiTile('Closer Appointments', fmtInt(sum(closers,'appt')))}
+      ${kpiTile('Closed Deals', fmtInt(sum(closers,'closedDeal')))}
+      ${kpiTile('Avg Close Rate', fmtPct(avg(closers,'closeRate')))}
+      ${kpiTile('Upfront Revenue', fmtMoney(sum(closers,'revenue')))}
+    </div>
+    <div class="chart-card">
+      <h3>Company Sets trend (context)</h3>
+      <div class="note" style="margin-bottom:8px">Closer-specific daily history isn't retained in the source sheet beyond the current snapshot — the line below is the same real company Sets trend shown on Executive Summary Trend, for date-range context.</div>
+      <div id="chart-closer-trend"></div>
+    </div>
+    <div class="section-title">Top closers by revenue (current snapshot)</div>
+    <div class="chart-card"><div id="chart-closer-topbar"></div></div>
+  `;
+  lineChart('chart-closer-trend', rows, [{key:'sets', name:'Sets', color:getVar('--s-orange')}], t.label);
+  const top = closers.slice().sort((a,b)=>b.revenue-a.revenue).slice(0,12);
+  barChart('chart-closer-topbar', top, 'revenue', r=>r.name, getVar('--s-aqua'), fmtMoney);
+}
+
+// 4. Closers Metric
+function renderClosersMetric(){
+  const p = document.getElementById('panel-3');
+  const closers = filteredClosers();
+  const total = { name:'Grand Total', appt:sum(closers,'appt'), show:sum(closers,'show'), closedDeal:sum(closers,'closedDeal'),
+    closeRate: closers.length? sum(closers,'closedDeal')/Math.max(sum(closers,'show'),1)*100:0,
+    revenue: sum(closers,'revenue'), aov: avg(closers,'aov'), showRate: avg(closers,'showRate'), clubs:sum(closers,'clubs'), pg1:sum(closers,'pg1') };
+  p.innerHTML = `
+    <div class="metrics-container">
+      ${kpiTile('Advisor Appt', fmtInt(total.appt))}
+      ${kpiTile('Advisor Show', fmtInt(total.show))}
+      ${kpiTile('Closed Deal', fmtInt(total.closedDeal))}
+      ${kpiTile('Upfront Revenue', fmtMoney(total.revenue))}
+      ${kpiTile('Avg AOV', fmtMoney(total.aov))}
+    </div>
+    <div class="section-title">Closer / PG1 Advisor detail</div>
+    <div class="note">Current-period snapshot from Closers Metric — click a column header to sort.</div>
+    <div class="table-section"><table><thead id="tbl-closers-head"></thead><tbody id="tbl-closers-body"></tbody></table></div>
+  `;
+  renderTable('tbl-closers', closers, [
+    {key:'name', label:'Name'}, {key:'appt', label:'Advisor Appt'}, {key:'show', label:'Advisor Show'},
+    {key:'closedDeal', label:'Closed Deal'}, {key:'closeRate', label:'Close Rate', fmt:fmtPct},
+    {key:'revenue', label:'Upfront Revenue', fmt:fmtMoney}, {key:'aov', label:'AOV', fmt:fmtMoney},
+    {key:'showRate', label:'Show Rate', fmt:fmtPct}, {key:'clubs', label:'Clubs'}, {key:'pg1', label:'PG1'},
+  ]);
+}
+
+// 5. Rep per Metric
+function renderRepPerMetric(){
+  const p = document.getElementById('panel-4');
+  const reps = filteredReps();
+  p.innerHTML = `
+    <div class="metrics-container">
+      ${kpiTile('Sets', fmtInt(sum(reps,'sets')))}
+      ${kpiTile('Appointments', fmtInt(sum(reps,'appt')))}
+      ${kpiTile('Show', fmtInt(sum(reps,'show')))}
+      ${kpiTile('No Show', fmtInt(sum(reps,'noShow')))}
+      ${kpiTile('Avg Show Rate', fmtPct(avg(reps,'showRate')))}
+      ${kpiTile('Upfront Revenue', fmtMoney(sum(reps,'revenue')))}
+    </div>
+    <div class="section-title">Rep detail</div>
+    <div class="note">Current-period roster snapshot from Control — filter by Team / Agent above; click a column to sort.</div>
+    <div class="table-section"><table><thead id="tbl-rep-head"></thead><tbody id="tbl-rep-body"></tbody></table></div>
+  `;
+  renderTable('tbl-rep', reps, [
+    {key:'team', label:'Team'}, {key:'name', label:'Name'}, {key:'sets', label:'Sets'},
+    {key:'appt', label:'Appointments'}, {key:'show', label:'Show'}, {key:'noShow', label:'No Show'},
+    {key:'showRate', label:'Show Rate', fmt:fmtPct}, {key:'closeRate', label:'Close Rate', fmt:fmtPct},
+    {key:'revenue', label:'Upfront Revenue', fmt:fmtMoney}, {key:'bookingRate', label:'Booking Rate', fmt:fmtPct},
+    {key:'ibBR', label:'IB BR%', fmt:fmtPct}, {key:'obBR', label:'OB BR%', fmt:fmtPct},
+  ]);
+}
+
+// 6. ASR Daily Metric (grouped by team, with subtotal rows)
+function renderASRDailyMetric(){
+  const p = document.getElementById('panel-5');
+  p.innerHTML = `
+    <div class="section-title">Team-grouped rep detail</div>
+    <div class="note">Mirrors the sheet's team-grouped layout with subtotal rows; respects Team / Agent filters above.</div>
+    <div class="table-section"><table><thead id="tbl-asrdaily-head"></thead><tbody id="tbl-asrdaily-body"></tbody></table></div>
+  `;
+  const cols = [
+    {key:'team', label:'Team'}, {key:'name', label:'Name'}, {key:'sets', label:'Sets'},
+    {key:'appt', label:'Appointments'}, {key:'show', label:'Show'}, {key:'noShow', label:'No Show'},
+    {key:'showRate', label:'Show Rate', fmt:fmtPct}, {key:'bookingRate', label:'Booking Rate', fmt:fmtPct},
+    {key:'revenue', label:'Upfront Revenue', fmt:fmtMoney},
+  ];
+  let rows = [];
+  const teamsToShow = state.team ? [state.team] : TEAMS;
+  teamsToShow.forEach(team=>{
+    let reps = ASR_REPS.filter(r=>r.team===team);
+    if(state.agent) reps = reps.filter(r=>r.name===state.agent);
+    if(!reps.length) return;
+    rows = rows.concat(reps);
+    rows.push({team:team, name:team+' Total', sets:sum(reps,'sets'), appt:sum(reps,'appt'), show:sum(reps,'show'),
+      noShow:sum(reps,'noShow'), showRate:avg(reps,'showRate'), bookingRate:avg(reps,'bookingRate'), revenue:sum(reps,'revenue'), _subtotal:true});
+  });
+  renderTable('tbl-asrdaily', rows, cols, { rowClass:r=> r._subtotal?'subtotal':'' });
+}
+
+// 7. BR % per Call Source
+function renderCallSourceBR(){
+  const p = document.getElementById('panel-6');
+  let rows = CALL_SOURCE_BR;
+  if(state.agent) rows = rows.filter(r=>r.name===state.agent);
+  else if(state.team){ const names = new Set(ASR_REPS.filter(r=>r.team===state.team).map(r=>r.name)); rows = rows.filter(r=>names.has(r.name)); }
+  p.innerHTML = `
+    <div class="section-title">Booking Rate % by IVR call source</div>
+    <div class="note">Sample of reps captured live from BR % per Call Source (booking rate can exceed 100% when one rep books multiple appointments from fewer unique inbound calls in the source data).</div>
+    <div class="table-section"><table><thead id="tbl-br-head"></thead><tbody id="tbl-br-body"></tbody></table></div>
+  `;
+  renderTable('tbl-br', rows, [
+    {key:'name', label:'Name'},
+    {key:'ivr1Calls', label:'IVR1 Calls'}, {key:'ivr1BR', label:'IVR1 Booking %', fmt:fmtPct},
+    {key:'ivr2Calls', label:'IVR2 Calls'}, {key:'ivr2BR', label:'IVR2 Booking %', fmt:fmtPct},
+    {key:'ivr3Calls', label:'IVR3 Calls'}, {key:'ivr3BR', label:'IVR3 Booking %', fmt:fmtPct},
+    {key:'ivr4Calls', label:'IVR4 Calls'}, {key:'ivr4BR', label:'IVR4 Booking %', fmt:fmtPct},
+  ]);
+}
+
+// 8. NO SHOWS
+function renderNoShows(){
+  const p = document.getElementById('panel-7');
+  let rows = NO_SHOWS.filter(r=>inRange(r.apptDate));
+  if(state.agent) rows = rows.filter(r=>r.asr===state.agent);
+  else if(state.team){ const names = new Set(ASR_REPS.filter(r=>r.team===state.team).map(r=>r.name)); rows = rows.filter(r=>names.has(r.asr)); }
+  p.innerHTML = `
+    <div class="metrics-container">${kpiTile('No-show / Cancelled records', fmtInt(rows.length))}</div>
+    <div class="section-title">No-show &amp; cancelled appointments</div>
+    <div class="note">Sample of records captured live from NO SHOWS (source tab spans ~1,252 rows; shown here is a representative slice, filtered by date range / team / agent).</div>
+    <div class="table-section"><table><thead id="tbl-noshow-head"></thead><tbody id="tbl-noshow-body"></tbody></table></div>
+  `;
+  renderTable('tbl-noshow', rows, [
+    {key:'apptDate', label:'Appt Date'}, {key:'asr', label:'ASR'}, {key:'email', label:"Member Email"},
+    {key:'phone', label:'Phone'}, {key:'didShow', label:'Did Member Show?', fmt:v=>`<span class="pill bad">${v}</span>`},
+  ]);
+}
+
+// 9. BLANK Did Member Show
+function renderBlankDidShow(){
+  const p = document.getElementById('panel-8');
+  let rows = BLANK_DID_SHOW.filter(r=>inRange(r.apptDate));
+  if(state.agent) rows = rows.filter(r=>r.asr===state.agent || r.pg1Advisor===state.agent);
+  else if(state.team){ const names = new Set(ASR_REPS.filter(r=>r.team===state.team).map(r=>r.name)); rows = rows.filter(r=>names.has(r.asr)); }
+  p.innerHTML = `
+    <div class="metrics-container">${kpiTile('Unmarked appointments', fmtInt(rows.length))}</div>
+    <div class="section-title">Appointments still missing a "Did Member Show?" value</div>
+    <div class="note">QA follow-up worklist — sample of records captured live (source tab spans ~301 rows).</div>
+    <div class="table-section"><table><thead id="tbl-blank-head"></thead><tbody id="tbl-blank-body"></tbody></table></div>
+  `;
+  renderTable('tbl-blank', rows, [
+    {key:'apptDate', label:'Appt Date'}, {key:'pg1Advisor', label:'PG1 Advisor'}, {key:'asr', label:'ASR'},
+    {key:'email', label:'Email'}, {key:'phone', label:'Phone'},
+  ]);
+}
+
+// init
+buildTabBar();
+buildPanels();
+initFilters();
+renderAll();
+window.addEventListener('resize', renderAll);
+</script>
+</body>
+</html>

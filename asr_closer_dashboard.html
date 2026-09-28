@@ -274,37 +274,42 @@ const CLOSERS = [
 
 const TREND_FIELDS = ["sets","ibSets","obSets","appt","warmT","ibWarmT","obWarmT","showRate","ibShowRate","obShowRate",
   "shows","ibShows","obShows","bookingRate","ibBookingRate","obBookingRate","revenue","ibRevenue","obRevenue",
-  "closedDeal","calls90s","ibCalls90s","obCalls90s"];
+  "closedDeal","calls90s","ibCalls90s","obCalls90s","ibCalls","obCalls","connectRate"];
 function rowsToObjs(keyName, rows, fields){
   return rows.map(r => { const o = {[keyName]: r[0]}; fields.forEach((f,i)=> o[f]=r[i+1]); return o; });
 }
 
+// Daily/Weekly captured 2026-09-28; the sheet's IB Calls / OB Calls / Connect Rate rows weren't
+// spotted in that pass (only found on a later re-check) so they're null at these granularities —
+// only Monthly has them for now.
 const TREND_DAILY = rowsToObjs('date', [
-  ["2026-09-18",218,88,130,177,42.20,69.32,23.85,70.06,85.33,58.82,124,64,60,46.68,37.29,56.28,22463,null,null,65,467,236,231],
-  ["2026-09-19",50,30,20,96,72.00,90.00,45.00,59.38,79.49,45.61,57,31,26,41.67,38.96,46.51,11980,null,null,35,120,77,43],
-  ["2026-09-20",39,15,24,52,41.03,86.67,12.50,71.15,84.21,63.64,37,16,21,41.49,26.32,64.86,5890,null,null,20,94,57,37],
-  ["2026-09-21",253,74,179,154,33.99,56.76,24.58,77.27,84.62,73.53,119,44,75,44.08,28.35,57.19,16451,null,null,53,574,261,313],
-  ["2026-09-22",198,86,112,198,40.40,62.79,23.21,66.67,83.10,57.48,132,59,73,43.33,36.91,50.00,17472,null,null,51,457,233,224],
-  ["2026-09-23",190,68,122,150,29.47,55.88,14.75,62.16,70.15,55.56,92,47,45,42.79,32.38,52.14,13549,null,null,38,444,210,234],
-  ["2026-09-24",157,64,93,150,27.39,45.31,15.05,58.00,73.08,50.00,87,38,49,40.89,35.16,46.04,12764,null,null,36,384,182,202],
-  ["2026-09-25",160,70,90,90,30.00,51.43,13.33,60.67,65.52,57.61,91,38,53,49.69,38.67,63.83,17250,null,null,42,322,181,141],
-  ["2026-09-26",46,23,23,46,43.48,73.91,13.04,67.78,74.42,61.70,61,32,29,0,0,0,9334,null,null,25,0,0,0],
-  ["2026-09-27",35,11,24,46,17.14,45.45,4.17,47.83,33.33,57.14,22,6,16,0,0,0,2270,null,null,8,0,0,0],
+  ["2026-09-18",218,88,130,177,42.20,69.32,23.85,70.06,85.33,58.82,124,64,60,46.68,37.29,56.28,22463,null,null,65,467,236,231,null,null,null],
+  ["2026-09-19",50,30,20,96,72.00,90.00,45.00,59.38,79.49,45.61,57,31,26,41.67,38.96,46.51,11980,null,null,35,120,77,43,null,null,null],
+  ["2026-09-20",39,15,24,52,41.03,86.67,12.50,71.15,84.21,63.64,37,16,21,41.49,26.32,64.86,5890,null,null,20,94,57,37,null,null,null],
+  ["2026-09-21",253,74,179,154,33.99,56.76,24.58,77.27,84.62,73.53,119,44,75,44.08,28.35,57.19,16451,null,null,53,574,261,313,null,null,null],
+  ["2026-09-22",198,86,112,198,40.40,62.79,23.21,66.67,83.10,57.48,132,59,73,43.33,36.91,50.00,17472,null,null,51,457,233,224,null,null,null],
+  ["2026-09-23",190,68,122,150,29.47,55.88,14.75,62.16,70.15,55.56,92,47,45,42.79,32.38,52.14,13549,null,null,38,444,210,234,null,null,null],
+  ["2026-09-24",157,64,93,150,27.39,45.31,15.05,58.00,73.08,50.00,87,38,49,40.89,35.16,46.04,12764,null,null,36,384,182,202,null,null,null],
+  ["2026-09-25",160,70,90,90,30.00,51.43,13.33,60.67,65.52,57.61,91,38,53,49.69,38.67,63.83,17250,null,null,42,322,181,141,null,null,null],
+  ["2026-09-26",46,23,23,46,43.48,73.91,13.04,67.78,74.42,61.70,61,32,29,0,0,0,9334,null,null,25,0,0,0,null,null,null],
+  ["2026-09-27",35,11,24,46,17.14,45.45,4.17,47.83,33.33,57.14,22,6,16,0,0,0,2270,null,null,8,0,0,0,null,null,null],
 ], TREND_FIELDS);
 
 const TREND_WEEKLY = rowsToObjs('weekBeginning', [
-  ["2026-08-17",1204,452,752,1193,21.68,38.72,11.44,71.92,79.91,67.25,858,358,501,38.73,29.48,47.72,105885,68798,37087,308,3109,1533,1576],
-  ["2026-08-24",1157,369,788,1064,32.41,52.30,23.10,72.93,75.42,71.29,776,267,504,37.27,24.57,49.19,82931,46873,36058,274,3104,1502,1602],
-  ["2026-08-31",1337,442,895,1144,38.74,64.93,25.81,74.48,81.53,70.56,852,331,520,41.00,29.33,51.03,101828,53899,47929,375,3261,1507,1754],
-  ["2026-09-07",1302,459,843,1030,33.49,54.90,21.83,68.45,75.20,64.52,705,285,420,43.30,33.58,51.40,82946,44757,38189,284,3007,1367,1640],
-  ["2026-09-14",1284,522,762,1206,44.08,70.88,25.72,70.15,80.67,62.52,846,409,437,43.81,35.37,52.37,135166,86717,48449,404,2931,1476,1455],
-  ["2026-09-21",1039,396,643,936,32.63,55.81,18.35,64.53,73.13,59.13,604,264,340,47.64,37.11,57.72,89091,52136,36955,253,2181,1067,1114],
+  ["2026-08-17",1204,452,752,1193,21.68,38.72,11.44,71.92,79.91,67.25,858,358,501,38.73,29.48,47.72,105885,68798,37087,308,3109,1533,1576,null,null,null],
+  ["2026-08-24",1157,369,788,1064,32.41,52.30,23.10,72.93,75.42,71.29,776,267,504,37.27,24.57,49.19,82931,46873,36058,274,3104,1502,1602,null,null,null],
+  ["2026-08-31",1337,442,895,1144,38.74,64.93,25.81,74.48,81.53,70.56,852,331,520,41.00,29.33,51.03,101828,53899,47929,375,3261,1507,1754,null,null,null],
+  ["2026-09-07",1302,459,843,1030,33.49,54.90,21.83,68.45,75.20,64.52,705,285,420,43.30,33.58,51.40,82946,44757,38189,284,3007,1367,1640,null,null,null],
+  ["2026-09-14",1284,522,762,1206,44.08,70.88,25.72,70.15,80.67,62.52,846,409,437,43.81,35.37,52.37,135166,86717,48449,404,2931,1476,1455,null,null,null],
+  ["2026-09-21",1039,396,643,936,32.63,55.81,18.35,64.53,73.13,59.13,604,264,340,47.64,37.11,57.72,89091,52136,36955,253,2181,1067,1114,null,null,null],
 ], TREND_FIELDS);
 
+// Monthly re-verified live 2026-09-28 (Sep is a partial, still-accumulating month — expect it to
+// keep drifting upward through month-end; captured here as the point-in-time snapshot).
 const TREND_MONTHLY = rowsToObjs('month', [
-  ["2026-07",3618,1367,1845,2911,8.37,11.70,7.75,65.82,67.06,68.13,1916,786,917,36.89,29.17,36.03,175169,84713,76548,522,9808,4687,5121],
-  ["2026-08",5286,1781,3505,5026,23.53,38.69,15.83,71.85,76.29,69.43,3611,1316,2294,37.94,null,47.35,384259,216787,167473,1236,13934,6531,7403],
-  ["2026-09",4656,1740,2916,4152,37.65,61.90,23.18,69.10,77.57,63.86,2869,1231,1638,43.59,34.11,52.26,389878,226370,164503,1259,10681,5101,5580],
+  ["2026-07",3618,1367,1845,2911,8.37,11.70,7.75,65.82,67.06,68.13,1916,786,917,36.89,29.17,36.03,175169,84713,76548,522,9808,4687,5121,8569,134076,6.88],
+  ["2026-08",5286,1781,3505,5026,23.53,38.69,15.83,71.85,76.29,69.43,3611,1316,2294,37.94,null,47.35,384259,216787,167473,1236,13934,6531,7403,7893,106064,12.23],
+  ["2026-09",4707,1748,2959,4264,37.56,61.96,23.15,67.52,76.96,61.81,2879,1236,1643,43.14,33.45,52.05,393522,226467,167055,1262,10911,5226,5685,6243,115062,8.99],
 ], TREND_FIELDS);
 
 const CLOSER_TREND_FIELDS = ["productsSold","appointments","apptsLessCancelled","shows","showRate","closedDeal","closeRate","revenue","aov","rs1Putter"];
@@ -546,7 +551,7 @@ function fitsWindow(min, max){
 }
 
 // Picks the FINEST granularity whose real data window fully covers the selected range —
-// e.g. picking a range that spans more than the ~10 rolling daily columns falls back to
+// e.g. picking a range that spans more than the 10-day daily sample captured here falls back to
 // Weekly, and a range spanning more than the Weekly window falls back to Monthly, instead
 // of silently summing only the days/weeks that happen to overlap (which under-counts and
 // makes different ranges look identical).
@@ -570,12 +575,28 @@ function trendForRange(){
     return { gran:'monthly', rows: rows.length?rows:all, chartRows: all, label:r=>r.month, teamScoped:true };
   }
   const dailyMin = TREND_DAILY[0].date, dailyMax = TREND_DAILY[TREND_DAILY.length-1].date;
-  const weeklyMin = TREND_WEEKLY[0].weekBeginning, weeklyMax = addDaysStr(TREND_WEEKLY[TREND_WEEKLY.length-1].weekBeginning, 6);
-  const monthlyMin = TREND_MONTHLY[0].month+'-01', monthlyMax = endOfMonthStr(TREND_MONTHLY[TREND_MONTHLY.length-1].month);
-
   if (fitsWindow(dailyMin, dailyMax)) {
     return {gran:'daily', rows: TREND_DAILY.filter(r=>inRange(r.date)), chartRows: TREND_DAILY.slice(-30), label:r=>r.date.slice(5)};
   }
+  // Whole-month / month-to-date shortcut: when the selection is entirely within one calendar
+  // month AND spans from that month's start through today (or the month's end, for a past
+  // month), use the sheet's own real Monthly figure directly instead of approximating by summing
+  // whichever Weekly buckets happen to overlap — those buckets cross month boundaries, so a
+  // weekly-sum approximation systematically disagrees with the sheet's actual Monthly column
+  // (e.g. "Month to Date" for September was showing a reconstructed ~4,962 Sets against the
+  // sheet's real 4,707).
+  const monthKey = state.start.slice(0,7);
+  if (monthKey === state.end.slice(0,7)) {
+    const monthRow = TREND_MONTHLY.find(r=>r.month===monthKey);
+    if (monthRow) {
+      const monthStart = monthRow.month+'-01', monthEnd = endOfMonthStr(monthRow.month);
+      const effectiveEnd = monthEnd < ASOF ? monthEnd : ASOF;
+      if (state.start <= monthStart && state.end >= effectiveEnd) {
+        return {gran:'monthly', rows:[monthRow], chartRows: TREND_MONTHLY.slice(-3), label:r=>r.month, exactMonth:true};
+      }
+    }
+  }
+  const weeklyMin = TREND_WEEKLY[0].weekBeginning, weeklyMax = addDaysStr(TREND_WEEKLY[TREND_WEEKLY.length-1].weekBeginning, 6);
   if (fitsWindow(weeklyMin, weeklyMax)) {
     const rows = TREND_WEEKLY.filter(r => r.weekBeginning <= state.end && addDaysStr(r.weekBeginning,6) >= state.start);
     return {gran:'weekly', rows, chartRows: TREND_WEEKLY.slice(), label:r=>'WB '+r.weekBeginning.slice(5)};
@@ -594,12 +615,23 @@ function closerTrendForRange(){
   // Team: every closer is on Team Jen, so a Team selection here (if it's Team Jen) never
   // narrows anything further — company totals already equal the Team Jen totals.
   const dailyMin = CLOSER_TREND_DAILY[0].date, dailyMax = CLOSER_TREND_DAILY[CLOSER_TREND_DAILY.length-1].date;
-  const weeklyMin = CLOSER_TREND_WEEKLY[0].weekBeginning, weeklyMax = addDaysStr(CLOSER_TREND_WEEKLY[CLOSER_TREND_WEEKLY.length-1].weekBeginning, 6);
-  const monthlyMin = CLOSER_TREND_MONTHLY[0].month+'-01', monthlyMax = endOfMonthStr(CLOSER_TREND_MONTHLY[CLOSER_TREND_MONTHLY.length-1].month);
-
   if (fitsWindow(dailyMin, dailyMax)) {
     return {gran:'daily', rows: CLOSER_TREND_DAILY.filter(r=>inRange(r.date)), chartRows: CLOSER_TREND_DAILY.slice(-30), label:r=>r.date.slice(5)};
   }
+  // Same whole-month / month-to-date shortcut as trendForRange() — prefer the sheet's real
+  // Monthly figure over a weekly-sum approximation that crosses month boundaries.
+  const monthKey = state.start.slice(0,7);
+  if (monthKey === state.end.slice(0,7)) {
+    const monthRow = CLOSER_TREND_MONTHLY.find(r=>r.month===monthKey);
+    if (monthRow) {
+      const monthStart = monthRow.month+'-01', monthEnd = endOfMonthStr(monthRow.month);
+      const effectiveEnd = monthEnd < ASOF ? monthEnd : ASOF;
+      if (state.start <= monthStart && state.end >= effectiveEnd) {
+        return {gran:'monthly', rows:[monthRow], chartRows: CLOSER_TREND_MONTHLY.slice(-3), label:r=>r.month, exactMonth:true};
+      }
+    }
+  }
+  const weeklyMin = CLOSER_TREND_WEEKLY[0].weekBeginning, weeklyMax = addDaysStr(CLOSER_TREND_WEEKLY[CLOSER_TREND_WEEKLY.length-1].weekBeginning, 6);
   if (fitsWindow(weeklyMin, weeklyMax)) {
     const rows = CLOSER_TREND_WEEKLY.filter(r => r.weekBeginning <= state.end && addDaysStr(r.weekBeginning,6) >= state.start);
     return {gran:'weekly', rows, chartRows: CLOSER_TREND_WEEKLY.slice(), label:r=>'WB '+r.weekBeginning.slice(5)};
@@ -758,7 +790,9 @@ function renderAll(){
   const t = trendForRange();
   document.getElementById('granNote').textContent =
     `Showing ${t.gran} granularity for ${state.start} → ${state.end}` +
-    (t.gran!=='daily' ? ' — the source sheet only keeps ~10 rolling daily columns before rolling up into weekly / monthly buckets, so this recreation follows the same behavior.' : '.');
+    (t.exactMonth ? ' — a whole-month selection, so this uses the sheet\'s real Monthly figure directly rather than an approximated sum.'
+      : t.gran==='daily' ? ' — daily figures are a captured sample of 10 recent days (the sheet\'s own daily section runs considerably longer), so ranges outside that sample fall back to Weekly/Monthly.'
+      : ' — falling back from the 10-day daily sample to a broader bucket for this range.');
   document.getElementById('renderTime').textContent = new Date().toLocaleString();
 
   renderExecSummary(t);
@@ -785,6 +819,8 @@ function fullMetricCols(periodKey, periodLabel){
     {key:'revenue', label:'Upfront Revenue', fmt:v=>v==null?'—':fmtMoney(v)}, {key:'ibRevenue', label:'IB Revenue', fmt:v=>v==null?'—':fmtMoney(v)}, {key:'obRevenue', label:'OB Revenue', fmt:v=>v==null?'—':fmtMoney(v)},
     {key:'closedDeal', label:'Closed Deal'},
     {key:'calls90s', label:'90 sec Calls'}, {key:'ibCalls90s', label:'IB 90-sec Calls'}, {key:'obCalls90s', label:'OB 90-sec Calls'},
+    {key:'ibCalls', label:'IB Calls', fmt:v=>v==null?'—':fmtInt(v)}, {key:'obCalls', label:'OB Calls', fmt:v=>v==null?'—':fmtInt(v)},
+    {key:'connectRate', label:'Connect Rate', fmt:v=>v==null?'—':fmtPct(v)},
   ];
 }
 
@@ -826,7 +862,7 @@ function renderExecSummary(t){
       <div class="legend"><span><i style="background:var(--s-aqua)"></i>Revenue ($)</span></div>
       <div id="chart-exec-rev"></div>
     </div>
-    <div class="section-title">Period detail — all 23 metrics, as shown on the sheet</div>
+    <div class="section-title">Period detail — all 26 metrics, as shown on the sheet</div>
     <div class="note">Daily rows don't carry an IB/OB Revenue split in the source (only Weekly/Monthly do) — shown as "—". The table below reflects your exact date selection; the charts above always show the fuller ${chartWindowNote} trend so the line reads clearly.</div>
     <div class="table-section"><table><thead id="tbl-exec-head"></thead><tbody id="tbl-exec-body"></tbody></table></div>
   `;
@@ -885,7 +921,7 @@ function renderASRTrend(t){
       <h3>Sets by team (Sep, IB vs OB)</h3>
       <div id="chart-asr-teambar"></div>
     </div>
-    <div class="section-title">Team monthly detail — all 23 metrics, as shown on the sheet</div>
+    <div class="section-title">Team monthly detail — all metrics, as shown on the sheet</div>
     <div class="note">Real per-team rollups straight from Executive Summary Trend's own team blocks (Team Remen / Team Mimi / Team Mark), not a roster sum. Currently Monthly granularity only (Jul–Sep); the sheet doesn't keep per-team Weekly/Daily beyond the company-wide ASRs block.</div>
     <div class="table-section"><table><thead id="tbl-asrteam-head"></thead><tbody id="tbl-asrteam-body"></tbody></table></div>
   `;
@@ -925,7 +961,7 @@ function renderCloserTrend(){
       ${kpiTile('Avg AOV', fmtMoney(avg(rows,'aov')))}
       ${kpiTile('RS1 Putter', fmtInt(sum(rows,'rs1Putter')))}
     </div>
-    <div class="note">Showing ${ct.gran} granularity for ${state.start} → ${state.end} — same rolling-window behavior as the sheet (Daily for the last ~10 days, Weekly / Monthly further back).</div>
+    <div class="note">Showing ${ct.gran} granularity for ${state.start} → ${state.end}${ct.exactMonth ? ' — a whole-month selection, using the sheet\'s real Monthly figure directly.' : ' (Daily is a captured 10-day sample; wider or older ranges fall back to Weekly/Monthly, preferring the sheet\'s real Monthly total whenever the range is a full month).'}</div>
     <div class="chart-card">
       <h3>Products Sold &amp; Closed Deal over time <span style="color:var(--gray); font-weight:400; text-transform:none; letter-spacing:0">(${chartWindowNote})</span></h3>
       <div class="legend"><span><i style="background:var(--s-orange)"></i>Products Sold</span><span><i style="background:var(--s-blue)"></i>Closed Deal</span></div>

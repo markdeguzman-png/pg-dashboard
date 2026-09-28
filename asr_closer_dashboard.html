@@ -467,8 +467,14 @@ function endOfMonthStr(monthStr){
   const d = new Date(y, m, 0); // day 0 of next month = last day of this month
   return d.toISOString().slice(0,10);
 }
+// Only the START of the selection has to fall inside a granularity's real coverage window.
+// The END is deliberately not checked against the window's upper bound: the most recent
+// day/week is always going to trail "today" by design (the sheet itself lags by ~1 day
+// before a period is fully tallied), so requiring the END to fit too would kick almost any
+// range ending "today" straight to the coarsest granularity, even when the START is well
+// within daily or weekly coverage.
 function fitsWindow(min, max){
-  return state.start >= min && state.end <= max;
+  return state.start >= min && state.start <= max;
 }
 
 // Picks the FINEST granularity whose real data window fully covers the selected range —

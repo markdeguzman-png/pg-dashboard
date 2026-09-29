@@ -521,6 +521,21 @@ const BLANK_DID_SHOW = [
 const ASR_TEAMS = ["Team Remen","Team Mimi","Team Mark"];
 const CLOSER_TEAMS = ["Team Jen"];
 const TEAMS = ASR_TEAMS; // kept for any legacy reference; prefer ASR_TEAMS/CLOSER_TEAMS below
+
+// Live roster (name -> most-recently-seen team/LOB), derived directly from RAW_SCHED so the Team
+// and Agent filters always reflect the real current org structure -- e.g. Support, Team Philip,
+// Team High Ticket, Team King, Team Anne, none of which existed in the original hand-captured
+// ASR_TEAMS/CLOSER_TEAMS -- instead of a hardcoded list that goes stale as the org changes.
+const LIVE_ROSTER = (() => {
+  const byName = new Map();
+  for (const r of RAW_SCHED) {
+    const [name, team, lob, date] = r;
+    const prev = byName.get(name);
+    if (!prev || date > prev.date) byName.set(name, {name, team, lob, date});
+  }
+  return Array.from(byName.values());
+})();
+const ALL_TEAMS = Array.from(new Set(LIVE_ROSTER.map(r=>r.team).filter(Boolean))).sort();
 // ===== end inlined data =====
 
 const TABS = [
@@ -565,8 +580,15 @@ function initFilters(){
   });
   teamSel.addEventListener('change', () => {
     state.team = teamSel.value; state.agent = '';
-    // a team pins the LOB it belongs to (Team Jen -> Closer, the rest -> ASR) so the two stay consistent
-    if (state.team) state.lob = CLOSER_TEAMS.includes(state.team) ? 'Closer - Outbound' : 'ASR';
+    // Known ASR/Closer teams pin the LOB they belong to, so the two stay consistent. Teams outside
+    // that split (Support, Team Philip, Team High Ticket, Team King, Team Anne, ...) aren't
+    // exclusively ASR or Closer, so leave LOB on "All" and let each person's own row-level LOB
+    // decide what shows where instead of forcing a wrong bucket.
+    if (state.team) {
+      if (CLOSER_TEAMS.includes(state.team)) state.lob = 'Closer - Outbound';
+      else if (ASR_TEAMS.includes(state.team)) state.lob = 'ASR';
+      else state.lob = '';
+    }
     lobSel.value = state.lob;
     rebuildAgentOptions(); renderAll();
   });
@@ -600,18 +622,16 @@ function initFilters(){
 }
 
 // LOB (Line of Business) and Team both come straight from Sched's own LOB / Current LOB / Team
-// columns — every rep in ASR_REPS carries LOB "ASR" there (Team Remen/Mimi/Mark), every closer in
-// CLOSERS carries LOB "Closer - Outbound" and Team "Team Jen". The Team dropdown's option list
-// switches to match whichever LOB is active (or shows both sets when LOB is unset).
+// columns, via LIVE_ROSTER (derived from RAW_SCHED). The Team dropdown always lists every real
+// team in the current roster, regardless of which LOB is active — selecting a team outside the
+// ASR/Closer split (Support, Team Philip, ...) leaves LOB on "All" (see the change handler above)
+// so whatever real ASR/Closer activity those people have still surfaces correctly.
 function rebuildTeamOptions(){
   const sel = document.getElementById('teamFilter');
   const prev = state.team;
   sel.innerHTML = '<option value="">All Teams</option>';
-  const showASR = state.lob !== 'Closer - Outbound';
-  const showCloser = state.lob !== 'ASR';
-  if (showASR) ASR_TEAMS.forEach(t => { const o=document.createElement('option'); o.value=t; o.textContent=t; sel.appendChild(o); });
-  if (showCloser) CLOSER_TEAMS.forEach(t => { const o=document.createElement('option'); o.value=t; o.textContent=t; sel.appendChild(o); });
-  // keep the current team selected if it's still a valid option under the new LOB, else clear it
+  ALL_TEAMS.forEach(t => { const o=document.createElement('option'); o.value=t; o.textContent=t; sel.appendChild(o); });
+  // keep the current team selected if it's still a valid option, else clear it
   const stillValid = [...sel.options].some(o=>o.value===prev);
   sel.value = stillValid ? prev : '';
   state.team = sel.value;
@@ -620,19 +640,24 @@ function rebuildTeamOptions(){
 function rebuildAgentOptions(){
   const sel = document.getElementById('agentFilter');
   sel.innerHTML = '<option value="">All Agents</option>';
-  const showASR = state.lob !== 'Closer - Outbound';
-  const showClosers = state.lob !== 'ASR';
-  if (showASR) {
-    const reps = state.team ? ASR_REPS.filter(r=>r.team===state.team) : ASR_REPS;
+  const roster = state.team ? LIVE_ROSTER.filter(r=>r.team===state.team) : LIVE_ROSTER;
+  const asrReps = roster.filter(r=>r.lob==='ASR');
+  const closers = roster.filter(r=>r.lob==='Closer - Outbound');
+  const others = roster.filter(r=>r.lob!=='ASR' && r.lob!=='Closer - Outbound');
+  if (state.lob !== 'Closer - Outbound' && asrReps.length) {
     const grp1 = document.createElement('optgroup'); grp1.label='ASR / Setters';
-    reps.forEach(r=>{ const o=document.createElement('option'); o.value=r.name; o.textContent=r.name; grp1.appendChild(o); });
+    asrReps.forEach(r=>{ const o=document.createElement('option'); o.value=r.name; o.textContent=r.name; grp1.appendChild(o); });
     sel.appendChild(grp1);
   }
-  if (showClosers) {
-    const closers = state.team ? CLOSERS.filter(c=>c.team===state.team) : CLOSERS;
+  if (state.lob !== 'ASR' && closers.length) {
     const grp2 = document.createElement('optgroup'); grp2.label='Closers / PG1 Advisors';
     closers.forEach(c=>{ const o=document.createElement('option'); o.value=c.name; o.textContent=c.name; grp2.appendChild(o); });
     sel.appendChild(grp2);
+  }
+  if (!state.lob && others.length) {
+    const grp3 = document.createElement('optgroup'); grp3.label='Other (non-ASR/Closer)';
+    others.forEach(r=>{ const o=document.createElement('option'); o.value=r.name; o.textContent=r.name; grp3.appendChild(o); });
+    sel.appendChild(grp3);
   }
 }
 
@@ -1242,7 +1267,7 @@ function renderASRDailyMetric(){
     {key:'revenue', label:'Upfront Revenue', fmt:fmtMoney},
   ];
   let rows = [];
-  const teamsToShow = (state.lob === 'Closer - Outbound') ? [] : (state.team ? [state.team] : TEAMS);
+  const teamsToShow = (state.lob === 'Closer - Outbound') ? [] : (state.team ? [state.team] : ALL_TEAMS);
   const allReps = repRowsForRange();
   teamsToShow.forEach(team=>{
     let reps = allReps.filter(r=>r.team===team);

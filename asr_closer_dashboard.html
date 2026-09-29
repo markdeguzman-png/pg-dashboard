@@ -1414,18 +1414,56 @@ function renderASRDailyMetric(){
 }
 
 // 7. BR % per Call Source
+// Local slicers for this table only (not part of the global Date/LOB/Team/Agent filter bar) --
+// persists across re-renders triggered by the global filters so the slicer stays selected while
+// the user changes date range/team/agent, but doesn't leak into or get reset by them.
+let brSlicerState = { strongWeak: '', obRating: '' };
 function renderCallSourceBR(){
   const p = document.getElementById('panel-6');
   let rows = state.lob === 'Closer - Outbound' ? [] : callSourceRowsForRange();
   if(state.team) rows = rows.filter(r=>r.team===state.team);
   if(state.agent) rows = rows.filter(r=>r.name===state.agent);
   rows = addCallSourceRatings(rows);
+
+  // Slicer options come from whatever combos actually exist in the currently-scoped rows (before
+  // the slicers themselves narrow further), so an option never points at an empty result.
+  const strongWeakOptions = Array.from(new Set(rows.map(r=>r.strongWeakBR))).sort();
+  const obRatingOptions = ['A','B','C','D'].filter(g => rows.some(r=>r.obBRRating===g));
+  if(strongWeakOptions.length && !strongWeakOptions.includes(brSlicerState.strongWeak)) brSlicerState.strongWeak = '';
+  if(obRatingOptions.length && !obRatingOptions.includes(brSlicerState.obRating)) brSlicerState.obRating = '';
+
+  let filteredRows = rows;
+  if(brSlicerState.strongWeak) filteredRows = filteredRows.filter(r=>r.strongWeakBR===brSlicerState.strongWeak);
+  if(brSlicerState.obRating) filteredRows = filteredRows.filter(r=>r.obBRRating===brSlicerState.obRating);
+
   p.innerHTML = `
     <div class="section-title">Booking Rate % by IVR call source</div>
     <div class="note">Computed live from Sched's per-rep-per-day records (periodically refreshed from Sched, covers ${RAW_SCHED_MIN_DATE} → ${RAW_SCHED_MAX_DATE}; the most recent ~week can still revise as Sched backfills -- treat it as provisional) — follows Date Range / Team / Agent filters above (booking rate can exceed 100% when one rep books multiple appointments from fewer unique inbound calls in the source data). Strong-Weak BR% and OB BR Rating replicate the sheet's own pivot (IB strong at ≥35%, OB strong at ≥45%; OB BR Rating is a quartile grade A-D on OB Booking Rate, computed across whatever rows are currently shown here).</div>
+    <div class="br-slicers" style="display:flex; gap:16px; margin:12px 0; flex-wrap:wrap;">
+      <div class="filter-group">
+        <label>Strong-Weak BR %</label>
+        <select id="brSlicerStrongWeak">
+          <option value="">All</option>
+          ${strongWeakOptions.map(o=>`<option value="${o}" ${o===brSlicerState.strongWeak?'selected':''}>${o}</option>`).join('')}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>OB BR Rating</label>
+        <select id="brSlicerObRating">
+          <option value="">All</option>
+          ${obRatingOptions.map(g=>`<option value="${g}" ${g===brSlicerState.obRating?'selected':''}>${g}</option>`).join('')}
+        </select>
+      </div>
+    </div>
     <div class="table-section"><table><thead id="tbl-br-head"></thead><tbody id="tbl-br-body"></tbody></table></div>
   `;
-  renderTable('tbl-br', rows, [
+  document.getElementById('brSlicerStrongWeak').addEventListener('change', (ev)=>{
+    brSlicerState.strongWeak = ev.target.value; renderCallSourceBR();
+  });
+  document.getElementById('brSlicerObRating').addEventListener('change', (ev)=>{
+    brSlicerState.obRating = ev.target.value; renderCallSourceBR();
+  });
+  renderTable('tbl-br', filteredRows, [
     {key:'team', label:'Team'}, {key:'name', label:'Name'},
     {key:'ivr1Calls', label:'IVR1 Calls'}, {key:'ivr1BR', label:'IVR1 Booking %', fmt:fmtPct},
     {key:'ivr2Calls', label:'IVR2 Calls'}, {key:'ivr2BR', label:'IVR2 Booking %', fmt:fmtPct},

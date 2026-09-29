@@ -149,7 +149,7 @@
       <h1>⚡ PERFORMANCE GOLF</h1>
       <p>ASR &amp; Closer Report — Operations Dashboard</p>
     </div>
-    <div class="asof">Source data as of <b id="asofLabel">—</b><br>Recreated from the live "ASR - Closer Report" sheet</div>
+    <div class="asof">Source data as of <b id="asofLabel">—</b><br>Rendered <span id="renderTimeHeader">—</span></div>
   </div>
 
   <div class="filters">
@@ -703,13 +703,39 @@ function trendForRange(){
     return { gran:'monthly', rows:[], chartRows:[], label:r=>r.month, blocked:true,
       blockedReason:'LOB is set to Closer, but this is the ASR company trend — switch LOB to ASR or All to see it (or open CLOSER Trend View).' };
   }
-  // Team scope: a specific ASR team only has real detail at Monthly granularity (Executive
-  // Summary Trend's per-team blocks), so picking a Team narrows this tab to Monthly and to that
-  // team's own numbers instead of the full-company Daily/Weekly/Monthly arrays.
+  // Team scope: compute this team's own Daily/Weekly/Monthly live from RAW_SCHED (the same
+  // cascade as the company-wide path below), instead of the static TEAM_MONTHLY snapshot that was
+  // only ever captured once early in this dashboard's build and had since drifted from reality
+  // (e.g. Team Mimi's Sep MTD Sets read 1,418 there against 1,539 live).
   if (state.team) {
-    const all = TEAM_MONTHLY.filter(r=>r.team===state.team);
-    const rows = all.filter(r => (r.month+'-01') <= state.end && endOfMonthStr(r.month) >= state.start);
-    return { gran:'monthly', rows: rows.length?rows:all, chartRows: all, label:r=>r.month, teamScoped:true };
+    const teamDaily = teamDailyRowsFor(state.team);
+    if (!teamDaily.length) {
+      return { gran:'monthly', rows:[], chartRows:[], label:r=>r.month, teamScoped:true, teamScopedEmpty:true };
+    }
+    const teamWeekly = teamWeeklyRowsFor(state.team);
+    const teamMonthly = teamMonthlyRowsFor(state.team);
+    const tDailyMin = teamDaily[0].date, tDailyMax = teamDaily[teamDaily.length-1].date;
+    if (fitsWindow(tDailyMin, tDailyMax)) {
+      return {gran:'daily', rows: teamDaily.filter(r=>inRange(r.date)), chartRows: teamDaily.slice(-30), label:r=>r.date.slice(5), teamScoped:true};
+    }
+    const monthKey = state.start.slice(0,7);
+    if (monthKey === state.end.slice(0,7)) {
+      const monthRow = teamMonthly.find(r=>r.month===monthKey);
+      if (monthRow) {
+        const monthStart = monthRow.month+'-01', monthEnd = endOfMonthStr(monthRow.month);
+        const effectiveEnd = monthEnd < ASOF ? monthEnd : ASOF;
+        if (state.start <= monthStart && state.end >= effectiveEnd) {
+          return {gran:'monthly', rows:[monthRow], chartRows: teamMonthly.slice(-3), label:r=>r.month, exactMonth:true, teamScoped:true};
+        }
+      }
+    }
+    const tWeeklyMin = teamWeekly[0].weekBeginning, tWeeklyMax = addDaysStr(teamWeekly[teamWeekly.length-1].weekBeginning, 6);
+    if (fitsWindow(tWeeklyMin, tWeeklyMax)) {
+      const rows = teamWeekly.filter(r => r.weekBeginning <= state.end && addDaysStr(r.weekBeginning,6) >= state.start);
+      return {gran:'weekly', rows, chartRows: teamWeekly.slice(), label:r=>'WB '+r.weekBeginning.slice(5), teamScoped:true};
+    }
+    const rows = teamMonthly.filter(r => (r.month+'-01') <= state.end && endOfMonthStr(r.month) >= state.start);
+    return {gran:'monthly', rows: rows.length?rows:teamMonthly, chartRows: teamMonthly.slice(-3), label:r=>r.month, teamScoped:true};
   }
   const dailyMin = TREND_DAILY[0].date, dailyMax = TREND_DAILY[TREND_DAILY.length-1].date;
   if (fitsWindow(dailyMin, dailyMax)) {
@@ -852,6 +878,56 @@ function repRowsForRange(){
   return rawSchedAggForRange().filter(o=>o.lob==='ASR').map(o=>({
     team: o.team, name: o.name, ...repMetrics26(o),
   }));
+}
+
+// Live per-team Daily/Weekly/Monthly trend data, computed directly from RAW_SCHED instead of a
+// static once-captured TEAM_MONTHLY snapshot -- TEAM_MONTHLY was only ever captured once, early in
+// this dashboard's build, and drifted from reality (e.g. Team Mimi's Sep MTD Sets read 1,418 there
+// against 1,539 in the live sheet). Mirrors trendForRange()'s company-wide cascade but scoped by
+// team, using the exact same repMetrics26() formulas.
+function blankRawSums(){
+  return {sets:0,ibSets:0,obSets:0,appt:0,ibAppt:0,obAppt:0,warmSet:0,ibWarmSet:0,obWarmSet:0,
+    show:0,ibShow:0,obShow:0,calls90s:0,ibCalls90s:0,obCalls90s:0,revenue:0,ibRevenue:0,obRevenue:0,
+    closedDeal:0,ibCalls:0,obCalls:0};
+}
+function addRawRow(o, r){
+  const [,,,,sets,ibSets,obSets,appt,ibAppt,obAppt,warmSet,ibWarmSet,obWarmSet,
+    show,ibShow,obShow,calls90s,ibCalls90s,obCalls90s,revenue,ibRevenue,obRevenue,closedDeal,
+    ibCalls,obCalls] = r;
+  o.sets+=sets; o.ibSets+=ibSets; o.obSets+=obSets; o.appt+=appt; o.ibAppt+=ibAppt; o.obAppt+=obAppt;
+  o.warmSet+=warmSet; o.ibWarmSet+=ibWarmSet; o.obWarmSet+=obWarmSet;
+  o.show+=show; o.ibShow+=ibShow; o.obShow+=obShow;
+  o.calls90s+=calls90s; o.ibCalls90s+=ibCalls90s; o.obCalls90s+=obCalls90s;
+  o.revenue+=revenue; o.ibRevenue+=ibRevenue; o.obRevenue+=obRevenue; o.closedDeal+=closedDeal;
+  o.ibCalls+=ibCalls; o.obCalls+=obCalls;
+}
+function weekBeginningOf(dateStr){
+  const d = new Date(dateStr+'T00:00:00');
+  const dow = d.getDay(); // 0=Sun..6=Sat
+  d.setDate(d.getDate() - (dow===0?6:dow-1)); // back to Monday
+  return dstr(d);
+}
+function teamRawAggBy(team, keyFn){
+  const map = new Map();
+  for(const r of RAW_SCHED){
+    if(r[1]!==team || r[2]!=='ASR') continue;
+    const key = keyFn(r[3]);
+    if(!map.has(key)) map.set(key, blankRawSums());
+    addRawRow(map.get(key), r);
+  }
+  return map;
+}
+function teamDailyRowsFor(team){
+  return Array.from(teamRawAggBy(team, d=>d).entries())
+    .map(([date,sums])=>({date, ...repMetrics26(sums)})).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
+}
+function teamWeeklyRowsFor(team){
+  return Array.from(teamRawAggBy(team, weekBeginningOf).entries())
+    .map(([weekBeginning,sums])=>({weekBeginning, ...repMetrics26(sums)})).sort((a,b)=>a.weekBeginning<b.weekBeginning?-1:a.weekBeginning>b.weekBeginning?1:0);
+}
+function teamMonthlyRowsFor(team){
+  return Array.from(teamRawAggBy(team, d=>d.slice(0,7)).entries())
+    .map(([month,sums])=>({month, ...repMetrics26(sums)})).sort((a,b)=>a.month<b.month?-1:a.month>b.month?1:0);
 }
 
 function closerRowsForRange(){
@@ -1046,9 +1122,11 @@ function renderAll(){
       : t.gran==='daily' ? ` — computed live from Sched (periodically refreshed, covers ${RAW_SCHED_MIN_DATE} → ${RAW_SCHED_MAX_DATE}; the most recent ~week can still revise as Sched backfills -- treat it as provisional).`
       : t.gran==='monthly' ? ' — your selection falls outside the captured company-trend window, so these figures are the FULL calendar month\'s total, not scaled down to just the days you selected.'
       : ' — falling back to a broader bucket for this range.');
-  document.getElementById('renderTime').textContent = new Date().toLocaleString('en-US', {
+  const renderTimeStr = new Date().toLocaleString('en-US', {
     timeZone: 'America/New_York', dateStyle: 'medium', timeStyle: 'short'
   }) + ' ET';
+  document.getElementById('renderTime').textContent = renderTimeStr;
+  document.getElementById('renderTimeHeader').textContent = renderTimeStr;
 
   renderExecSummary(t);
   renderASRTrend(t);
@@ -1086,9 +1164,11 @@ function renderExecSummary(t){
   const chartWindowNote = t.gran==='daily' ? `last ${t.chartRows.length} days` : (t.gran==='weekly' ? `last ${t.chartRows.length} weeks` : `last ${t.chartRows.length} months`);
   const scopeBanner = t.blocked
     ? `<div class="scope-banner blocked">⚠ ${t.blockedReason}</div>`
-    : (t.teamScoped
-        ? `<div class="scope-banner">Scoped to <b>${state.team}</b> — the sheet only keeps per-team detail at Monthly granularity, so this is showing Jul/Aug/Sep for this team only.${state.agent?` The Agent filter (<b>${state.agent}</b>) doesn't narrow this company/team trend further — see Rep per Metric for that person's own totals.`:''}</div>`
-        : (state.agent ? `<div class="scope-banner">The Agent filter (<b>${state.agent}</b>) doesn't narrow this company-wide trend — see Rep per Metric for that person's own totals.</div>` : ''));
+    : (t.teamScopedEmpty
+        ? `<div class="scope-banner blocked">⚠ <b>${state.team}</b> has no ASR-lob activity in Sched, so there's nothing to show here — try Rep per Metric / ASR Daily Metric, which include non-ASR teams too.</div>`
+        : (t.teamScoped
+            ? `<div class="scope-banner">Scoped to <b>${state.team}</b> — computed live from that team's own Sched rows (same Daily/Weekly/Monthly cascade as the company-wide view).${state.agent?` The Agent filter (<b>${state.agent}</b>) doesn't narrow this company/team trend further — see Rep per Metric for that person's own totals.`:''}</div>`
+            : (state.agent ? `<div class="scope-banner">The Agent filter (<b>${state.agent}</b>) doesn't narrow this company-wide trend — see Rep per Metric for that person's own totals.</div>` : '')));
   p.innerHTML = `
     ${scopeBanner}
     <div class="metrics-container">
@@ -1141,17 +1221,24 @@ function renderExecSummary(t){
 function getVar(name){ return getComputedStyle(document.body).getPropertyValue(name).trim() || name; }
 
 // 2. ASR Trend View — real per-team monthly rollup from the sheet's own Executive Summary Trend team blocks
+const ASR_TREND_TEAM_COLORS = ['--s-blue','--s-orange','--s-aqua','--s-yellow','--s-magenta','--s-violet'];
 function renderASRTrend(t){
   const p = document.getElementById('panel-1');
-  const teamsToShow = (state.lob === 'Closer - Outbound') ? [] : (state.team ? [state.team] : TEAMS);
-  const monthsInRange = TREND_MONTHLY.filter(r=>inRange(r.month+'-01') || true).map(r=>r.month); // all 3 real months captured
-  let teamMonthRows = TEAM_MONTHLY.filter(r=> teamsToShow.includes(r.team));
-  // restrict to months overlapping the selected date range when possible
-  const wanted = teamMonthRows.filter(r => r.month >= state.start.slice(0,7) && r.month <= state.end.slice(0,7));
+  const teamsToShow = (state.lob === 'Closer - Outbound') ? [] : (state.team ? [state.team] : ALL_TEAMS);
+  // Live per-team Monthly, computed from RAW_SCHED (see teamMonthlyRowsFor) instead of the static
+  // TEAM_MONTHLY snapshot -- that snapshot was only ever captured once early in this dashboard's
+  // build and drifted from reality, and only ever covered the original 3 ASR teams.
+  const teamMonthlyLive = {};
+  teamsToShow.forEach(team => { teamMonthlyLive[team] = teamMonthlyRowsFor(team); });
+  const allMonths = Array.from(new Set(teamsToShow.flatMap(team => teamMonthlyLive[team].map(r=>r.month)))).sort();
+  let teamMonthRows = teamsToShow.flatMap(team => teamMonthlyLive[team].map(r=>({...r, month: team+' — '+r.month})));
+  const wanted = teamsToShow.flatMap(team => teamMonthlyLive[team]
+    .filter(r => r.month >= state.start.slice(0,7) && r.month <= state.end.slice(0,7))
+    .map(r=>({...r, month: team+' — '+r.month})));
   if(wanted.length) teamMonthRows = wanted;
 
-  const latestMonth = "2026-09";
-  const latest = teamsToShow.map(team => TEAM_MONTHLY.find(r=>r.team===team && r.month===latestMonth)).filter(Boolean);
+  const latestMonth = allMonths.length ? allMonths[allMonths.length-1] : ASOF.slice(0,7);
+  const latest = teamsToShow.map(team => teamMonthlyLive[team].find(r=>r.month===latestMonth)).filter(Boolean);
 
   const scopeBanner = state.lob === 'Closer - Outbound'
     ? `<div class="scope-banner blocked">⚠ LOB is set to Closer, but this is the ASR team trend — switch LOB to ASR or All to see it.</div>`
@@ -1160,7 +1247,7 @@ function renderASRTrend(t){
   p.innerHTML = `
     ${scopeBanner}
     <div class="metrics-container">
-      ${kpiTile('Sets (Sep, selected teams)', fmtInt(sum(latest,'sets')), `IB ${fmtInt(sum(latest,'ibSets'))} · OB ${fmtInt(sum(latest,'obSets'))}`)}
+      ${kpiTile(`Sets (${latestMonth}, selected teams)`, fmtInt(sum(latest,'sets')), `IB ${fmtInt(sum(latest,'ibSets'))} · OB ${fmtInt(sum(latest,'obSets'))}`)}
       ${kpiTile('Warm Transfer %', fmtPct(avg(latest,'warmT')))}
       ${kpiTile('Shows', fmtInt(sum(latest,'shows')))}
       ${kpiTile('Booking Rate %', fmtPct(avg(latest,'bookingRate')))}
@@ -1168,30 +1255,33 @@ function renderASRTrend(t){
       ${kpiTile('Closed Deal', fmtInt(sum(latest,'closedDeal')))}
     </div>
     <div class="chart-card">
-      <h3>Sets by team — Jul / Aug / Sep</h3>
-      <div class="legend">${teamsToShow.map((tm)=>`<span><i style="background:${getVar(['--s-orange','--s-blue','--s-aqua'][TEAMS.indexOf(tm)%3])}"></i>${tm}</span>`).join('')}</div>
+      <h3>Sets by team — ${allMonths.join(' / ')}</h3>
+      <div class="legend">${teamsToShow.map((tm,i)=>`<span><i style="background:${getVar(ASR_TREND_TEAM_COLORS[i%ASR_TREND_TEAM_COLORS.length])}"></i>${tm}</span>`).join('')}</div>
       <div id="chart-asr-teamlines"></div>
     </div>
     <div class="chart-card">
-      <h3>Sets by team (Sep, IB vs OB)</h3>
+      <h3>Sets by team (${latestMonth}, IB vs OB)</h3>
       <div id="chart-asr-teambar"></div>
     </div>
     <div class="section-title">Team monthly detail — all metrics, as shown on the sheet</div>
-    <div class="note">Real per-team rollups straight from Executive Summary Trend's own team blocks (Team Remen / Team Mimi / Team Mark), not a roster sum. Currently Monthly granularity only (Jul–Sep); the sheet doesn't keep per-team Weekly/Daily beyond the company-wide ASRs block.</div>
+    <div class="note">Computed live from Sched's per-rep-per-day records for each team (periodically refreshed, covers ${RAW_SCHED_MIN_DATE} → ${RAW_SCHED_MAX_DATE}; the most recent ~week can still revise as Sched backfills -- treat it as provisional), same Daily/Weekly/Monthly source as Executive Summary Trend, not a fixed snapshot.</div>
     <div class="table-section"><table><thead id="tbl-asrteam-head"></thead><tbody id="tbl-asrteam-body"></tbody></table></div>
   `;
   // team lines chart: one line per team, using 'month' as x
   const monthLabel = r => r.month.slice(5)+'/'+r.month.slice(2,4);
-  const series = teamsToShow.map((team,i)=>({key:'__t'+i, name:team, color: getVar(['--s-orange','--s-blue','--s-aqua'][TEAMS.indexOf(team)%3])}));
-  const merged = TREND_MONTHLY.map(mrow=>{
-    const o = {month:mrow.month};
-    teamsToShow.forEach((team,i)=>{ const tr = TEAM_MONTHLY.find(r=>r.team===team && r.month===mrow.month); o['__t'+i] = tr?tr.sets:0; });
+  const series = teamsToShow.map((team,i)=>({key:'__t'+i, name:team, color: getVar(ASR_TREND_TEAM_COLORS[i%ASR_TREND_TEAM_COLORS.length])}));
+  const merged = allMonths.map(month=>{
+    const o = {month};
+    teamsToShow.forEach((team,i)=>{ const tr = teamMonthlyLive[team].find(r=>r.month===month); o['__t'+i] = tr?tr.sets:0; });
     return o;
   });
   lineChart('chart-asr-teamlines', merged, series, monthLabel);
-  const sepRows = teamsToShow.map(team=>TEAM_MONTHLY.find(r=>r.team===team && r.month==='2026-09')).filter(Boolean);
-  barChart('chart-asr-teambar', sepRows, 'sets', r=>r.team, getVar('--s-orange'));
-  renderTable('tbl-asrteam', teamMonthRows, fullMetricCols('month', 'Month'));
+  const latestRows = teamsToShow.map(team=>{
+    const r = teamMonthlyLive[team].find(x=>x.month===latestMonth);
+    return r ? {...r, team} : null;
+  }).filter(Boolean);
+  barChart('chart-asr-teambar', latestRows, 'sets', r=>r.team, getVar('--s-orange'));
+  renderTable('tbl-asrteam', teamMonthRows, fullMetricCols('month', 'Team — Month'));
 }
 
 // 3. CLOSER Trend View — real company-wide closer trend (mirrors Executive Summary Trend's depth)

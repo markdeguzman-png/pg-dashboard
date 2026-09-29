@@ -867,11 +867,39 @@ function closerRowsForRange(){
 
 function callSourceRowsForRange(){
   return rawSchedAggForRange().filter(o=>o.lob==='ASR').map(o=>({
-    name: o.name,
+    team: o.team, name: o.name,
     ivr1Calls: o.ivr1Calls, ivr1BR: o.ivr1Calls ? o.ivr1Sets/o.ivr1Calls*100 : 0,
     ivr2Calls: o.ivr2Calls, ivr2BR: o.ivr2Calls ? o.ivr2Sets/o.ivr2Calls*100 : 0,
     ivr3Calls: o.ivr3Calls, ivr3BR: o.ivr3Calls ? o.ivr3Sets/o.ivr3Calls*100 : 0,
     ivr4Calls: o.ivr4Calls, ivr4BR: o.ivr4Calls ? o.ivr4Sets/o.ivr4Calls*100 : 0,
+    ibCalls: o.ibCalls, ibBookingRate: o.ibCalls90s ? o.ibSets/o.ibCalls90s*100 : 0,
+    ibConnectRate: o.ibCalls ? o.ibCalls90s/o.ibCalls*100 : 0,
+    obCalls: o.obCalls, obBookingRate: o.obCalls90s ? o.obSets/o.obCalls90s*100 : 0,
+    obConnectRate: o.obCalls ? o.obCalls90s/o.obCalls*100 : 0,
+    sets: o.sets, bookingRate: o.calls90s ? o.sets/o.calls90s*100 : 0,
+  }));
+}
+
+// Excel/Sheets QUARTILE.INC (linear interpolation, "R-7" method) on an ascending-sorted array.
+function quartileInc(sortedAsc, q){
+  if(!sortedAsc.length) return 0;
+  const pos = (sortedAsc.length - 1) * (q/4);
+  const base = Math.floor(pos), rest = pos - base;
+  return sortedAsc[base+1]!==undefined ? sortedAsc[base] + rest*(sortedAsc[base+1]-sortedAsc[base]) : sortedAsc[base];
+}
+
+// Replicates the sheet's own "BR % per Call Source" pivot: Strong-Weak BR% (IB strong at >=35%,
+// OB strong at >=45%) and OB BR Rating (quartile letter grade A-D on OB Booking Rate). Quartiles
+// are computed across whichever rows are currently displayed (so a Team/Agent-filtered view ranks
+// within that filtered set), matching the sheet's formulas: S5 = IF(L>=35%,"Strong IB","Weak IB")
+// & " - " & IF(O>=45%,"Strong OB","Weak OB"); T5 = QUARTILE-based bucket on O (OB Booking %).
+function addCallSourceRatings(rows){
+  const obRates = rows.map(r=>r.obBookingRate).sort((a,b)=>a-b);
+  const q1 = quartileInc(obRates,1), q2 = quartileInc(obRates,2), q3 = quartileInc(obRates,3);
+  return rows.map(r => ({
+    ...r,
+    strongWeakBR: (r.ibBookingRate>=35?'Strong IB':'Weak IB') + ' - ' + (r.obBookingRate>=45?'Strong OB':'Weak OB'),
+    obBRRating: r.obBookingRate>=q3?'A':r.obBookingRate>=q2?'B':r.obBookingRate>=q1?'C':'D',
   }));
 }
 
@@ -1299,19 +1327,24 @@ function renderASRDailyMetric(){
 function renderCallSourceBR(){
   const p = document.getElementById('panel-6');
   let rows = state.lob === 'Closer - Outbound' ? [] : callSourceRowsForRange();
+  if(state.team) rows = rows.filter(r=>r.team===state.team);
   if(state.agent) rows = rows.filter(r=>r.name===state.agent);
-  else if(state.team){ const names = new Set(repRowsForRange().filter(r=>r.team===state.team).map(r=>r.name)); rows = rows.filter(r=>names.has(r.name)); }
+  rows = addCallSourceRatings(rows);
   p.innerHTML = `
     <div class="section-title">Booking Rate % by IVR call source</div>
-    <div class="note">Computed live from Sched's per-rep-per-day records (periodically refreshed from Sched, covers ${RAW_SCHED_MIN_DATE} → ${RAW_SCHED_MAX_DATE}; the most recent ~week can still revise as Sched backfills -- treat it as provisional) — follows Date Range / Team / Agent filters above (booking rate can exceed 100% when one rep books multiple appointments from fewer unique inbound calls in the source data).</div>
+    <div class="note">Computed live from Sched's per-rep-per-day records (periodically refreshed from Sched, covers ${RAW_SCHED_MIN_DATE} → ${RAW_SCHED_MAX_DATE}; the most recent ~week can still revise as Sched backfills -- treat it as provisional) — follows Date Range / Team / Agent filters above (booking rate can exceed 100% when one rep books multiple appointments from fewer unique inbound calls in the source data). Strong-Weak BR% and OB BR Rating replicate the sheet's own pivot (IB strong at ≥35%, OB strong at ≥45%; OB BR Rating is a quartile grade A-D on OB Booking Rate, computed across whatever rows are currently shown here).</div>
     <div class="table-section"><table><thead id="tbl-br-head"></thead><tbody id="tbl-br-body"></tbody></table></div>
   `;
   renderTable('tbl-br', rows, [
-    {key:'name', label:'Name'},
+    {key:'team', label:'Team'}, {key:'name', label:'Name'},
     {key:'ivr1Calls', label:'IVR1 Calls'}, {key:'ivr1BR', label:'IVR1 Booking %', fmt:fmtPct},
     {key:'ivr2Calls', label:'IVR2 Calls'}, {key:'ivr2BR', label:'IVR2 Booking %', fmt:fmtPct},
     {key:'ivr3Calls', label:'IVR3 Calls'}, {key:'ivr3BR', label:'IVR3 Booking %', fmt:fmtPct},
     {key:'ivr4Calls', label:'IVR4 Calls'}, {key:'ivr4BR', label:'IVR4 Booking %', fmt:fmtPct},
+    {key:'ibCalls', label:'IB Calls'}, {key:'ibBookingRate', label:'IB Booking %', fmt:fmtPct}, {key:'ibConnectRate', label:'IB Connect %', fmt:fmtPct},
+    {key:'obCalls', label:'OB Calls'}, {key:'obBookingRate', label:'OB Booking %', fmt:fmtPct}, {key:'obConnectRate', label:'OB Connect %', fmt:fmtPct},
+    {key:'sets', label:'Sets'}, {key:'bookingRate', label:'Booking Rate', fmt:fmtPct},
+    {key:'strongWeakBR', label:'Strong-Weak BR %'}, {key:'obBRRating', label:'OB BR Rating'},
   ]);
 }
 

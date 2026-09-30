@@ -149,7 +149,7 @@
       <h1>⚡ PERFORMANCE GOLF</h1>
       <p>ASR &amp; Closer Report — Operations Dashboard</p>
     </div>
-    <div class="asof">Source data as of <b id="asofLabel">—</b><br>Rendered <span id="renderTimeHeader">—</span></div>
+    <div class="asof">Source data as of <b id="asofLabel">—</b><br>Data updated <span id="dataUpdatedHeader">—</span></div>
   </div>
 
   <div class="filters">
@@ -201,7 +201,7 @@
 
   <div id="panels"></div>
 
-  <div class="update-time">Rendered <span id="renderTime">—</span> · Filters apply live to every tab</div>
+  <div class="update-time">Data updated <span id="dataUpdatedFooter">—</span> · Filters apply live to every tab</div>
 
 <script>
 // ===== inlined data (see asr_closer_data.js for the commented, standalone copy) =====
@@ -218,6 +218,14 @@ const ASOF = (() => {
   const d = parts.find(p=>p.type==='day').value;
   return `${y}-${m}-${d}`;
 })();
+
+// When RAW_SCHED/TREND_* were actually pulled from Sched_Snapshot (its Drive modifiedTime at pull
+// time) -- a fixed historical fact, not something to recompute live. Update this ISO string each
+// time the embedded data is refreshed from a new pull. Displayed in EDT for consistency with ASOF.
+const DATA_UPDATED_AT_ISO = "2026-09-30T16:49:12.555Z";
+const DATA_UPDATED_AT = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/New_York', dateStyle: 'medium', timeStyle: 'short'
+}).format(new Date(DATA_UPDATED_AT_ISO)) + ' ET';
 
 const ASR_REPS = [
 ["Team Remen","Sitti Besas",226,182,126,32,69.23,51.59,20447.22,46.60,32.37,60.66],
@@ -1133,11 +1141,8 @@ function renderAll(){
       : t.gran==='daily' ? ` — computed live from Sched (periodically refreshed, covers ${RAW_SCHED_MIN_DATE} → ${RAW_SCHED_MAX_DATE}; the most recent ~week can still revise as Sched backfills -- treat it as provisional).`
       : t.gran==='monthly' ? ' — your selection falls outside the captured company-trend window, so these figures are the FULL calendar month\'s total, not scaled down to just the days you selected.'
       : ' — falling back to a broader bucket for this range.');
-  const renderTimeStr = new Date().toLocaleString('en-US', {
-    timeZone: 'America/New_York', dateStyle: 'medium', timeStyle: 'short'
-  }) + ' ET';
-  document.getElementById('renderTime').textContent = renderTimeStr;
-  document.getElementById('renderTimeHeader').textContent = renderTimeStr;
+  document.getElementById('dataUpdatedFooter').textContent = DATA_UPDATED_AT;
+  document.getElementById('dataUpdatedHeader').textContent = DATA_UPDATED_AT;
 
   renderExecSummary(t);
   renderASRTrend(t);

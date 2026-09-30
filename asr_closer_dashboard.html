@@ -205,7 +205,19 @@
 
 <script>
 // ===== inlined data (see asr_closer_data.js for the commented, standalone copy) =====
-const ASOF = "2026-09-29"; // real EDT calendar date (America/New_York) -- verify via `TZ='America/New_York' date`, not a session date label, which may not be EDT-anchored
+// Computed live from the browser's clock at page load, in America/New_York, instead of a
+// hardcoded string -- a fixed ASOF value goes stale every day it isn't manually bumped (it
+// silently sat one calendar day behind real EDT "today" until this was caught). This always
+// reflects the real current EDT date, regardless of when the page happens to be loaded.
+const ASOF = (() => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).formatToParts(new Date());
+  const y = parts.find(p=>p.type==='year').value;
+  const m = parts.find(p=>p.type==='month').value;
+  const d = parts.find(p=>p.type==='day').value;
+  return `${y}-${m}-${d}`;
+})();
 
 const ASR_REPS = [
 ["Team Remen","Sitti Besas",226,182,126,32,69.23,51.59,20447.22,46.60,32.37,60.66],

@@ -479,6 +479,24 @@ const SERIES_COLORS = ['var(--s-blue)','var(--s-orange)','var(--s-aqua)','var(--
 let state = { start:null, end:null, lob:'', team:'', agent:'' };
 let sortState = {}; // per table id -> {col, dir}
 
+// SETTER's default LOB scope when nothing specific is picked from the dropdown -- ASR and
+// Internal Setter both genuinely contribute Sets, so "All LOBs" under SETTER should mean "both
+// of those", not silently collapse to ASR-only the way several of these filters used to.
+const SETTER_LOBS = MAIN_TABS[0].lobs;
+// Every row-filtering function below (Rep per Metric, BR % per Call Source, ASR Trend View,
+// Executive Summary Trend's team/lob-scoped path) should go through this instead of hardcoding
+// `lob==='ASR'` -- an explicit LOB selection narrows to exactly that value; with none selected,
+// SETTER-side views default to the full SETTER_LOBS set.
+function matchesLobFilter(lob){
+  return state.lob ? lob === state.lob : SETTER_LOBS.includes(lob);
+}
+// Human-readable label for whatever combination of Team/LOB is currently scoping a view, e.g.
+// "Team Mimi", "LOB Internal Setter", or "Team Mimi + LOB ASR". Used in scope banners so the
+// wording doesn't assume team-only scoping the way it used to.
+function scopeLabel(){
+  return [state.team, state.lob ? 'LOB '+state.lob : ''].filter(Boolean).join(' + ');
+}
+
 function fmtInt(n){ return Math.round(n).toLocaleString(); }
 function fmtMoney(n){ return '$' + Math.round(n).toLocaleString(); }
 function fmtPct(n){ return (Math.round(n*10)/10).toFixed(1) + '%'; }
@@ -586,20 +604,31 @@ function rebuildAgentOptions(){
   sel.innerHTML = '<option value="">All Agents</option>';
   const roster = state.team ? LIVE_ROSTER.filter(r=>r.team===state.team) : LIVE_ROSTER;
   const byName = (a,b) => a.name.localeCompare(b.name);
-  const asrReps = roster.filter(r=>r.lob==='ASR').sort(byName);
+  // A specific LOB is selected -- just list that LOB's people alphabetically, no need for the
+  // ASR/Closer/Other grouping split below (there's only one group once narrowed this far). This
+  // also makes any of the 13 real LOB values work correctly, not just ASR/Closer - Outbound.
+  if (state.lob) {
+    roster.filter(r=>r.lob===state.lob).sort(byName)
+      .forEach(r=>{ const o=document.createElement('option'); o.value=r.name; o.textContent=r.name; sel.appendChild(o); });
+    return;
+  }
+  // No LOB filter: keep the familiar grouped view. Internal Setter reps fall under "ASR /
+  // Setters" alongside ASR (both are SETTER_LOBS) rather than "Other", since that's the scope
+  // SETTER's tabs actually compute over when nothing more specific is picked.
+  const asrReps = roster.filter(r=>SETTER_LOBS.includes(r.lob)).sort(byName);
   const closers = roster.filter(r=>r.lob==='Closer - Outbound').sort(byName);
-  const others = roster.filter(r=>r.lob!=='ASR' && r.lob!=='Closer - Outbound').sort(byName);
-  if (state.lob !== 'Closer - Outbound' && asrReps.length) {
+  const others = roster.filter(r=>!SETTER_LOBS.includes(r.lob) && r.lob!=='Closer - Outbound').sort(byName);
+  if (asrReps.length) {
     const grp1 = document.createElement('optgroup'); grp1.label='ASR / Setters';
     asrReps.forEach(r=>{ const o=document.createElement('option'); o.value=r.name; o.textContent=r.name; grp1.appendChild(o); });
     sel.appendChild(grp1);
   }
-  if (state.lob !== 'ASR' && closers.length) {
+  if (closers.length) {
     const grp2 = document.createElement('optgroup'); grp2.label='Closers / PG1 Advisors';
     closers.forEach(c=>{ const o=document.createElement('option'); o.value=c.name; o.textContent=c.name; grp2.appendChild(o); });
     sel.appendChild(grp2);
   }
-  if (!state.lob && others.length) {
+  if (others.length) {
     const grp3 = document.createElement('optgroup'); grp3.label='Other (non-ASR/Closer)';
     others.forEach(r=>{ const o=document.createElement('option'); o.value=r.name; o.textContent=r.name; grp3.appendChild(o); });
     sel.appendChild(grp3);
@@ -647,11 +676,14 @@ function trendForRange(){
     return { gran:'monthly', rows:[], chartRows:[], label:r=>r.month, blocked:true,
       blockedReason:'LOB is set to Closer, but this is the ASR company trend — switch LOB to ASR or All to see it (or open CLOSER Trend View).' };
   }
-  // Team scope: compute this team's own Daily/Weekly/Monthly live from RAW_SCHED (the same
-  // cascade as the company-wide path below), instead of the static TEAM_MONTHLY snapshot that was
-  // only ever captured once early in this dashboard's build and had since drifted from reality
-  // (e.g. Team Mimi's Sep MTD Sets read 1,418 there against 1,539 live).
-  if (state.team) {
+  // Team and/or LOB scope: compute the matching Daily/Weekly/Monthly live from RAW_SCHED (the
+  // same cascade as the company-wide path below) whenever either filter narrows the view, instead
+  // of the static TEAM_MONTHLY snapshot that was only ever captured once early in this
+  // dashboard's build and had since drifted from reality (e.g. Team Mimi's Sep MTD Sets read
+  // 1,418 there against 1,539 live). An LOB-only selection (no team) still routes through here --
+  // state.team is passed through as-is ('' meaning "no team restriction") and teamRawAggBy /
+  // matchesLobFilter apply whichever of the two filters is actually set.
+  if (state.team || state.lob) {
     const teamDaily = teamDailyRowsFor(state.team);
     if (!teamDaily.length) {
       return { gran:'monthly', rows:[], chartRows:[], label:r=>r.month, teamScoped:true, teamScopedEmpty:true };
@@ -725,11 +757,12 @@ function trendForRange(){
 }
 
 function closerTrendForRange(){
-  // LOB gate: this is the Closer company trend; if the ASR LOB is active, nothing here applies —
-  // Executive Summary Trend is the ASR equivalent.
-  if (state.lob === 'ASR') {
+  // LOB gate: this is the Closer company trend; if a SETTER-side LOB is active, nothing here
+  // applies — Executive Summary Trend is the equivalent. (In practice the CLOSER main tab's LOB
+  // dropdown only ever offers Closer - Outbound, so this mainly guards against stale state.)
+  if (SETTER_LOBS.includes(state.lob)) {
     return { gran:'monthly', rows:[], chartRows:[], label:r=>r.month, blocked:true,
-      blockedReason:'LOB is set to ASR, but this is the Closer company trend — switch LOB to Closer or All to see it (or open Executive Summary Trend).' };
+      blockedReason:`LOB is set to ${state.lob}, but this is the Closer company trend — switch LOB to Closer or All to see it (or open Executive Summary Trend).` };
   }
   // Team: every closer is on Team Jen, so a Team selection here (if it's Team Jen) never
   // narrows anything further — company totals already equal the Team Jen totals.
@@ -835,7 +868,7 @@ function repMetrics26(o){
 }
 
 function repRowsForRange(){
-  return rawSchedAggForRange().filter(o=>o.lob==='ASR').map(o=>({
+  return rawSchedAggForRange().filter(o=>matchesLobFilter(o.lob)).map(o=>({
     team: o.team, name: o.name, ...repMetrics26(o),
   }));
 }
@@ -867,10 +900,14 @@ function weekBeginningOf(dateStr){
   d.setDate(d.getDate() - (dow===0?6:dow-1)); // back to Monday
   return dstr(d);
 }
+// `team` may be '' to mean "no team restriction" (lob-only scoping) -- used by trendForRange()'s
+// scoped branch when only the LOB filter is active. LOB matching goes through matchesLobFilter()
+// (reads state.lob ambiently) rather than a hardcoded 'ASR' check, so this works for Internal
+// Setter and any other LOB too, not just ASR.
 function teamRawAggBy(team, keyFn){
   const map = new Map();
   for(const r of RAW_SCHED){
-    if(r[1]!==team || r[2]!=='ASR') continue;
+    if((team && r[1]!==team) || !matchesLobFilter(r[2])) continue;
     const key = keyFn(r[3]);
     if(!map.has(key)) map.set(key, blankRawSums());
     addRawRow(map.get(key), r);
@@ -902,7 +939,7 @@ function closerRowsForRange(){
 }
 
 function callSourceRowsForRange(){
-  return rawSchedAggForRange().filter(o=>o.lob==='ASR').map(o=>({
+  return rawSchedAggForRange().filter(o=>matchesLobFilter(o.lob)).map(o=>({
     team: o.team, name: o.name,
     ivr1Calls: o.ivr1Calls, ivr1BR: o.ivr1Calls ? o.ivr1Sets/o.ivr1Calls*100 : 0,
     ivr2Calls: o.ivr2Calls, ivr2BR: o.ivr2Calls ? o.ivr2Sets/o.ivr2Calls*100 : 0,
@@ -947,7 +984,7 @@ function filteredReps(){
   return reps;
 }
 function filteredClosers(){
-  if(state.lob === 'ASR') return []; // closers don't exist under the ASR LOB
+  if(SETTER_LOBS.includes(state.lob)) return []; // closers don't exist under a SETTER-side LOB
   let c = closerRowsForRange();
   if(state.team) c = c.filter(x=>x.team===state.team); // currently a no-op (all closers are Team Jen), kept for correctness
   if(state.agent) c = c.filter(x=>x.name===state.agent);
@@ -1151,9 +1188,9 @@ function renderExecSummary(t){
     : (t.noDataYet
         ? `<div class="scope-banner blocked">⚠ No data yet for this range — Sched's latest posted day is <b>${t.noDataYetMax}</b>. The tiles below are showing 0, not a different period's totals.</div>`
         : (t.teamScopedEmpty
-        ? `<div class="scope-banner blocked">⚠ <b>${state.team}</b> has no ASR-lob activity in Sched, so there's nothing to show here — try Rep per Metric / ASR Daily Metric, which include non-ASR teams too.</div>`
+        ? `<div class="scope-banner blocked">⚠ <b>${scopeLabel()}</b> has no activity in Sched for this scope, so there's nothing to show here — try Rep per Metric / ASR Daily Metric, which include non-ASR teams too.</div>`
         : (t.teamScoped
-            ? `<div class="scope-banner">Scoped to <b>${state.team}</b> — computed live from that team's own Sched rows (same Daily/Weekly/Monthly cascade as the company-wide view).${state.agent?` The Agent filter (<b>${state.agent}</b>) doesn't narrow this company/team trend further — see Rep per Metric for that person's own totals.`:''}</div>`
+            ? `<div class="scope-banner">Scoped to <b>${scopeLabel()}</b> — computed live from Sched's matching rows (same Daily/Weekly/Monthly cascade as the company-wide view).${state.agent?` The Agent filter (<b>${state.agent}</b>) doesn't narrow this further — see Rep per Metric for that person's own totals.`:''}</div>`
             : (state.agent ? `<div class="scope-banner">The Agent filter (<b>${state.agent}</b>) doesn't narrow this company-wide trend — see Rep per Metric for that person's own totals.</div>` : ''))));
   p.innerHTML = `
     ${scopeBanner}
@@ -1232,7 +1269,7 @@ function renderASRTrend(t){
   // labeled as such), same as how Executive Summary Trend's charts always show a fuller window
   // than the exact selection.
   const rangeSums = blankRawSums();
-  RAW_SCHED.filter(r => teamsToShow.includes(r[1]) && r[2]==='ASR' && inRange(r[3])).forEach(r => addRawRow(rangeSums, r));
+  RAW_SCHED.filter(r => teamsToShow.includes(r[1]) && matchesLobFilter(r[2]) && inRange(r[3])).forEach(r => addRawRow(rangeSums, r));
   const rangeAgg = repMetrics26(rangeSums);
   const teamDailyMaxes = teamsToShow.map(team => { const d = teamDailyRowsFor(team); return d.length ? d[d.length-1].date : null; }).filter(Boolean);
   const teamsMaxDate = teamDailyMaxes.length ? teamDailyMaxes.reduce((a,b)=>a>b?a:b) : null;
@@ -1279,7 +1316,7 @@ function renderASRTrend(t){
   lineChart('chart-asr-teamlines', merged, series, monthLabel);
   const rangeRowsByTeam = teamsToShow.map(team=>{
     const sums = blankRawSums();
-    RAW_SCHED.filter(r=>r[1]===team && r[2]==='ASR' && inRange(r[3])).forEach(r=>addRawRow(sums,r));
+    RAW_SCHED.filter(r=>r[1]===team && matchesLobFilter(r[2]) && inRange(r[3])).forEach(r=>addRawRow(sums,r));
     return {...repMetrics26(sums), team};
   });
   barChart('chart-asr-teambar', rangeRowsByTeam, 'sets', r=>r.team, getVar('--s-orange'));

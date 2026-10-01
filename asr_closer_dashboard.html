@@ -1071,10 +1071,14 @@ function lineChart(containerId, rows, series, xLabelFn, opts){
   // gridlines
   const maxVal = Math.max(...series.map(s=>Math.max(...rows.map(r=>r[s.key]||0)))) || 1;
   const niceMax = maxVal * 1.15;
+  // Gridline labels must use the series' own formatter (fmtPct for a % metric, fmtMoney for
+  // revenue, ...) instead of always fmtInt -- a Booking Rate axis printing "81" instead of "81%"
+  // is misleading, not just unpolished.
+  const gridFmt = series[0].fmt || fmtInt;
   for(let g=0; g<=4; g++){
     const y = padT + plotH - (g/4)*plotH;
     svg += `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#383835" stroke-width="1"/>`;
-    svg += `<text x="${padL-8}" y="${y+3}" font-size="9" fill="#898781" text-anchor="end">${fmtInt(niceMax*g/4)}</text>`;
+    svg += `<text x="${padL-8}" y="${y+3}" font-size="9" fill="#898781" text-anchor="end">${gridFmt(niceMax*g/4)}</text>`;
   }
   // x labels (sparse)
   rows.forEach((r,i)=>{
@@ -1149,11 +1153,12 @@ function groupedColumnChart(containerId, rows, series, xLabelFn, opts){
     const totals = rows.map(r => series.reduce((sum,s)=>sum+(r[s.key]||0), 0));
     const maxVal = Math.max(...totals) || 1;
     const niceMax = maxVal * 1.15;
+    const gridFmt = opts.totalFmt || series[0].fmt || fmtInt;
     let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="overflow:visible">`;
     for(let g=0; g<=4; g++){
       const y = padT + plotH - (g/4)*plotH;
       svg += `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#383835" stroke-width="1"/>`;
-      svg += `<text x="${padL-8}" y="${y+3}" font-size="9" fill="#898781" text-anchor="end">${fmtInt(niceMax*g/4)}</text>`;
+      svg += `<text x="${padL-8}" y="${y+3}" font-size="9" fill="#898781" text-anchor="end">${gridFmt(niceMax*g/4)}</text>`;
     }
     rows.forEach((r,i)=>{
       const groupX = padL + i*groupW;
@@ -1182,11 +1187,12 @@ function groupedColumnChart(containerId, rows, series, xLabelFn, opts){
   const barW = Math.max(6, (groupW - barGap*(series.length+1)) / series.length);
   const maxVal = Math.max(...series.map(s=>Math.max(...rows.map(r=>r[s.key]||0)))) || 1;
   const niceMax = maxVal * 1.15;
+  const gridFmt = series[0].fmt || fmtInt;
   let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="overflow:visible">`;
   for(let g=0; g<=4; g++){
     const y = padT + plotH - (g/4)*plotH;
     svg += `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#383835" stroke-width="1"/>`;
-    svg += `<text x="${padL-8}" y="${y+3}" font-size="9" fill="#898781" text-anchor="end">${fmtInt(niceMax*g/4)}</text>`;
+    svg += `<text x="${padL-8}" y="${y+3}" font-size="9" fill="#898781" text-anchor="end">${gridFmt(niceMax*g/4)}</text>`;
   }
   rows.forEach((r,i)=>{
     const groupX = padL + i*groupW;

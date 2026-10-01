@@ -130,6 +130,9 @@
 
   .chart-card{ background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:18px; margin-top:18px; }
   .chart-card h3{ font-size:13px; color:var(--light-gray); text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px; }
+  .chart-row{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:18px; }
+  .chart-row .chart-card{ margin-top:0; }
+  @media (max-width: 900px){ .chart-row{ grid-template-columns:1fr; } }
   .legend{ display:flex; gap:14px; font-size:11px; color:var(--gray); margin:6px 0 10px; flex-wrap:wrap; }
   .legend span{ display:inline-flex; align-items:center; gap:5px; }
   .legend i{ width:10px; height:10px; border-radius:2px; display:inline-block; }
@@ -932,6 +935,54 @@ function teamMonthlyRowsFor(team){
     .map(([month,sums])=>({month, ...repMetrics26(sums)})).sort((a,b)=>a.month<b.month?-1:a.month>b.month?1:0);
 }
 
+// Fixed-window aggregation for Executive Summary Trend's per-metric Monthly/Weekly/Daily chart
+// trio -- deliberately ignores the Date Range filter entirely (always the latest 3 months / 6
+// weeks / N days off the real data, sliced by the caller), but still respects Team, Agent, and
+// LOB the same way everything else on this tab does.
+function execChartRawAggBy(keyFn){
+  const map = new Map();
+  for(const r of RAW_SCHED){
+    if(state.team && r[1]!==state.team) continue;
+    if(state.agent && r[0]!==state.agent) continue;
+    if(!matchesLobFilter(r[2])) continue;
+    const key = keyFn(r[3]);
+    if(!map.has(key)) map.set(key, blankRawSums());
+    addRawRow(map.get(key), r);
+  }
+  return map;
+}
+function execChartDailyRows(){
+  return Array.from(execChartRawAggBy(d=>d).entries())
+    .map(([date,sums])=>({date, ...repMetrics26(sums)})).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
+}
+function execChartWeeklyRows(){
+  return Array.from(execChartRawAggBy(weekBeginningOf).entries())
+    .map(([weekBeginning,sums])=>({weekBeginning, ...repMetrics26(sums)})).sort((a,b)=>a.weekBeginning<b.weekBeginning?-1:a.weekBeginning>b.weekBeginning?1:0);
+}
+function execChartMonthlyRows(){
+  return Array.from(execChartRawAggBy(d=>d.slice(0,7)).entries())
+    .map(([month,sums])=>({month, ...repMetrics26(sums)})).sort((a,b)=>a.month<b.month?-1:a.month>b.month?1:0);
+}
+// IB/OB field names consistently follow 'ib'/'ob' + capitalized metric key (ibSets, ibWarmT,
+// ibShowRate, ibBookingRate, ...), so the Total/IB/OB series for any of the 4 chart metrics can be
+// derived from the metric key alone instead of a hand-maintained map.
+function execMetricSeries(metricKey, fmt){
+  const cap = metricKey[0].toUpperCase()+metricKey.slice(1);
+  return [
+    {key: metricKey, name:'Total', color:getVar('--s-orange'), fmt},
+    {key: 'ib'+cap, name:'IB', color:getVar('--s-blue'), fmt},
+    {key: 'ob'+cap, name:'OB', color:getVar('--s-aqua'), fmt},
+  ];
+}
+// The 4 metrics Executive Summary Trend charts as Monthly/Weekly/Daily trios.
+const EXEC_CHART_METRICS = [
+  {id:'sets', key:'sets', label:'Sets', fmt:fmtInt},
+  {id:'warmt', key:'warmT', label:'Warm Transfer %', fmt:fmtPct},
+  {id:'showrate', key:'showRate', label:'Show Rate %', fmt:fmtPct},
+  {id:'bookingrate', key:'bookingRate', label:'Booking Rate %', fmt:fmtPct},
+];
+let EXEC_CHART_DAILY_N = 30; // dropped to 10 below if 30 points reads as too crowded
+
 function closerRowsForRange(){
   return rawSchedAggForRange().filter(o=>o.lob==='Closer - Outbound').map(o=>({
     team: o.team, name: o.name, appt: o.closerAppts, show: o.closerShow, closedDeal: o.closerClosedDeal,
@@ -1058,6 +1109,41 @@ function barChart(containerId, rows, key, nameFn, color, fmt){
     svg += `<rect x="${padL}" y="${y}" width="${Math.max(w,2)}" height="${rowH}" rx="4" fill="${color}">
               <title>${nameFn(r)}: ${fmt?fmt(r[key]):fmtInt(r[key])}</title></rect>`;
     svg += `<text x="${padL+w+8}" y="${y+rowH*0.68}" font-size="11" fill="#ffffff">${fmt?fmt(r[key]):fmtInt(r[key])}</text>`;
+  });
+  svg += `</svg>`;
+  el.innerHTML = svg;
+}
+
+// Vertical grouped-column chart -- one group per period (e.g. month), one bar per series within
+// the group. Used for the Monthly view of Executive Summary Trend's per-metric chart trio: with
+// only 3 periods, discrete side-by-side columns read as a clearer comparison than a 3-point line.
+function groupedColumnChart(containerId, rows, series, xLabelFn){
+  const el = document.getElementById(containerId);
+  if(!rows.length){ el.innerHTML = '<div class="no-data">No data in this range</div>'; return; }
+  const W = el.clientWidth || 760, H = 220, padL=46, padR=16, padT=14, padB=28;
+  const plotW = W-padL-padR, plotH = H-padT-padB;
+  const n = rows.length;
+  const groupW = plotW/n;
+  const barGap = 4;
+  const barW = Math.max(6, (groupW - barGap*(series.length+1)) / series.length);
+  const maxVal = Math.max(...series.map(s=>Math.max(...rows.map(r=>r[s.key]||0)))) || 1;
+  const niceMax = maxVal * 1.15;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="overflow:visible">`;
+  for(let g=0; g<=4; g++){
+    const y = padT + plotH - (g/4)*plotH;
+    svg += `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#383835" stroke-width="1"/>`;
+    svg += `<text x="${padL-8}" y="${y+3}" font-size="9" fill="#898781" text-anchor="end">${fmtInt(niceMax*g/4)}</text>`;
+  }
+  rows.forEach((r,i)=>{
+    const groupX = padL + i*groupW;
+    svg += `<text x="${groupX+groupW/2}" y="${H-8}" font-size="9" fill="#898781" text-anchor="middle">${xLabelFn(r)}</text>`;
+    series.forEach((s,si)=>{
+      const x = groupX + barGap + si*(barW+barGap);
+      const val = r[s.key]||0;
+      const barH = (val/niceMax)*plotH;
+      const y = padT + plotH - barH;
+      svg += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(barH,0).toFixed(1)}" rx="2" fill="${s.color}"><title>${xLabelFn(r)} · ${s.name}: ${s.fmt?s.fmt(val):fmtInt(val)}</title></rect>`;
+    });
   });
   svg += `</svg>`;
   el.innerHTML = svg;
@@ -1210,35 +1296,47 @@ function renderExecSummary(t){
       ${kpiTile('Closed Deal', fmtInt(sum(rows,'closedDeal')))}
       ${kpiTile('90 sec Calls', fmtInt(sum(rows,'calls90s')), `IB ${fmtInt(sum(rows,'ibCalls90s'))} · OB ${fmtInt(sum(rows,'obCalls90s'))}`)}
     </div>
-    <div class="chart-card">
-      <h3>Sets — Total / IB / OB <span style="color:var(--gray); font-weight:400; text-transform:none; letter-spacing:0">(${chartWindowNote})</span></h3>
-      <div class="legend"><span><i style="background:var(--s-orange)"></i>Total</span><span><i style="background:var(--s-blue)"></i>IB</span><span><i style="background:var(--s-aqua)"></i>OB</span></div>
-      <div id="chart-exec-sets"></div>
-    </div>
-    <div class="chart-card">
-      <h3>Warm Transfer % — Total / IB / OB <span style="color:var(--gray); font-weight:400; text-transform:none; letter-spacing:0">(${chartWindowNote})</span></h3>
-      <div class="legend"><span><i style="background:var(--s-orange)"></i>Total</span><span><i style="background:var(--s-blue)"></i>IB</span><span><i style="background:var(--s-aqua)"></i>OB</span></div>
-      <div id="chart-exec-warmt"></div>
-    </div>
+    <div class="section-title">Sets, Warm Transfer %, Show Rate %, Booking Rate % — Monthly / Weekly / Daily</div>
+    <div class="note">These 12 charts are NOT affected by the Date Range filter above -- they always show the latest 3 months / 6 weeks / ${EXEC_CHART_DAILY_N} days. Team and Agent filters do apply, same as the rest of this tab.</div>
+    ${EXEC_CHART_METRICS.map(m => `
+    <div class="chart-row">
+      <div class="chart-card">
+        <h3>${m.label} — Monthly <span style="color:var(--gray); font-weight:400; text-transform:none; letter-spacing:0">(last 3 months)</span></h3>
+        <div class="legend"><span><i style="background:var(--s-orange)"></i>Total</span><span><i style="background:var(--s-blue)"></i>IB</span><span><i style="background:var(--s-aqua)"></i>OB</span></div>
+        <div id="chart-exec-${m.id}-m"></div>
+      </div>
+      <div class="chart-card">
+        <h3>${m.label} — Weekly <span style="color:var(--gray); font-weight:400; text-transform:none; letter-spacing:0">(last 6 weeks)</span></h3>
+        <div class="legend"><span><i style="background:var(--s-orange)"></i>Total</span><span><i style="background:var(--s-blue)"></i>IB</span><span><i style="background:var(--s-aqua)"></i>OB</span></div>
+        <div id="chart-exec-${m.id}-w"></div>
+      </div>
+      <div class="chart-card">
+        <h3>${m.label} — Daily <span style="color:var(--gray); font-weight:400; text-transform:none; letter-spacing:0">(last ${EXEC_CHART_DAILY_N} days)</span></h3>
+        <div class="legend"><span><i style="background:var(--s-orange)"></i>Total</span><span><i style="background:var(--s-blue)"></i>IB</span><span><i style="background:var(--s-aqua)"></i>OB</span></div>
+        <div id="chart-exec-${m.id}-d"></div>
+      </div>
+    </div>`).join('')}
     <div class="chart-card">
       <h3>Upfront Revenue over time <span style="color:var(--gray); font-weight:400; text-transform:none; letter-spacing:0">(${chartWindowNote})</span></h3>
       <div class="legend"><span><i style="background:var(--s-aqua)"></i>Revenue ($)</span></div>
       <div id="chart-exec-rev"></div>
     </div>
     <div class="section-title">Period detail — all 26 metrics, as shown on the sheet</div>
-    <div class="note">Daily rows don't carry an IB/OB Revenue split in the source (only Weekly/Monthly do) — shown as "—". The table below reflects your exact date selection; the charts above always show the fuller ${chartWindowNote} trend so the line reads clearly.</div>
+    <div class="note">Daily rows don't carry an IB/OB Revenue split in the source (only Weekly/Monthly do) — shown as "—". The table below reflects your exact date selection; the Revenue chart above always shows the fuller ${chartWindowNote} trend so the line reads clearly.</div>
     <div class="table-section"><table><thead id="tbl-exec-head"></thead><tbody id="tbl-exec-body"></tbody></table></div>
   `;
-  lineChart('chart-exec-sets', t.chartRows, [
-    {key:'sets', name:'Sets', color:getVar('--s-orange')},
-    {key:'ibSets', name:'IB Sets', color:getVar('--s-blue')},
-    {key:'obSets', name:'OB Sets', color:getVar('--s-aqua')},
-  ], t.label);
-  lineChart('chart-exec-warmt', t.chartRows, [
-    {key:'warmT', name:'Warm Transfer %', color:getVar('--s-orange'), fmt:fmtPct},
-    {key:'ibWarmT', name:'IB Warm Transfer %', color:getVar('--s-blue'), fmt:fmtPct},
-    {key:'obWarmT', name:'OB Warm Transfer %', color:getVar('--s-aqua'), fmt:fmtPct},
-  ], t.label);
+  const execMonthly = execChartMonthlyRows().slice(-3);
+  const execWeekly = execChartWeeklyRows().slice(-6);
+  const execDaily = execChartDailyRows().slice(-EXEC_CHART_DAILY_N);
+  const monthLbl = r => r.month.slice(5)+'/'+r.month.slice(2,4);
+  const weekLbl = r => 'WB '+r.weekBeginning.slice(5);
+  const dayLbl = r => r.date.slice(5);
+  EXEC_CHART_METRICS.forEach(m => {
+    const series = execMetricSeries(m.key, m.fmt);
+    groupedColumnChart(`chart-exec-${m.id}-m`, execMonthly, series, monthLbl);
+    lineChart(`chart-exec-${m.id}-w`, execWeekly, series, weekLbl);
+    lineChart(`chart-exec-${m.id}-d`, execDaily, series, dayLbl);
+  });
   lineChart('chart-exec-rev', t.chartRows, [{key:'revenue', name:'Revenue', color:getVar('--s-aqua'), fmt:fmtMoney}], t.label);
   const periodLabel = t.gran==='daily'?'Date':(t.gran==='weekly'?'Week Beginning':'Month');
   const cols = fullMetricCols('period', periodLabel);

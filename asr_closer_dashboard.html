@@ -139,6 +139,17 @@
   .legend span{ display:inline-flex; align-items:center; gap:5px; }
   .legend i{ width:10px; height:10px; border-radius:2px; display:inline-block; }
 
+  /* Shared floating tooltip -- one element reused by every chart (line/column/bar), showing every
+     series' value together on hover instead of the browser's native single-value <title>. */
+  .chart-tooltip{
+    position:fixed; pointer-events:none; z-index:1000; background:#1D1A1A; border:1px solid var(--line);
+    border-radius:6px; padding:8px 10px; font-size:11px; color:var(--white); box-shadow:0 4px 14px rgba(0,0,0,0.45);
+    display:none; white-space:nowrap; line-height:1.7;
+  }
+  .chart-tooltip .ct-title{ font-weight:700; color:var(--light-gray); margin-bottom:4px; }
+  .chart-tooltip .ct-row{ display:flex; align-items:center; gap:6px; }
+  .chart-tooltip .ct-dot{ width:8px; height:8px; border-radius:2px; display:inline-block; flex:none; }
+
   .table-section{ background:linear-gradient(135deg,var(--panel) 0%,var(--black) 100%);
     border:1px solid var(--line); border-radius:8px; overflow:auto; margin-top:18px; max-height:560px; }
   table{ width:100%; border-collapse:collapse; font-size:12.5px; }
@@ -1054,6 +1065,39 @@ function filteredClosers(){
 function sum(arr, key){ return arr.reduce((s,r)=>s+(r[key]||0),0); }
 function avg(arr, key){ return arr.length? sum(arr,key)/arr.length : 0; }
 
+// Single shared floating tooltip, reused by every chart (line/column/bar) -- hovering anywhere
+// near a data point shows ALL series' values together (e.g. Total/IB/OB at once), rather than
+// relying on the browser's native single-value <title> tooltip (which also only fires when the
+// cursor is exactly over one small element, not "anywhere near" that period).
+function chartTooltipEl(){
+  let el = document.getElementById('chartTooltip');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'chartTooltip';
+    el.className = 'chart-tooltip';
+    document.body.appendChild(el);
+  }
+  return el;
+}
+function hideChartTooltip(){
+  const el = document.getElementById('chartTooltip');
+  if(el) el.style.display = 'none';
+}
+function showChartTooltip(clientX, clientY, title, lines){
+  const el = chartTooltipEl();
+  el.innerHTML = `<div class="ct-title">${title}</div>` + lines.map(l=>
+    `<div class="ct-row">${l.color?`<span class="ct-dot" style="background:${l.color}"></span>`:''}${l.name}: <b>${l.value}</b></div>`
+  ).join('');
+  el.style.display = 'block';
+  el.style.left = (clientX+14)+'px';
+  el.style.top = (clientY+14)+'px';
+  requestAnimationFrame(()=>{
+    const r = el.getBoundingClientRect();
+    if(r.right > window.innerWidth) el.style.left = (clientX - r.width - 14) + 'px';
+    if(r.bottom > window.innerHeight) el.style.top = (clientY - r.height - 14) + 'px';
+  });
+}
+
 // ---------------- SVG line chart ----------------
 // opts.showValues: 'all' prints every point's value (fine for <=6-ish points), 'last' prints just
 // the most recent point per series (keeps a many-point chart like a 30-day daily readable instead
@@ -1107,8 +1151,29 @@ function lineChart(containerId, rows, series, xLabelFn, opts){
       }
     });
   });
+  svg += `<line class="crosshair" x1="0" y1="${padT}" x2="0" y2="${padT+plotH}" stroke="#898781" stroke-width="1" stroke-dasharray="3,3" style="display:none"/>`;
   svg += `</svg>`;
   el.innerHTML = svg;
+
+  // Combined hover tooltip + crosshair: snap to the nearest period (not just exact-pixel-over-a-
+  // circle) and show every series' value for it at once.
+  const crosshair = el.querySelector('.crosshair');
+  el.onmousemove = (ev) => {
+    const rect = el.getBoundingClientRect();
+    const scaleX = W / rect.width;
+    const mouseX = (ev.clientX - rect.left) * scaleX;
+    let idx = n>1 ? Math.round((mouseX - padL) / xStep) : 0;
+    idx = Math.max(0, Math.min(n-1, idx));
+    const row = rows[idx];
+    const lines = series.map(s => ({name:s.name, color:s.color, value: s.fmt ? s.fmt(row[s.key]||0) : fmtInt(row[s.key]||0)}));
+    showChartTooltip(ev.clientX, ev.clientY, xLabelFn(row), lines);
+    if(crosshair){
+      const x = padL + idx*xStep;
+      crosshair.setAttribute('x1', x); crosshair.setAttribute('x2', x);
+      crosshair.style.display = 'block';
+    }
+  };
+  el.onmouseleave = () => { hideChartTooltip(); if(crosshair) crosshair.style.display='none'; };
 }
 
 function barChart(containerId, rows, key, nameFn, color, fmt){
@@ -1129,6 +1194,17 @@ function barChart(containerId, rows, key, nameFn, color, fmt){
   });
   svg += `</svg>`;
   el.innerHTML = svg;
+  el.onmousemove = (ev) => {
+    const rect = el.getBoundingClientRect();
+    const scaleY = H / rect.height;
+    const mouseY = (ev.clientY - rect.top) * scaleY;
+    let idx = Math.floor((mouseY - padT) / (rowH+gap));
+    idx = Math.max(0, Math.min(rows.length-1, idx));
+    const row = rows[idx];
+    const val = row[key]||0;
+    showChartTooltip(ev.clientX, ev.clientY, nameFn(row), [{name:'Value', color, value: fmt?fmt(val):fmtInt(val)}]);
+  };
+  el.onmouseleave = hideChartTooltip;
 }
 
 // Vertical column chart -- one group per period (e.g. month). Used for the Monthly view of
@@ -1180,6 +1256,21 @@ function groupedColumnChart(containerId, rows, series, xLabelFn, opts){
     });
     svg += `</svg>`;
     el.innerHTML = svg;
+    el.onmousemove = (ev) => {
+      const rect = el.getBoundingClientRect();
+      const scaleX = W / rect.width;
+      const mouseX = (ev.clientX - rect.left) * scaleX;
+      let idx = Math.floor((mouseX - padL) / groupW);
+      idx = Math.max(0, Math.min(rows.length-1, idx));
+      const row = rows[idx];
+      const totalFmtFn = opts.totalFmt || fmtInt;
+      const lines = [
+        {name:'Total', color:'#ffffff', value: totalFmtFn(totals[idx])},
+        ...series.map(s => ({name:s.name, color:s.color, value: s.fmt ? s.fmt(row[s.key]||0) : fmtInt(row[s.key]||0)})),
+      ];
+      showChartTooltip(ev.clientX, ev.clientY, xLabelFn(row), lines);
+    };
+    el.onmouseleave = hideChartTooltip;
     return;
   }
 
@@ -1211,6 +1302,17 @@ function groupedColumnChart(containerId, rows, series, xLabelFn, opts){
   });
   svg += `</svg>`;
   el.innerHTML = svg;
+  el.onmousemove = (ev) => {
+    const rect = el.getBoundingClientRect();
+    const scaleX = W / rect.width;
+    const mouseX = (ev.clientX - rect.left) * scaleX;
+    let idx = Math.floor((mouseX - padL) / groupW);
+    idx = Math.max(0, Math.min(rows.length-1, idx));
+    const row = rows[idx];
+    const lines = series.map(s => ({name:s.name, color:s.color, value: s.fmt ? s.fmt(row[s.key]||0) : fmtInt(row[s.key]||0)}));
+    showChartTooltip(ev.clientX, ev.clientY, xLabelFn(row), lines);
+  };
+  el.onmouseleave = hideChartTooltip;
 }
 
 // ---------------- sortable table ----------------

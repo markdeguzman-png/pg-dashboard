@@ -87,13 +87,24 @@
   .reset-btn:hover{ background:var(--orange); color:var(--white); }
   .gran-note{ font-size:11px; color:var(--gray); margin-top:4px; }
 
+  .main-tabs{
+    display:flex; gap:10px; margin-bottom:18px;
+  }
+  .main-tab{
+    flex:1; padding:14px 20px; background:var(--panel); border:2px solid var(--line); border-radius:8px;
+    color:var(--light-gray); cursor:pointer; font-size:15px; font-weight:800; text-transform:uppercase;
+    letter-spacing:0.5px; transition:all .2s;
+  }
+  .main-tab.active{ background:var(--orange); border-color:var(--orange); color:var(--white); }
+  .main-tab:hover:not(.active){ border-color:var(--orange); color:var(--white); }
+
   .tabs{
     display:flex; gap:4px; margin-bottom:20px; border-bottom:2px solid var(--line);
     overflow-x:auto; padding-bottom:1px;
   }
   .tab{
-    padding:11px 18px; background:transparent; border:none; color:var(--gray); cursor:pointer;
-    font-size:13px; font-weight:600; white-space:nowrap; border-bottom:3px solid transparent; transition:all .2s;
+    padding:13px 20px; background:transparent; border:none; color:var(--gray); cursor:pointer;
+    font-size:16px; font-weight:600; white-space:nowrap; border-bottom:3px solid transparent; transition:all .2s;
   }
   .tab.active{ color:var(--orange); border-bottom-color:var(--orange); }
   .tab:hover{ color:var(--white); }
@@ -152,6 +163,10 @@
     <div class="asof">Source data as of <b id="asofLabel">—</b><br>Data updated <span id="dataUpdatedHeader">—</span></div>
   </div>
 
+  <div class="main-tabs" id="mainTabBar"></div>
+
+  <div class="tabs" id="tabBar"></div>
+
   <div class="filters">
     <div class="date-row">
       <div class="filter-group">
@@ -196,8 +211,6 @@
     </div>
   </div>
   <div class="gran-note" id="granNote"></div>
-
-  <div class="tabs" id="tabBar"></div>
 
   <div id="panels"></div>
 
@@ -447,9 +460,16 @@ const ALL_TEAMS = Array.from(new Set(LIVE_ROSTER.map(r=>r.team).filter(Boolean))
 // ===== end inlined data =====
 
 const TABS = [
-  "Executive Summary Trend","ASR Trend View","CLOSER Trend View","Closers Metric",
-  "Rep per Metric","ASR Daily Metric","BR % per Call Source","NO SHOWS","BLANK Did Member Show"
+  "Executive Summary Trend","ASR Trend View","Rep per Metric","ASR Daily Metric","BR % per Call Source",
+  "CLOSER Trend View","Closers Metric"
 ];
+// Two top-level groups -- SETTER-side tabs vs CLOSER-side tabs -- selected above the date filter,
+// with the existing sub-tab bar scoped to whichever group is active.
+const MAIN_TABS = [
+  { name: 'SETTER', tabIndices: [0,1,2,3,4] },
+  { name: 'CLOSER', tabIndices: [5,6] },
+];
+let activeMainTab = 0;
 const SERIES_COLORS = ['var(--s-blue)','var(--s-orange)','var(--s-aqua)','var(--s-yellow)','var(--s-magenta)','var(--s-violet)'];
 
 let state = { start:null, end:null, lob:'', team:'', agent:'' };
@@ -1024,9 +1044,28 @@ function buildPanels(){
   wrap.innerHTML = TABS.map((t,i)=>`<div class="tab-content${i===0?' active':''}" id="panel-${i}"></div>`).join('');
 }
 
+function buildMainTabBar(){
+  const bar = document.getElementById('mainTabBar');
+  bar.innerHTML = MAIN_TABS.map((m,i)=>`<button class="main-tab ${i===activeMainTab?'active':''}" data-i="${i}">${m.name}</button>`).join('');
+  bar.querySelectorAll('.main-tab').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const i = Number(btn.dataset.i);
+      if(i === activeMainTab) return;
+      activeMainTab = i;
+      bar.querySelectorAll('.main-tab').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      buildTabBar();
+    });
+  });
+}
+
+// Renders the sub-tab bar for whichever MAIN_TABS group is active, and switches the visible
+// panel to that group's first tab (called both on initial load and whenever the SETTER/CLOSER
+// main tab changes).
 function buildTabBar(){
   const bar = document.getElementById('tabBar');
-  bar.innerHTML = TABS.map((t,i)=>`<button class="tab ${i===0?'active':''}" data-i="${i}">${t}</button>`).join('');
+  const indices = MAIN_TABS[activeMainTab].tabIndices;
+  bar.innerHTML = indices.map((i,pos)=>`<button class="tab ${pos===0?'active':''}" data-i="${i}">${TABS[i]}</button>`).join('');
   bar.querySelectorAll('.tab').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       bar.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
@@ -1035,6 +1074,8 @@ function buildTabBar(){
       document.getElementById('panel-'+btn.dataset.i).classList.add('active');
     });
   });
+  document.querySelectorAll('.tab-content').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+indices[0]).classList.add('active');
 }
 
 function renderAll(){
@@ -1051,13 +1092,11 @@ function renderAll(){
 
   renderExecSummary(t);
   renderASRTrend(t);
-  renderCloserTrend();
-  renderClosersMetric();
   renderRepPerMetric();
   renderASRDailyMetric();
   renderCallSourceBR();
-  renderNoShows();
-  renderBlankDidShow();
+  renderCloserTrend();
+  renderClosersMetric();
 }
 
 // full 23-metric column set, shared by Executive Summary Trend & ASR Trend View team tables
@@ -1225,7 +1264,7 @@ function renderASRTrend(t){
 
 // 3. CLOSER Trend View — real company-wide closer trend (mirrors Executive Summary Trend's depth)
 function renderCloserTrend(){
-  const p = document.getElementById('panel-2');
+  const p = document.getElementById('panel-5');
   const ct = closerTrendForRange();
   const rows = ct.rows;
   const chartWindowNote = ct.gran==='daily' ? `last ${ct.chartRows.length} days` : (ct.gran==='weekly' ? `last ${ct.chartRows.length} weeks` : `last ${ct.chartRows.length} months`);
@@ -1279,7 +1318,7 @@ function renderCloserTrend(){
 
 // 4. Closers Metric
 function renderClosersMetric(){
-  const p = document.getElementById('panel-3');
+  const p = document.getElementById('panel-6');
   const closers = filteredClosers();
   const total = { name:'Grand Total', appt:sum(closers,'appt'), show:sum(closers,'show'), closedDeal:sum(closers,'closedDeal'),
     closeRate: closers.length? sum(closers,'closedDeal')/Math.max(sum(closers,'show'),1)*100:0,
@@ -1306,7 +1345,7 @@ function renderClosersMetric(){
 
 // 5. Rep per Metric
 function renderRepPerMetric(){
-  const p = document.getElementById('panel-4');
+  const p = document.getElementById('panel-2');
   const reps = filteredReps();
   p.innerHTML = `
     <div class="metrics-container">
@@ -1327,7 +1366,7 @@ function renderRepPerMetric(){
 
 // 6. ASR Daily Metric (grouped by team, with subtotal rows)
 function renderASRDailyMetric(){
-  const p = document.getElementById('panel-5');
+  const p = document.getElementById('panel-3');
   p.innerHTML = `
     <div class="section-title">Team-grouped rep detail</div>
     <div class="note">Computed live from Sched's per-rep-per-day records (periodically refreshed from Sched, covers ${RAW_SCHED_MIN_DATE} → ${RAW_SCHED_MAX_DATE}; the most recent ~week can still revise as Sched backfills -- treat it as provisional) — mirrors the sheet's team-grouped layout with subtotal rows; respects Date Range / Team / Agent filters above.</div>
@@ -1360,7 +1399,7 @@ function renderASRDailyMetric(){
 // the user changes date range/team/agent, but doesn't leak into or get reset by them.
 let brSlicerState = { strongWeak: '', obRating: '' };
 function renderCallSourceBR(){
-  const p = document.getElementById('panel-6');
+  const p = document.getElementById('panel-4');
   let rows = state.lob === 'Closer - Outbound' ? [] : callSourceRowsForRange();
   if(state.team) rows = rows.filter(r=>r.team===state.team);
   if(state.agent) rows = rows.filter(r=>r.name===state.agent);
@@ -1417,45 +1456,10 @@ function renderCallSourceBR(){
   ]);
 }
 
-// 8. NO SHOWS
-function renderNoShows(){
-  const p = document.getElementById('panel-7');
-  let rows = state.lob === 'Closer - Outbound' ? [] : NO_SHOWS.filter(r=>inRange(r.apptDate));
-  if(state.agent) rows = rows.filter(r=>r.asr===state.agent);
-  else if(state.team){ const names = new Set(ASR_REPS.filter(r=>r.team===state.team).map(r=>r.name)); rows = rows.filter(r=>names.has(r.asr)); }
-  p.innerHTML = `
-    <div class="metrics-container">${kpiTile('No-show / Cancelled records', fmtInt(rows.length))}</div>
-    <div class="section-title">No-show &amp; cancelled appointments</div>
-    <div class="note">Sample of records captured live from NO SHOWS (source tab spans ~1,252 rows; shown here is a representative slice, filtered by date range / team / agent).</div>
-    <div class="table-section"><table><thead id="tbl-noshow-head"></thead><tbody id="tbl-noshow-body"></tbody></table></div>
-  `;
-  renderTable('tbl-noshow', rows, [
-    {key:'apptDate', label:'Appt Date'}, {key:'asr', label:'ASR'}, {key:'email', label:"Member Email"},
-    {key:'phone', label:'Phone'}, {key:'didShow', label:'Did Member Show?', fmt:v=>`<span class="pill bad">${v}</span>`},
-  ]);
-}
-
-// 9. BLANK Did Member Show
-function renderBlankDidShow(){
-  const p = document.getElementById('panel-8');
-  let rows = state.lob === 'Closer - Outbound' ? [] : BLANK_DID_SHOW.filter(r=>inRange(r.apptDate));
-  if(state.agent) rows = rows.filter(r=>r.asr===state.agent || r.pg1Advisor===state.agent);
-  else if(state.team){ const names = new Set(ASR_REPS.filter(r=>r.team===state.team).map(r=>r.name)); rows = rows.filter(r=>names.has(r.asr)); }
-  p.innerHTML = `
-    <div class="metrics-container">${kpiTile('Unmarked appointments', fmtInt(rows.length))}</div>
-    <div class="section-title">Appointments still missing a "Did Member Show?" value</div>
-    <div class="note">QA follow-up worklist — sample of records captured live (source tab spans ~301 rows).</div>
-    <div class="table-section"><table><thead id="tbl-blank-head"></thead><tbody id="tbl-blank-body"></tbody></table></div>
-  `;
-  renderTable('tbl-blank', rows, [
-    {key:'apptDate', label:'Appt Date'}, {key:'pg1Advisor', label:'PG1 Advisor'}, {key:'asr', label:'ASR'},
-    {key:'email', label:'Email'}, {key:'phone', label:'Phone'},
-  ]);
-}
-
 // init
-buildTabBar();
 buildPanels();
+buildMainTabBar();
+buildTabBar();
 initFilters();
 renderAll();
 window.addEventListener('resize', renderAll);

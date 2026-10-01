@@ -185,6 +185,7 @@
           <button class="preset-btn" data-preset="7">Last 7d</button>
           <button class="preset-btn" data-preset="30">Last 30d</button>
           <button class="preset-btn" data-preset="mtd">Month to Date</button>
+          <button class="preset-btn" data-preset="prevmonth">Previous Month</button>
           <button class="preset-btn" data-preset="90">Last 3mo</button>
           <button class="preset-btn active" data-preset="all">All</button>
         </div>
@@ -556,6 +557,10 @@ function initFilters(){
       else if(p==='yesterday'){ start = new Date(end); start.setDate(start.getDate()-1); end = new Date(start); }
       else if(p==='all'){ start = new Date('2026-07-01T00:00:00'); }
       else if(p==='mtd'){ start = new Date(end.getFullYear(), end.getMonth(), 1); }
+      else if(p==='prevmonth'){
+        start = new Date(end.getFullYear(), end.getMonth()-1, 1);
+        end = new Date(end.getFullYear(), end.getMonth(), 0); // day 0 of this month = last day of the previous one
+      }
       else { start = new Date(end); start.setDate(start.getDate() - (+p - 1)); }
       s.value = dstr(start); e.value = dstr(end);
       state.start = s.value; state.end = e.value;

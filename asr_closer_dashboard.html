@@ -1160,21 +1160,35 @@ function renderASRTrend(t){
   if(wanted.length) teamMonthRows = wanted;
 
   const latestMonth = allMonths.length ? allMonths[allMonths.length-1] : ASOF.slice(0,7);
-  const latest = teamsToShow.map(team => teamMonthlyLive[team].find(r=>r.month===latestMonth)).filter(Boolean);
+
+  // KPI tiles and the per-team bar chart now follow the selected date range exactly -- summed
+  // straight from RAW_SCHED (same approach as Rep per Metric / Executive Summary Trend) -- instead
+  // of always showing the latest calendar month regardless of what's picked in the date filter.
+  // The "Team monthly detail" table and trend line chart below stay monthly (they're explicitly
+  // labeled as such), same as how Executive Summary Trend's charts always show a fuller window
+  // than the exact selection.
+  const rangeSums = blankRawSums();
+  RAW_SCHED.filter(r => teamsToShow.includes(r[1]) && r[2]==='ASR' && inRange(r[3])).forEach(r => addRawRow(rangeSums, r));
+  const rangeAgg = repMetrics26(rangeSums);
+  const teamDailyMaxes = teamsToShow.map(team => { const d = teamDailyRowsFor(team); return d.length ? d[d.length-1].date : null; }).filter(Boolean);
+  const teamsMaxDate = teamDailyMaxes.length ? teamDailyMaxes.reduce((a,b)=>a>b?a:b) : null;
+  const noDataYet = teamsToShow.length>0 && teamsMaxDate && state.start > teamsMaxDate;
 
   const scopeBanner = state.lob === 'Closer - Outbound'
     ? `<div class="scope-banner blocked">⚠ LOB is set to Closer, but this is the ASR team trend — switch LOB to ASR or All to see it.</div>`
-    : (state.agent ? `<div class="scope-banner">The Agent filter (<b>${state.agent}</b>) doesn't narrow this team trend — see Rep per Metric for that person's own totals.</div>` : '');
+    : (noDataYet
+        ? `<div class="scope-banner blocked">⚠ No data yet for this range — Sched's latest posted day for the selected team(s) is <b>${teamsMaxDate}</b>. The tiles below are showing 0, not a different period's totals.</div>`
+        : (state.agent ? `<div class="scope-banner">The Agent filter (<b>${state.agent}</b>) doesn't narrow this team trend — see Rep per Metric for that person's own totals.</div>` : ''));
 
   p.innerHTML = `
     ${scopeBanner}
     <div class="metrics-container">
-      ${kpiTile(`Sets (${latestMonth}, selected teams)`, fmtInt(sum(latest,'sets')), `IB ${fmtInt(sum(latest,'ibSets'))} · OB ${fmtInt(sum(latest,'obSets'))}`)}
-      ${kpiTile('Warm Transfer %', fmtPct(avg(latest,'warmT')))}
-      ${kpiTile('Shows', fmtInt(sum(latest,'shows')))}
-      ${kpiTile('Booking Rate %', fmtPct(avg(latest,'bookingRate')))}
-      ${kpiTile('Upfront Revenue', fmtMoney(sum(latest,'revenue')))}
-      ${kpiTile('Closed Deal', fmtInt(sum(latest,'closedDeal')))}
+      ${kpiTile(`Sets (${state.start} → ${state.end}, selected teams)`, fmtInt(rangeAgg.sets), `IB ${fmtInt(rangeAgg.ibSets)} · OB ${fmtInt(rangeAgg.obSets)}`)}
+      ${kpiTile('Warm Transfer %', fmtPct(rangeAgg.warmT))}
+      ${kpiTile('Shows', fmtInt(rangeAgg.shows))}
+      ${kpiTile('Booking Rate %', fmtPct(rangeAgg.bookingRate))}
+      ${kpiTile('Upfront Revenue', fmtMoney(rangeAgg.revenue))}
+      ${kpiTile('Closed Deal', fmtInt(rangeAgg.closedDeal))}
     </div>
     <div class="chart-card">
       <h3>Sets by team — ${allMonths.join(' / ')}</h3>
@@ -1182,14 +1196,15 @@ function renderASRTrend(t){
       <div id="chart-asr-teamlines"></div>
     </div>
     <div class="chart-card">
-      <h3>Sets by team (${latestMonth}, IB vs OB)</h3>
+      <h3>Sets by team (${state.start} → ${state.end}, IB vs OB)</h3>
       <div id="chart-asr-teambar"></div>
     </div>
     <div class="section-title">Team monthly detail — all metrics, as shown on the sheet</div>
     <div class="note">Computed live from Sched's per-rep-per-day records for each team (periodically refreshed, covers ${RAW_SCHED_MIN_DATE} → ${RAW_SCHED_MAX_DATE}; the most recent ~week can still revise as Sched backfills -- treat it as provisional), same Daily/Weekly/Monthly source as Executive Summary Trend, not a fixed snapshot.</div>
     <div class="table-section"><table><thead id="tbl-asrteam-head"></thead><tbody id="tbl-asrteam-body"></tbody></table></div>
   `;
-  // team lines chart: one line per team, using 'month' as x
+  // team lines chart: one line per team, using 'month' as x -- always the fuller monthly trend,
+  // not range-filtered (same rationale as Executive Summary Trend's charts).
   const monthLabel = r => r.month.slice(5)+'/'+r.month.slice(2,4);
   const series = teamsToShow.map((team,i)=>({key:'__t'+i, name:team, color: getVar(ASR_TREND_TEAM_COLORS[i%ASR_TREND_TEAM_COLORS.length])}));
   const merged = allMonths.map(month=>{
@@ -1198,11 +1213,12 @@ function renderASRTrend(t){
     return o;
   });
   lineChart('chart-asr-teamlines', merged, series, monthLabel);
-  const latestRows = teamsToShow.map(team=>{
-    const r = teamMonthlyLive[team].find(x=>x.month===latestMonth);
-    return r ? {...r, team} : null;
-  }).filter(Boolean);
-  barChart('chart-asr-teambar', latestRows, 'sets', r=>r.team, getVar('--s-orange'));
+  const rangeRowsByTeam = teamsToShow.map(team=>{
+    const sums = blankRawSums();
+    RAW_SCHED.filter(r=>r[1]===team && r[2]==='ASR' && inRange(r[3])).forEach(r=>addRawRow(sums,r));
+    return {...repMetrics26(sums), team};
+  });
+  barChart('chart-asr-teambar', rangeRowsByTeam, 'sets', r=>r.team, getVar('--s-orange'));
   renderTable('tbl-asrteam', teamMonthRows, fullMetricCols('month', 'Team — Month'));
 }
 

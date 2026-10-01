@@ -193,11 +193,7 @@
     <div class="dim-row">
       <div class="filter-group">
         <label>LOB</label>
-        <select id="lobFilter">
-          <option value="">All LOBs</option>
-          <option value="ASR">ASR</option>
-          <option value="Closer - Outbound">Closer</option>
-        </select>
+        <select id="lobFilter"><option value="">All LOBs</option></select>
       </div>
       <div class="filter-group">
         <label>Team</label>
@@ -457,6 +453,10 @@ const LIVE_ROSTER = (() => {
   return Array.from(byName.values());
 })();
 const ALL_TEAMS = Array.from(new Set(LIVE_ROSTER.map(r=>r.team).filter(Boolean))).sort();
+// Every distinct Current LOB value actually present in the roster (13 as of this writing --
+// ASR, Closer - Outbound, Internal Setter, Setter, QA, VIP, etc.) -- NOT hardcoded to just the
+// two main ones, so the filter is honest about what's really in the data.
+const ALL_LOBS = Array.from(new Set(LIVE_ROSTER.map(r=>r.lob).filter(Boolean))).sort();
 // ===== end inlined data =====
 
 const TABS = [
@@ -465,9 +465,13 @@ const TABS = [
 ];
 // Two top-level groups -- SETTER-side tabs vs CLOSER-side tabs -- selected above the date filter,
 // with the existing sub-tab bar scoped to whichever group is active.
+// `lobs` curates which real Current LOB values are worth offering under each main tab -- SETTER's
+// tabs are about ASR/setter activity (which Internal Setter reps genuinely contribute Sets to as
+// well), CLOSER's tabs are strictly the Closer - Outbound LOB. This narrows the LOB dropdown's
+// choices per main tab; it does not change what Current LOB itself means in the underlying data.
 const MAIN_TABS = [
-  { name: 'SETTER', tabIndices: [0,1,2,3,4] },
-  { name: 'CLOSER', tabIndices: [5,6] },
+  { name: 'SETTER', tabIndices: [0,1,2,3,4], lobs: ['ASR','Internal Setter'] },
+  { name: 'CLOSER', tabIndices: [5,6], lobs: ['Closer - Outbound'] },
 ];
 let activeMainTab = 0;
 const SERIES_COLORS = ['var(--s-blue)','var(--s-orange)','var(--s-aqua)','var(--s-yellow)','var(--s-magenta)','var(--s-violet)'];
@@ -497,6 +501,7 @@ function initFilters(){
 
   const teamSel = document.getElementById('teamFilter');
   const lobSel = document.getElementById('lobFilter');
+  rebuildLobOptions();
   rebuildTeamOptions();
   rebuildAgentOptions();
 
@@ -554,6 +559,17 @@ function initFilters(){
 // team in the current roster, regardless of which LOB is active — selecting a team outside the
 // ASR/Closer split (Support, Team Philip, ...) leaves LOB on "All" (see the change handler above)
 // so whatever real ASR/Closer activity those people have still surfaces correctly.
+function rebuildLobOptions(){
+  const sel = document.getElementById('lobFilter');
+  const prev = state.lob;
+  const allowed = MAIN_TABS[activeMainTab].lobs;
+  sel.innerHTML = '<option value="">All LOBs</option>';
+  ALL_LOBS.filter(l => allowed.includes(l)).forEach(l => { const o=document.createElement('option'); o.value=l; o.textContent=l; sel.appendChild(o); });
+  const stillValid = [...sel.options].some(o=>o.value===prev);
+  sel.value = stillValid ? prev : '';
+  state.lob = sel.value;
+}
+
 function rebuildTeamOptions(){
   const sel = document.getElementById('teamFilter');
   const prev = state.team;
@@ -569,9 +585,10 @@ function rebuildAgentOptions(){
   const sel = document.getElementById('agentFilter');
   sel.innerHTML = '<option value="">All Agents</option>';
   const roster = state.team ? LIVE_ROSTER.filter(r=>r.team===state.team) : LIVE_ROSTER;
-  const asrReps = roster.filter(r=>r.lob==='ASR');
-  const closers = roster.filter(r=>r.lob==='Closer - Outbound');
-  const others = roster.filter(r=>r.lob!=='ASR' && r.lob!=='Closer - Outbound');
+  const byName = (a,b) => a.name.localeCompare(b.name);
+  const asrReps = roster.filter(r=>r.lob==='ASR').sort(byName);
+  const closers = roster.filter(r=>r.lob==='Closer - Outbound').sort(byName);
+  const others = roster.filter(r=>r.lob!=='ASR' && r.lob!=='Closer - Outbound').sort(byName);
   if (state.lob !== 'Closer - Outbound' && asrReps.length) {
     const grp1 = document.createElement('optgroup'); grp1.label='ASR / Setters';
     asrReps.forEach(r=>{ const o=document.createElement('option'); o.value=r.name; o.textContent=r.name; grp1.appendChild(o); });
@@ -1055,6 +1072,13 @@ function buildMainTabBar(){
       bar.querySelectorAll('.main-tab').forEach(b=>b.classList.remove('active'));
       btn.classList.add('active');
       buildTabBar();
+      // Switching SETTER/CLOSER is a bigger pivot than just changing the LOB filter -- reset
+      // Team/Agent too so a selection from the other main tab's context doesn't linger (e.g. a
+      // Closer team staying selected after switching to SETTER). rebuildLobOptions() clears
+      // state.lob itself if it's no longer one of this main tab's allowed values.
+      state.team = ''; state.agent = '';
+      rebuildLobOptions(); rebuildTeamOptions(); rebuildAgentOptions();
+      renderAll();
     });
   });
 }

@@ -1458,9 +1458,11 @@ function renderExecSummary(t){
       ${kpiTile('Shows', fmtInt(sum(rows,'shows')), `IB ${fmtInt(sum(rows,'ibShows'))} · OB ${fmtInt(sum(rows,'obShows'))}`)}
       ${kpiTile('Show Rate %', fmtPct(avg(rows,'showRate')), `IB ${fmtPct(avg(rows,'ibShowRate'))} · OB ${fmtPct(avg(rows,'obShowRate'))}`)}
       ${kpiTile('Booking Rate %', fmtPct(avg(rows,'bookingRate')), `IB ${fmtPct(avg(rows,'ibBookingRate'))} · OB ${fmtPct(avg(rows,'obBookingRate'))}`)}
-      ${kpiTile('Upfront Revenue', fmtMoney(sum(rows,'revenue')))}
+      ${kpiTile('Upfront Revenue', fmtMoney(sum(rows,'revenue')), `IB ${fmtMoney(sum(rows,'ibRevenue'))} · OB ${fmtMoney(sum(rows,'obRevenue'))}`)}
       ${kpiTile('Closed Deal', fmtInt(sum(rows,'closedDeal')))}
+      ${kpiTile('AOV', fmtMoney(sum(rows,'closedDeal') ? sum(rows,'revenue')/sum(rows,'closedDeal') : 0))}
       ${kpiTile('90 sec Calls', fmtInt(sum(rows,'calls90s')), `IB ${fmtInt(sum(rows,'ibCalls90s'))} · OB ${fmtInt(sum(rows,'obCalls90s'))}`)}
+      ${kpiTile('Connect Rate', fmtPct(avg(rows,'connectRate')))}
     </div>
     <div class="section-title">Sets, Warm Transfer %, Show Rate %, Booking Rate % — Monthly / Weekly / Daily</div>
     <div class="note">These 12 charts are NOT affected by the Date Range filter above -- they always show the latest 3 months / 6 weeks / ${EXEC_CHART_DAILY_N} days. Team and Agent filters do apply, same as the rest of this tab.</div>

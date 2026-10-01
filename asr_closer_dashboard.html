@@ -623,6 +623,12 @@ function trendForRange(){
     const teamWeekly = teamWeeklyRowsFor(state.team);
     const teamMonthly = teamMonthlyRowsFor(state.team);
     const tDailyMin = teamDaily[0].date, tDailyMax = teamDaily[teamDaily.length-1].date;
+    // The selection starts AFTER the latest day Sched has posted for this team at all -- there is
+    // no data for any granularity here, so say so plainly instead of letting the weekly/monthly
+    // fallback below silently substitute a different period's totals under the selected range.
+    if (state.start > tDailyMax) {
+      return {gran:'daily', rows:[], chartRows: teamDaily.slice(-30), label:r=>r.date.slice(5), teamScoped:true, noDataYet:true, noDataYetMax: tDailyMax};
+    }
     if (fitsWindow(tDailyMin, tDailyMax)) {
       return {gran:'daily', rows: teamDaily.filter(r=>inRange(r.date)), chartRows: teamDaily.slice(-30), label:r=>r.date.slice(5), teamScoped:true};
     }
@@ -646,6 +652,12 @@ function trendForRange(){
     return {gran:'monthly', rows: rows.length?rows:teamMonthly, chartRows: teamMonthly.slice(-3), label:r=>r.month, teamScoped:true};
   }
   const dailyMin = TREND_DAILY[0].date, dailyMax = TREND_DAILY[TREND_DAILY.length-1].date;
+  // Same "nothing recorded yet" guard as the team-scoped branch above: if the selection starts
+  // after the latest day Sched has posted, every granularity is empty for this range -- don't let
+  // the weekly/monthly fallback further down silently show a different period's totals instead.
+  if (state.start > dailyMax) {
+    return {gran:'daily', rows:[], chartRows: TREND_DAILY.slice(-30), label:r=>r.date.slice(5), noDataYet:true, noDataYetMax: dailyMax};
+  }
   if (fitsWindow(dailyMin, dailyMax)) {
     return {gran:'daily', rows: TREND_DAILY.filter(r=>inRange(r.date)), chartRows: TREND_DAILY.slice(-30), label:r=>r.date.slice(5)};
   }
@@ -686,6 +698,10 @@ function closerTrendForRange(){
   // Team: every closer is on Team Jen, so a Team selection here (if it's Team Jen) never
   // narrows anything further — company totals already equal the Team Jen totals.
   const dailyMin = CLOSER_TREND_DAILY[0].date, dailyMax = CLOSER_TREND_DAILY[CLOSER_TREND_DAILY.length-1].date;
+  // Same "nothing recorded yet" guard as trendForRange() above.
+  if (state.start > dailyMax) {
+    return {gran:'daily', rows:[], chartRows: CLOSER_TREND_DAILY.slice(-30), label:r=>r.date.slice(5), noDataYet:true, noDataYetMax: dailyMax};
+  }
   if (fitsWindow(dailyMin, dailyMax)) {
     return {gran:'daily', rows: CLOSER_TREND_DAILY.filter(r=>inRange(r.date)), chartRows: CLOSER_TREND_DAILY.slice(-30), label:r=>r.date.slice(5)};
   }
@@ -1024,8 +1040,9 @@ function buildTabBar(){
 
 function renderAll(){
   const t = trendForRange();
-  document.getElementById('granNote').textContent =
-    `Showing ${t.gran} granularity for ${state.start} → ${state.end}` +
+  document.getElementById('granNote').textContent = t.noDataYet
+    ? `No data yet for ${state.start} → ${state.end} — Sched's latest posted day is ${t.noDataYetMax}. KPI tiles below show 0 rather than a different period's totals.`
+    : `Showing ${t.gran} granularity for ${state.start} → ${state.end}` +
     (t.exactMonth ? ' — a whole-month selection, so this uses the sheet\'s real Monthly figure directly rather than an approximated sum.'
       : t.gran==='daily' ? ` — computed live from Sched (periodically refreshed, covers ${RAW_SCHED_MIN_DATE} → ${RAW_SCHED_MAX_DATE}; the most recent ~week can still revise as Sched backfills -- treat it as provisional).`
       : t.gran==='monthly' ? ' — your selection falls outside the captured company-trend window, so these figures are the FULL calendar month\'s total, not scaled down to just the days you selected.'
@@ -1069,11 +1086,13 @@ function renderExecSummary(t){
   const chartWindowNote = t.gran==='daily' ? `last ${t.chartRows.length} days` : (t.gran==='weekly' ? `last ${t.chartRows.length} weeks` : `last ${t.chartRows.length} months`);
   const scopeBanner = t.blocked
     ? `<div class="scope-banner blocked">⚠ ${t.blockedReason}</div>`
-    : (t.teamScopedEmpty
+    : (t.noDataYet
+        ? `<div class="scope-banner blocked">⚠ No data yet for this range — Sched's latest posted day is <b>${t.noDataYetMax}</b>. The tiles below are showing 0, not a different period's totals.</div>`
+        : (t.teamScopedEmpty
         ? `<div class="scope-banner blocked">⚠ <b>${state.team}</b> has no ASR-lob activity in Sched, so there's nothing to show here — try Rep per Metric / ASR Daily Metric, which include non-ASR teams too.</div>`
         : (t.teamScoped
             ? `<div class="scope-banner">Scoped to <b>${state.team}</b> — computed live from that team's own Sched rows (same Daily/Weekly/Monthly cascade as the company-wide view).${state.agent?` The Agent filter (<b>${state.agent}</b>) doesn't narrow this company/team trend further — see Rep per Metric for that person's own totals.`:''}</div>`
-            : (state.agent ? `<div class="scope-banner">The Agent filter (<b>${state.agent}</b>) doesn't narrow this company-wide trend — see Rep per Metric for that person's own totals.</div>` : '')));
+            : (state.agent ? `<div class="scope-banner">The Agent filter (<b>${state.agent}</b>) doesn't narrow this company-wide trend — see Rep per Metric for that person's own totals.</div>` : ''))));
   p.innerHTML = `
     ${scopeBanner}
     <div class="metrics-container">
@@ -1197,7 +1216,9 @@ function renderCloserTrend(){
   const chartWindowNote = ct.gran==='daily' ? `last ${ct.chartRows.length} days` : (ct.gran==='weekly' ? `last ${ct.chartRows.length} weeks` : `last ${ct.chartRows.length} months`);
   const scopeBanner = ct.blocked
     ? `<div class="scope-banner blocked">⚠ ${ct.blockedReason}</div>`
-    : (state.agent ? `<div class="scope-banner">The Agent filter (<b>${state.agent}</b>) doesn't narrow this company-wide trend — see Closers Metric for that person's own totals.</div>` : '');
+    : (ct.noDataYet
+        ? `<div class="scope-banner blocked">⚠ No data yet for this range — Sched's latest posted day is <b>${ct.noDataYetMax}</b>. The tiles below are showing 0, not a different period's totals.</div>`
+        : (state.agent ? `<div class="scope-banner">The Agent filter (<b>${state.agent}</b>) doesn't narrow this company-wide trend — see Closers Metric for that person's own totals.</div>` : ''));
   p.innerHTML = `
     ${scopeBanner}
     <div class="metrics-container">

@@ -160,7 +160,14 @@
   .scope-banner b{ color:var(--white); }
   .scope-banner.blocked{ background:rgba(227,73,72,0.10); border-color:rgba(227,73,72,0.45); color:var(--white); font-weight:600; }
 
-  .metrics-container{ display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:16px; margin-bottom:10px; }
+  .metrics-container{ display:flex; gap:12px; margin-bottom:10px; }
+  .metrics-container .metric{ flex:1 1 0; min-width:0; padding:14px 12px; }
+  .metrics-container .metric-value{ font-size:22px; }
+  @media (max-width: 900px){
+    .metrics-container{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); }
+    .metrics-container .metric{ flex:none; padding:20px; }
+    .metrics-container .metric-value{ font-size:32px; }
+  }
   .metric{ background:linear-gradient(135deg,var(--panel) 0%,var(--black) 100%); border:1px solid var(--line);
     padding:20px; border-radius:8px; border-left:4px solid var(--orange); }
   .metric-label{ font-size:11px; color:var(--gray); text-transform:uppercase; letter-spacing:1px; font-weight:700; margin-bottom:10px; }
@@ -2049,6 +2056,9 @@ function renderASRDailyMetric(t){
   `;
   const cols = [{key:'team', label:'Team'}, ...fullMetricCols('name','Name')];
   const rows = isCloserLob(state.lob) ? [] : repRowsForRange().filter(r=>matchesTeamFilter(r.team) && matchesAgentFilter(r.name));
+  // Default sort: Sets descending, until the user clicks a column header to choose their own
+  // (renderTable persists sortState per table id, so this only ever applies once).
+  if(!sortState['tbl-asrdaily']) sortState['tbl-asrdaily'] = {col:'sets', dir:-1};
   renderTable('tbl-asrdaily', rows, cols);
 }
 

@@ -32,8 +32,8 @@ var NUM_COLS = ['Sets','IB_set','OB_set','Appointments','IB_Appt','OB_Appt',
   'ASR_eligible_calls','ASR_IB_Calls','ASR_OB_Calls',
   'Upfront_Revenue','IB_Revenue','OB_Revenue','Closed Deal',
   'IB_calls','OB_call',
-  'Closer_appts','Closer_show','Closer_closed_deal','Closer_upfront_Revenue',
-  'Closer_Products_sold','Closer_Clubs','Closer_PG1',
+  'Advisor_appt','Advisor_show_den','Advisor_show','Advisor_closed_deal',
+  'Closer_upfront_Revenue','Closer_Products_sold','Closer_Clubs','Closer_PG1','RS1',
   'calls_ivr1_asr','calls_ivr2_asr','calls_ivr3_asr','calls_ivr4_asr',
   'sets_ivr1','sets_ivr2','sets_ivr3','sets_ivr4'];
 
@@ -147,11 +147,12 @@ function extractRawSched_(values) {
       toNum_(row[idx['ASR_eligible_calls']]), toNum_(row[idx['ASR_IB_Calls']]), toNum_(row[idx['ASR_OB_Calls']]),
       round2_(toNum_(row[idx['Upfront_Revenue']])), round2_(toNum_(row[idx['IB_Revenue']])), round2_(toNum_(row[idx['OB_Revenue']])),
       toNum_(row[idx['Closed Deal']]), toNum_(row[idx['IB_calls']]), toNum_(row[idx['OB_call']]),
-      toNum_(row[idx['Closer_appts']]), toNum_(row[idx['Closer_show']]), toNum_(row[idx['Closer_closed_deal']]),
+      toNum_(row[idx['Advisor_appt']]), toNum_(row[idx['Advisor_show']]), toNum_(row[idx['Advisor_closed_deal']]),
       round2_(toNum_(row[idx['Closer_upfront_Revenue']])), toNum_(row[idx['Closer_Products_sold']]),
       toNum_(row[idx['Closer_Clubs']]), toNum_(row[idx['Closer_PG1']]),
       toNum_(row[idx['calls_ivr1_asr']]), toNum_(row[idx['calls_ivr2_asr']]), toNum_(row[idx['calls_ivr3_asr']]), toNum_(row[idx['calls_ivr4_asr']]),
-      toNum_(row[idx['sets_ivr1']]), toNum_(row[idx['sets_ivr2']]), toNum_(row[idx['sets_ivr3']]), toNum_(row[idx['sets_ivr4']])
+      toNum_(row[idx['sets_ivr1']]), toNum_(row[idx['sets_ivr2']]), toNum_(row[idx['sets_ivr3']]), toNum_(row[idx['sets_ivr4']]),
+      toNum_(row[idx['Advisor_show_den']]), toNum_(row[idx['RS1']])
     ]);
   }
   return rows;

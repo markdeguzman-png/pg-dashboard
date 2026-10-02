@@ -2005,11 +2005,12 @@ function renderClosersMetric(){
   `;
   renderTable('tbl-closers', closers, [
     {key:'team', label:'Team'}, {key:'name', label:'Name'},
+    {key:'revenue', label:'Upfront Revenue', fmt:fmtMoney}, {key:'aov', label:'AOV $', fmt:fmtMoney},
+    {key:'closeRate', label:'Closed Rate %', fmt:fmtPct},
+    {key:'rs1', label:'RS1'}, {key:'clubs', label:'Clubs'}, {key:'pg1', label:'PG1'},
     {key:'appt', label:'Appointments'}, {key:'apptsLessCancelled', label:'Appts less Cancelled'},
     {key:'show', label:'Shows'}, {key:'showRate', label:'Show Rate %', fmt:fmtPct},
-    {key:'closedDeal', label:'Closed Deal'}, {key:'closeRate', label:'Closed Rate %', fmt:fmtPct},
-    {key:'revenue', label:'Upfront Revenue', fmt:fmtMoney}, {key:'aov', label:'AOV $', fmt:fmtMoney},
-    {key:'rs1', label:'RS1'}, {key:'clubs', label:'Clubs'}, {key:'pg1', label:'PG1'},
+    {key:'closedDeal', label:'Closed Deal'},
   ]);
 }
 

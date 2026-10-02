@@ -600,8 +600,22 @@ const TABS = [
 // string so both labels keep working across that transition.
 const CLOSER_LOBS = ['Closer', 'Closer - Outbound'];
 function isCloserLob(lob){ return CLOSER_LOBS.includes(lob); }
+// Every non-Closer LOB that has EVER recorded a nonzero Sets value, computed straight from
+// RAW_SCHED instead of a hand-maintained list -- so a LOB that starts (or stops) contributing
+// Sets doesn't need another manual edit here (see the isCloserLob() comment above for why a
+// hardcoded LOB list bit us once already, when Sched silently relabeled "Closer - Outbound").
+// Closer/Closer - Outbound are excluded on purpose even though a few stray "Closer"-tagged rows
+// do carry Sets -- that LOB is the CLOSER tab's own domain, not Setter's.
+const SETTER_SETS_LOBS = (() => {
+  const setsByLob = new Map();
+  for (const r of RAW_SCHED) {
+    if (isCloserLob(r[2])) continue;
+    setsByLob.set(r[2], (setsByLob.get(r[2]) || 0) + r[4]);
+  }
+  return Array.from(setsByLob.entries()).filter(([,sets]) => sets > 0).map(([lob]) => lob).sort();
+})();
 const MAIN_TABS = [
-  { name: 'SETTER', tabIndices: [0,3,4], lobs: ['ASR','Internal Setter','FP'] },
+  { name: 'SETTER', tabIndices: [0,3,4], lobs: SETTER_SETS_LOBS },
   { name: 'CLOSER', tabIndices: [5,6], lobs: CLOSER_LOBS },
 ];
 let activeMainTab = 0;
@@ -612,9 +626,9 @@ const SERIES_COLORS = ['var(--s-blue)','var(--s-orange)','var(--s-aqua)','var(--
 let state = { start:null, end:null, lob:'', team:[], agent:[] };
 let sortState = {}; // per table id -> {col, dir}
 
-// SETTER's default LOB scope when nothing specific is picked from the dropdown -- ASR, Internal
-// Setter, and FP all genuinely contribute Sets, so "All LOBs" under SETTER should mean all three,
-// not silently collapse to ASR-only the way several of these filters used to.
+// SETTER's default LOB scope when nothing specific is picked from the dropdown -- every LOB that
+// ever contributes Sets (see SETTER_SETS_LOBS above), so "All LOBs" under SETTER means all of
+// them, not silently collapse to ASR-only the way several of these filters used to.
 const SETTER_LOBS = MAIN_TABS[0].lobs;
 // Every row-filtering function below (Rep per Metric, BR % per Call Source, ASR Trend View,
 // Executive Summary Trend's team/lob-scoped path) should go through this instead of hardcoding

@@ -219,6 +219,74 @@
   .pill.bad{ background:rgba(227,73,72,.18); color:var(--bad); }
 
   .update-time{ text-align:right; font-size:11px; color:var(--gray); padding:14px 4px 4px; }
+
+  /* ===== Light theme ===== */
+  html[data-theme="light"] :root,
+  html[data-theme="light"]{
+    --orange:#D92B00;
+    --dark-orange:#B82500;
+    --black:#F5F2EF;
+    --panel:#FFFFFF;
+    --gray:#6B6560;
+    --light-gray:#4A4542;
+    --white:#1D1A1A;
+    --line:#E2DEDA;
+    --good:#2E7D32;
+    --warn:#B07400;
+    --bad:#C62828;
+    --s-blue:#2563C7;
+    --s-orange:#D92B00;
+    --s-aqua:#0E7D56;
+    --s-yellow:#9C6A00;
+    --s-magenta:#B23E6B;
+    --s-violet:#6C5FCB;
+  }
+  html[data-theme="light"] body{ background:var(--black); }
+  html[data-theme="light"] .metric{
+    background:linear-gradient(135deg,#FFFFFF 0%,#F6F3F0 100%);
+    border:1px solid var(--line);
+  }
+  html[data-theme="light"] th.sticky-col{ background:#F0ECE8; }
+  html[data-theme="light"] td.sticky-col{ background:#FFFFFF; }
+  html[data-theme="light"] table thead th{ background:#F0ECE8; color:var(--white); }
+  html[data-theme="light"] table tbody tr:nth-child(even){ background:rgba(0,0,0,0.02); }
+  html[data-theme="light"] .chart-card{ background:#FFFFFF; border:1px solid var(--line); }
+  html[data-theme="light"] .scope-banner{ background:#FFF4E5; color:#7A4A00; border-color:#F0C97A; }
+  html[data-theme="light"] .scope-banner.blocked{ background:#FDEAEA; color:#8A1F1F; border-color:#F0AFAF; }
+  /* Chart SVGs draw gridlines/axis labels with hardcoded hex presentation attributes rather than
+     CSS vars, so they need their own light-theme overrides via attribute selectors. */
+  html[data-theme="light"] svg text[fill="#898781"]{ fill:#8A8278; }
+  html[data-theme="light"] svg text[fill="#c3c2b7"]{ fill:#55504B; }
+  html[data-theme="light"] svg text[fill="#ffffff"]{ fill:#1D1A1A; }
+  html[data-theme="light"] svg line[stroke="#383835"]{ stroke:#E2DEDA; }
+  html[data-theme="light"] svg line[stroke="#898781"]{ stroke:#B5AEA6; }
+  html[data-theme="light"] svg line[stroke="#1D1A1A"]{ stroke:#F5F2EF; }
+  html[data-theme="light"] input[type="date"], html[data-theme="light"] select{
+    background:#FFFFFF; color:var(--white); border:1px solid var(--line);
+  }
+  /* .multiselect-btn/-panel/-search/-option use var(--black) as a dark-ink-on-light-surface color
+     (by design, even in dark mode) -- remapping --black for the light theme breaks that, so pin
+     these back to a fixed dark ink explicitly. */
+  html[data-theme="light"] .multiselect-btn,
+  html[data-theme="light"] .multiselect-search,
+  html[data-theme="light"] .multiselect-option{ color:#1D1A1A; }
+  /* .chart-tooltip's background is a hardcoded #1D1A1A (not a token), and its text uses
+     var(--white) -- which in the light theme IS #1D1A1A, making the tooltip's own text invisible
+     against its own background. Give it a proper light surface + dark ink in light mode. */
+  html[data-theme="light"] .chart-tooltip{
+    background:#FFFFFF; border:1px solid var(--line); color:#1D1A1A;
+    box-shadow:0 4px 14px rgba(0,0,0,0.15);
+  }
+  html[data-theme="light"] .chart-tooltip .ct-title{ color:#55504B; }
+  .theme-toggle{
+    display:inline-flex; border:1px solid var(--line); border-radius:6px; overflow:hidden;
+    margin-top:8px; font-size:11px;
+  }
+  .theme-toggle button{
+    background:var(--panel); color:var(--light-gray); border:none; padding:4px 10px;
+    cursor:pointer; font-weight:600; letter-spacing:0.5px;
+  }
+  .theme-toggle button.active{ background:var(--orange); color:#fff; }
 </style>
 </head>
 <body>
@@ -228,7 +296,9 @@
       <h1>⚡ PERFORMANCE GOLF</h1>
       <p>ASR &amp; Closer Report — Operations Dashboard</p>
     </div>
-    <div class="asof">Source data as of <b id="asofLabel">—</b><br>Data updated <span id="dataUpdatedHeader">—</span></div>
+    <div class="asof">Source data as of <b id="asofLabel">—</b><br>Data updated <span id="dataUpdatedHeader">—</span>
+      <br><div class="theme-toggle" id="themeToggle"><button data-t="dark">DARK</button><button data-t="light">LIGHT</button></div>
+    </div>
   </div>
 
   <div class="main-tabs" id="mainTabBar"></div>
@@ -1630,6 +1700,24 @@ function kpiTile(label, value, sub){
   return `<div class="metric"><div class="metric-label">${label}</div><div class="metric-value">${value}</div>${sub?`<div class="metric-sub">${sub}</div>`:''}</div>`;
 }
 
+// Dark/light toggle, persisted in localStorage. Series colors (--s-blue/--s-aqua/etc.) are read
+// once via getVar() at chart-render time and baked into each SVG's fill attributes -- not live
+// CSS var() references -- so switching themes has to call renderAll() to redraw every chart with
+// the new palette; gridlines/axis text/tooltips update instantly via pure CSS attribute selectors.
+function initTheme(){
+  const toggle = document.getElementById('themeToggle');
+  function setTheme(t, skipRerender){
+    document.documentElement.dataset.theme = t;
+    toggle.querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.t===t));
+    try { localStorage.setItem('pgDashboardTheme', t); } catch(e){}
+    if(!skipRerender) renderAll();
+  }
+  toggle.querySelectorAll('button').forEach(b=> b.addEventListener('click', ()=> setTheme(b.dataset.t)));
+  let saved = 'dark';
+  try { saved = localStorage.getItem('pgDashboardTheme') || 'dark'; } catch(e){}
+  setTheme(saved, true); // skip rerender here -- the init sequence's own renderAll() runs right after
+}
+
 // Same-length period immediately preceding [start,end] -- e.g. Sep 11-20 (10 days) -> Sep 1-10,
 // not necessarily the previous calendar month/week. Used for KPI tiles' "vs prev period" delta.
 function prevPeriodRange(start, end){
@@ -2133,6 +2221,7 @@ buildPanels();
 buildMainTabBar();
 buildTabBar();
 initFilters();
+initTheme();
 renderAll();
 window.addEventListener('resize', renderAll);
 </script>

@@ -28,8 +28,8 @@ NUM_COLS = ['Sets','IB_set','OB_set','Appointments','IB_Appt','OB_Appt',
             'ASR_eligible_calls','ASR_IB_Calls','ASR_OB_Calls',
             'Upfront_Revenue','IB_Revenue','OB_Revenue','Closed Deal',
             'IB_calls','OB_call',
-            'Closer_appts','Closer_show','Closer_closed_deal','Closer_upfront_Revenue',
-            'Closer_Products_sold','Closer_Clubs','Closer_PG1',
+            'Advisor_appt','Advisor_show_den','Advisor_show','Advisor_closed_deal',
+            'Closer_upfront_Revenue','Closer_Products_sold','Closer_Clubs','Closer_PG1','RS1',
             'calls_ivr1_asr','calls_ivr2_asr','calls_ivr3_asr','calls_ivr4_asr',
             'sets_ivr1','sets_ivr2','sets_ivr3','sets_ivr4']
 
@@ -60,11 +60,12 @@ def extract_raw_sched(csv_path):
             int(r['ASR_eligible_calls']), int(r['ASR_IB_Calls']), int(r['ASR_OB_Calls']),
             round(float(r['Upfront_Revenue']), 2), round(float(r['IB_Revenue']), 2), round(float(r['OB_Revenue']), 2),
             int(r['Closed Deal']), int(r['IB_calls']), int(r['OB_call']),
-            int(r['Closer_appts']), int(r['Closer_show']), int(r['Closer_closed_deal']),
+            int(r['Advisor_appt']), int(r['Advisor_show']), int(r['Advisor_closed_deal']),
             round(float(r['Closer_upfront_Revenue']), 2), int(r['Closer_Products_sold']),
             int(r['Closer_Clubs']), int(r['Closer_PG1']),
             int(r['calls_ivr1_asr']), int(r['calls_ivr2_asr']), int(r['calls_ivr3_asr']), int(r['calls_ivr4_asr']),
             int(r['sets_ivr1']), int(r['sets_ivr2']), int(r['sets_ivr3']), int(r['sets_ivr4']),
+            int(r['Advisor_show_den']), int(r['RS1']),
         ])
     return rows
 

@@ -1908,22 +1908,14 @@ function renderASRTrend(t){
 }
 
 // 3. CLOSER Trend View — real company-wide closer trend (mirrors Executive Summary Trend's depth)
-function renderCloserTrend(){
-  const p = document.getElementById('panel-5');
-  const ct = closerTrendForRange();
-  const rows = ct.rows;
+// The 11 KPI tiles shown on CLOSER Trend View -- factored out so Closers Metric can show the
+// identical set (same formulas, same live "vs prev period" comparison) without duplicating markup.
+function closerKpiTilesHtml(){
   const lobBlocked = SETTER_LOBS.includes(state.lob);
-  const scopeBanner = lobBlocked
-    ? `<div class="scope-banner blocked">⚠ LOB is set to ${state.lob}, but this is the Closer company trend — switch LOB to Closer or All to see it (or open Executive Summary Trend).</div>`
-    : '';
-  // Tiles are live off RAW_SCHED (respect Date Range / Team / Agent, with a real "vs prev period"
-  // comparison) -- unlike the charts/table further down, which still show the sheet's own captured
-  // CLOSER Trend View snapshot (a different, narrower lookback window).
   const curr = lobBlocked ? null : closerCompanyTotals(state.start, state.end);
   const {prevStart, prevEnd} = prevPeriodRange(state.start, state.end);
   const prev = lobBlocked ? null : closerCompanyTotals(prevStart, prevEnd);
-  p.innerHTML = `
-    ${scopeBanner}
+  return `
     <div class="metrics-container">
       ${kpiTile('Appointments', fmtInt(curr?.appt||0), curr?deltaSub(curr.appt, prev.appt):'')}
       ${kpiTile('Appts less Cancelled', fmtInt(curr?.apptsLessCancelled||0), curr?deltaSub(curr.apptsLessCancelled, prev.apptsLessCancelled):'')}
@@ -1937,6 +1929,21 @@ function renderCloserTrend(){
       ${kpiTile('Clubs', fmtInt(curr?.clubs||0), curr?deltaSub(curr.clubs, prev.clubs):'')}
       ${kpiTile('PG1', fmtInt(curr?.pg1||0), curr?deltaSub(curr.pg1, prev.pg1):'')}
     </div>
+  `;
+}
+
+function renderCloserTrend(){
+  const p = document.getElementById('panel-5');
+  const ct = closerTrendForRange();
+  const rows = ct.rows;
+  const lobBlocked = SETTER_LOBS.includes(state.lob);
+  const scopeBanner = lobBlocked
+    ? `<div class="scope-banner blocked">⚠ LOB is set to ${state.lob}, but this is the Closer company trend — switch LOB to Closer or All to see it (or open Executive Summary Trend).</div>`
+    : '';
+  const {prevStart, prevEnd} = prevPeriodRange(state.start, state.end);
+  p.innerHTML = `
+    ${scopeBanner}
+    ${closerKpiTilesHtml()}
     <div class="note">Tiles: exact sums for ${state.start} → ${state.end} vs the equivalent prior period (${prevStart} → ${prevEnd}), computed live from Sched (covers ${RAW_SCHED_MIN_DATE} → ${RAW_SCHED_MAX_DATE}). Chart/table below show ${ct.gran} granularity from the sheet's own captured snapshot${ct.exactMonth ? ' — a whole-month selection, using the sheet\'s real Monthly figure directly.' : ' (Daily is a captured 10-day sample; wider or older ranges fall back to Weekly/Monthly, preferring the sheet\'s real Monthly total whenever the range is a full month).'}</div>
     <div class="section-title">Closer Show, Show Rate %, Closed Rate %, Upfront Revenue $, AOV $, RS1, Clubs, PG1 — Monthly / Weekly / Daily</div>
     <div class="note">These 24 charts are NOT affected by the Date Range filter above -- they always show the latest 3 months / 6 weeks / ${CLOSER_CHART_DAILY_N} days. Team and Agent filters do apply, same as the rest of this tab.</div>
@@ -1988,26 +1995,10 @@ function renderCloserTrend(){
 function renderClosersMetric(){
   const p = document.getElementById('panel-6');
   const closers = filteredClosers();
-  const appt = sum(closers,'appt'), apptsLessCancelled = sum(closers,'apptsLessCancelled'),
-    show = sum(closers,'show'), closedDeal = sum(closers,'closedDeal'), revenue = sum(closers,'revenue'),
-    rs1 = sum(closers,'rs1'), clubs = sum(closers,'clubs'), pg1 = sum(closers,'pg1');
-  const total = { name:'Grand Total', appt, apptsLessCancelled, show,
-    showRate: apptsLessCancelled ? show/apptsLessCancelled*100 : 0,
-    closedDeal, closeRate: show ? closedDeal/show*100 : 0,
-    revenue, aov: closedDeal ? revenue/closedDeal : 0, rs1, clubs, pg1 };
+  const {prevStart, prevEnd} = prevPeriodRange(state.start, state.end);
   p.innerHTML = `
-    <div class="metrics-container">
-      ${kpiTile('Appointments', fmtInt(total.appt), `less cancelled: ${fmtInt(total.apptsLessCancelled)}`)}
-      ${kpiTile('Shows', fmtInt(total.show))}
-      ${kpiTile('Show Rate %', fmtPct(total.showRate))}
-      ${kpiTile('Closed Deal', fmtInt(total.closedDeal))}
-      ${kpiTile('Closed Rate %', fmtPct(total.closeRate))}
-      ${kpiTile('Upfront Revenue', fmtMoney(total.revenue))}
-      ${kpiTile('AOV $', fmtMoney(total.aov))}
-      ${kpiTile('RS1', fmtInt(total.rs1))}
-      ${kpiTile('Clubs', fmtInt(total.clubs))}
-      ${kpiTile('PG1', fmtInt(total.pg1))}
-    </div>
+    ${closerKpiTilesHtml()}
+    <div class="note">Tiles: exact sums for ${state.start} → ${state.end} vs the equivalent prior period (${prevStart} → ${prevEnd}), computed live from Sched.</div>
     <div class="section-title">Closer / PG1 Advisor detail</div>
     <div class="note">Computed live from Sched's per-rep-per-day records (periodically refreshed from Sched, covers ${RAW_SCHED_MIN_DATE} → ${RAW_SCHED_MAX_DATE}; the most recent ~week can still revise as Sched backfills -- treat it as provisional) — exact sums for the selected Date Range / Team / Agent, not a fixed snapshot. Click a column header to sort.</div>
     <div class="table-section"><table><thead id="tbl-closers-head"></thead><tbody id="tbl-closers-body"></tbody></table></div>

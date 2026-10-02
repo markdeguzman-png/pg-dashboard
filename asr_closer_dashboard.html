@@ -1041,11 +1041,18 @@ function repRowsForRange(){
 // Company-wide (Team/LOB-filtered) ASR/Setter totals for an ARBITRARY date range, via the same
 // raw-row summing + repMetrics26() ratio-of-sums formulas used by the live per-team cascade above
 // -- lets Executive Summary Trend's KPI tiles compare the selected period against the equivalent
-// prior period (mirrors closerCompanyTotals()'s role for the CLOSER tab).
-function execCompanyTotals(startStr, endStr){
+// prior period (mirrors closerCompanyTotals()'s role for the CLOSER tab). Pass `agentAware: true`
+// to also narrow by matchesAgentFilter -- Executive Summary Trend deliberately ignores Agent (it's
+// a company/team-wide view, with its own banner saying so), but ASR Daily Metric's tiles are meant
+// to match its per-rep table exactly, so they need Agent applied too.
+function execCompanyTotals(startStr, endStr, opts){
+  opts = opts || {};
   const o = blankRawSums();
   RAW_SCHED.forEach(r => {
-    if(r[3] >= startStr && r[3] <= endStr && matchesLobFilter(r[2]) && matchesTeamFilter(r[1])) addRawRow(o, r);
+    if(r[3] < startStr || r[3] > endStr) return;
+    if(!matchesLobFilter(r[2]) || !matchesTeamFilter(r[1])) return;
+    if(opts.agentAware && !matchesAgentFilter(r[0])) return;
+    addRawRow(o, r);
   });
   return repMetrics26(o);
 }
@@ -1700,7 +1707,7 @@ function renderAll(){
   document.getElementById('dataUpdatedHeader').textContent = DATA_UPDATED_AT;
 
   renderExecSummary(t);
-  renderASRDailyMetric(t);
+  renderASRDailyMetric();
   renderCallSourceBR();
   renderCloserTrend();
   renderClosersMetric();
@@ -1724,35 +1731,50 @@ function fullMetricCols(periodKey, periodLabel){
   ];
 }
 
+// Collapses an array of period rows (TREND_DAILY/WEEKLY/MONTHLY-shaped, or any repMetrics26()-
+// shaped rows) into one repMetrics26()-shaped total -- sums for additive fields, averages for
+// ratio fields -- so execKpiTilesHtml() can treat it the same as a single execCompanyTotals() call.
+function aggregateRowsForTiles(rows){
+  return {
+    sets: sum(rows,'sets'), ibSets: sum(rows,'ibSets'), obSets: sum(rows,'obSets'),
+    appt: sum(rows,'appt'),
+    warmT: avg(rows,'warmT'), ibWarmT: avg(rows,'ibWarmT'), obWarmT: avg(rows,'obWarmT'),
+    showRate: avg(rows,'showRate'), ibShowRate: avg(rows,'ibShowRate'), obShowRate: avg(rows,'obShowRate'),
+    shows: sum(rows,'shows'), ibShows: sum(rows,'ibShows'), obShows: sum(rows,'obShows'),
+    bookingRate: avg(rows,'bookingRate'), ibBookingRate: avg(rows,'ibBookingRate'), obBookingRate: avg(rows,'obBookingRate'),
+    revenue: sum(rows,'revenue'), ibRevenue: sum(rows,'ibRevenue'), obRevenue: sum(rows,'obRevenue'),
+    closedDeal: sum(rows,'closedDeal'),
+    calls90s: sum(rows,'calls90s'), ibCalls90s: sum(rows,'ibCalls90s'), obCalls90s: sum(rows,'obCalls90s'),
+    connectRate: avg(rows,'connectRate'),
+  };
+}
+
 // 1. Executive Summary Trend
 // The 11 KPI tiles shown on Executive Summary Trend -- factored out so ASR Daily Metric can show
 // the identical set (same formulas, same live "vs prev period" comparison) without duplicating
-// ~20 lines of near-identical markup/logic twice.
-function execKpiTilesHtml(t){
-  const rows = t.rows;
-  const {prevStart, prevEnd} = prevPeriodRange(state.start, state.end);
-  const prevT = execCompanyTotals(prevStart, prevEnd);
-  const curSets = sum(rows,'sets'), curAppt = sum(rows,'appt'), curWarmT = avg(rows,'warmT'),
-    curShows = sum(rows,'shows'), curShowRate = avg(rows,'showRate'), curBookingRate = avg(rows,'bookingRate'),
-    curRevenue = sum(rows,'revenue'), curClosedDeal = sum(rows,'closedDeal'),
-    curAov = curClosedDeal ? curRevenue/curClosedDeal : 0,
-    curCalls90s = sum(rows,'calls90s'), curConnectRate = avg(rows,'connectRate');
-  const prevNote = ` vs prev period (${prevStart} → ${prevEnd})`;
+// ~20 lines of near-identical markup/logic twice. Takes already-computed `cur`/`prev` totals
+// (both repMetrics26()-shaped) rather than deriving them itself, since the two callers source
+// "current" differently: Executive Summary Trend aggregates t.rows (team/LOB-scoped, Agent
+// deliberately ignored), while ASR Daily Metric uses execCompanyTotals(..., {agentAware:true}) so
+// its tiles match its per-rep table exactly, Agent filter included.
+function execKpiTilesHtml(cur, prev, prevStart, prevEnd){
+  const curAov = cur.closedDeal ? cur.revenue/cur.closedDeal : 0;
+  const prevAov = prev.closedDeal ? prev.revenue/prev.closedDeal : 0;
   return `
     <div class="metrics-container">
-      ${kpiTile('Sets', fmtInt(curSets), `IB ${fmtInt(sum(rows,'ibSets'))} · OB ${fmtInt(sum(rows,'obSets'))}<br>${deltaSub(curSets, prevT.sets)}`)}
-      ${kpiTile('Appointments', fmtInt(curAppt), deltaSub(curAppt, prevT.appt))}
-      ${kpiTile('Warm Transfer %', fmtPct(curWarmT), `IB ${fmtPct(avg(rows,'ibWarmT'))} · OB ${fmtPct(avg(rows,'obWarmT'))}<br>${deltaSub(curWarmT, prevT.warmT, fmtPct)}`)}
-      ${kpiTile('Shows', fmtInt(curShows), `IB ${fmtInt(sum(rows,'ibShows'))} · OB ${fmtInt(sum(rows,'obShows'))}<br>${deltaSub(curShows, prevT.shows)}`)}
-      ${kpiTile('Show Rate %', fmtPct(curShowRate), `IB ${fmtPct(avg(rows,'ibShowRate'))} · OB ${fmtPct(avg(rows,'obShowRate'))}<br>${deltaSub(curShowRate, prevT.showRate, fmtPct)}`)}
-      ${kpiTile('Booking Rate %', fmtPct(curBookingRate), `IB ${fmtPct(avg(rows,'ibBookingRate'))} · OB ${fmtPct(avg(rows,'obBookingRate'))}<br>${deltaSub(curBookingRate, prevT.bookingRate, fmtPct)}`)}
-      ${kpiTile('Upfront Revenue', fmtMoney(curRevenue), `IB ${fmtMoney(sum(rows,'ibRevenue'))} · OB ${fmtMoney(sum(rows,'obRevenue'))}<br>${deltaSub(curRevenue, prevT.revenue, fmtMoney)}`)}
-      ${kpiTile('Closed Deal', fmtInt(curClosedDeal), deltaSub(curClosedDeal, prevT.closedDeal))}
-      ${kpiTile('AOV', fmtMoney(curAov), deltaSub(curAov, prevT.closedDeal?prevT.revenue/prevT.closedDeal:0, fmtMoney))}
-      ${kpiTile('90 sec Calls', fmtInt(curCalls90s), `IB ${fmtInt(sum(rows,'ibCalls90s'))} · OB ${fmtInt(sum(rows,'obCalls90s'))}<br>${deltaSub(curCalls90s, prevT.calls90s)}`)}
-      ${kpiTile('Connect Rate', fmtPct(curConnectRate), deltaSub(curConnectRate, prevT.connectRate, fmtPct))}
+      ${kpiTile('Sets', fmtInt(cur.sets), `IB ${fmtInt(cur.ibSets)} · OB ${fmtInt(cur.obSets)}<br>${deltaSub(cur.sets, prev.sets)}`)}
+      ${kpiTile('Appointments', fmtInt(cur.appt), deltaSub(cur.appt, prev.appt))}
+      ${kpiTile('Warm Transfer %', fmtPct(cur.warmT), `IB ${fmtPct(cur.ibWarmT)} · OB ${fmtPct(cur.obWarmT)}<br>${deltaSub(cur.warmT, prev.warmT, fmtPct)}`)}
+      ${kpiTile('Shows', fmtInt(cur.shows), `IB ${fmtInt(cur.ibShows)} · OB ${fmtInt(cur.obShows)}<br>${deltaSub(cur.shows, prev.shows)}`)}
+      ${kpiTile('Show Rate %', fmtPct(cur.showRate), `IB ${fmtPct(cur.ibShowRate)} · OB ${fmtPct(cur.obShowRate)}<br>${deltaSub(cur.showRate, prev.showRate, fmtPct)}`)}
+      ${kpiTile('Booking Rate %', fmtPct(cur.bookingRate), `IB ${fmtPct(cur.ibBookingRate)} · OB ${fmtPct(cur.obBookingRate)}<br>${deltaSub(cur.bookingRate, prev.bookingRate, fmtPct)}`)}
+      ${kpiTile('Upfront Revenue', fmtMoney(cur.revenue), `IB ${fmtMoney(cur.ibRevenue)} · OB ${fmtMoney(cur.obRevenue)}<br>${deltaSub(cur.revenue, prev.revenue, fmtMoney)}`)}
+      ${kpiTile('Closed Deal', fmtInt(cur.closedDeal), deltaSub(cur.closedDeal, prev.closedDeal))}
+      ${kpiTile('AOV', fmtMoney(curAov), deltaSub(curAov, prevAov, fmtMoney))}
+      ${kpiTile('90 sec Calls', fmtInt(cur.calls90s), `IB ${fmtInt(cur.ibCalls90s)} · OB ${fmtInt(cur.obCalls90s)}<br>${deltaSub(cur.calls90s, prev.calls90s)}`)}
+      ${kpiTile('Connect Rate', fmtPct(cur.connectRate), deltaSub(cur.connectRate, prev.connectRate, fmtPct))}
     </div>
-    <div class="note">Tiles compare the selected period${prevNote}, computed live from Sched.</div>
+    <div class="note">Tiles compare the selected period vs prev period (${prevStart} → ${prevEnd}), computed live from Sched.</div>
   `;
 }
 
@@ -1763,13 +1785,16 @@ function renderExecSummary(t){
     : (t.noDataYet
         ? `<div class="scope-banner blocked">⚠ No data yet for this range — Sched's latest posted day is <b>${t.noDataYetMax}</b>. The tiles below are showing 0, not a different period's totals.</div>`
         : (t.teamScopedEmpty
-        ? `<div class="scope-banner blocked">⚠ <b>${scopeLabel()}</b> has no activity in Sched for this scope, so there's nothing to show here — try Rep per Metric / ASR Daily Metric, which include non-ASR teams too.</div>`
+        ? `<div class="scope-banner blocked">⚠ <b>${scopeLabel()}</b> has no activity in Sched for this scope, so there's nothing to show here — try ASR Daily Metric, which includes non-ASR teams too.</div>`
         : (t.teamScoped
-            ? `<div class="scope-banner">Scoped to <b>${scopeLabel()}</b> — computed live from Sched's matching rows (same Daily/Weekly/Monthly cascade as the company-wide view).${state.agent.length?` The Agent filter (<b>${agentLabel()}</b>) doesn't narrow this further — see Rep per Metric for that person's own totals.`:''}</div>`
-            : (state.agent.length ? `<div class="scope-banner">The Agent filter (<b>${agentLabel()}</b>) doesn't narrow this company-wide trend — see Rep per Metric for that person's own totals.</div>` : ''))));
+            ? `<div class="scope-banner">Scoped to <b>${scopeLabel()}</b> — computed live from Sched's matching rows (same Daily/Weekly/Monthly cascade as the company-wide view).${state.agent.length?` The Agent filter (<b>${agentLabel()}</b>) doesn't narrow this tab — see ASR Daily Metric for that person's own totals.`:''}</div>`
+            : (state.agent.length ? `<div class="scope-banner">The Agent filter (<b>${agentLabel()}</b>) doesn't narrow this company-wide trend — see ASR Daily Metric for that person's own totals.</div>` : ''))));
+  const {prevStart, prevEnd} = prevPeriodRange(state.start, state.end);
+  const execCur = aggregateRowsForTiles(t.rows);
+  const execPrev = execCompanyTotals(prevStart, prevEnd);
   p.innerHTML = `
     ${scopeBanner}
-    ${execKpiTilesHtml(t)}
+    ${execKpiTilesHtml(execCur, execPrev, prevStart, prevEnd)}
     <div class="section-title">Sets, Warm Transfer %, Show Rate %, Booking Rate %, Upfront Revenue — Monthly / Weekly / Daily</div>
     <div class="note">These 15 charts are NOT affected by the Date Range filter above -- they always show the latest 3 months / 6 weeks / ${EXEC_CHART_DAILY_N} days. Team and Agent filters do apply, same as the rest of this tab.</div>
     ${EXEC_CHART_METRICS.map(m => `
@@ -2036,10 +2061,16 @@ function renderRepPerMetric(){
 }
 
 // 6. ASR Daily Metric (grouped by team, with subtotal rows)
-function renderASRDailyMetric(t){
+function renderASRDailyMetric(){
   const p = document.getElementById('panel-3');
+  // Unlike Executive Summary Trend, these tiles must match this tab's own per-rep table exactly,
+  // so they go through execCompanyTotals(..., {agentAware:true}) -- a straight live sum for the
+  // exact selected range/Team/LOB/Agent -- rather than aggregating a team-only trend cascade.
+  const {prevStart, prevEnd} = prevPeriodRange(state.start, state.end);
+  const dailyCur = execCompanyTotals(state.start, state.end, {agentAware:true});
+  const dailyPrev = execCompanyTotals(prevStart, prevEnd, {agentAware:true});
   p.innerHTML = `
-    ${execKpiTilesHtml(t)}
+    ${execKpiTilesHtml(dailyCur, dailyPrev, prevStart, prevEnd)}
     <div class="section-title">Rep detail</div>
     <div class="note">Computed live from Sched's per-rep-per-day records (periodically refreshed from Sched, covers ${RAW_SCHED_MIN_DATE} → ${RAW_SCHED_MAX_DATE}; the most recent ~week can still revise as Sched backfills -- treat it as provisional) — one row per Team/Name, not grouped; respects Date Range / Team / Agent filters above.</div>
     <div class="table-section"><table><thead id="tbl-asrdaily-head"></thead><tbody id="tbl-asrdaily-body"></tbody></table></div>

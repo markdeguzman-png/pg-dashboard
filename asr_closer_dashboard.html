@@ -1731,32 +1731,12 @@ function fullMetricCols(periodKey, periodLabel){
   ];
 }
 
-// Collapses an array of period rows (TREND_DAILY/WEEKLY/MONTHLY-shaped, or any repMetrics26()-
-// shaped rows) into one repMetrics26()-shaped total -- sums for additive fields, averages for
-// ratio fields -- so execKpiTilesHtml() can treat it the same as a single execCompanyTotals() call.
-function aggregateRowsForTiles(rows){
-  return {
-    sets: sum(rows,'sets'), ibSets: sum(rows,'ibSets'), obSets: sum(rows,'obSets'),
-    appt: sum(rows,'appt'),
-    warmT: avg(rows,'warmT'), ibWarmT: avg(rows,'ibWarmT'), obWarmT: avg(rows,'obWarmT'),
-    showRate: avg(rows,'showRate'), ibShowRate: avg(rows,'ibShowRate'), obShowRate: avg(rows,'obShowRate'),
-    shows: sum(rows,'shows'), ibShows: sum(rows,'ibShows'), obShows: sum(rows,'obShows'),
-    bookingRate: avg(rows,'bookingRate'), ibBookingRate: avg(rows,'ibBookingRate'), obBookingRate: avg(rows,'obBookingRate'),
-    revenue: sum(rows,'revenue'), ibRevenue: sum(rows,'ibRevenue'), obRevenue: sum(rows,'obRevenue'),
-    closedDeal: sum(rows,'closedDeal'),
-    calls90s: sum(rows,'calls90s'), ibCalls90s: sum(rows,'ibCalls90s'), obCalls90s: sum(rows,'obCalls90s'),
-    connectRate: avg(rows,'connectRate'),
-  };
-}
-
 // 1. Executive Summary Trend
 // The 11 KPI tiles shown on Executive Summary Trend -- factored out so ASR Daily Metric can show
 // the identical set (same formulas, same live "vs prev period" comparison) without duplicating
-// ~20 lines of near-identical markup/logic twice. Takes already-computed `cur`/`prev` totals
-// (both repMetrics26()-shaped) rather than deriving them itself, since the two callers source
-// "current" differently: Executive Summary Trend aggregates t.rows (team/LOB-scoped, Agent
-// deliberately ignored), while ASR Daily Metric uses execCompanyTotals(..., {agentAware:true}) so
-// its tiles match its per-rep table exactly, Agent filter included.
+// ~20 lines of near-identical markup/logic twice. Takes already-computed `cur`/`prev` totals (both
+// repMetrics26()-shaped, both from execCompanyTotals(..., {agentAware:true})) so every filter --
+// Date Range, Team, LOB, and Agent -- applies identically on both tabs.
 function execKpiTilesHtml(cur, prev, prevStart, prevEnd){
   const curAov = cur.closedDeal ? cur.revenue/cur.closedDeal : 0;
   const prevAov = prev.closedDeal ? prev.revenue/prev.closedDeal : 0;
@@ -1787,11 +1767,14 @@ function renderExecSummary(t){
         : (t.teamScopedEmpty
         ? `<div class="scope-banner blocked">⚠ <b>${scopeLabel()}</b> has no activity in Sched for this scope, so there's nothing to show here — try ASR Daily Metric, which includes non-ASR teams too.</div>`
         : (t.teamScoped
-            ? `<div class="scope-banner">Scoped to <b>${scopeLabel()}</b> — computed live from Sched's matching rows (same Daily/Weekly/Monthly cascade as the company-wide view).${state.agent.length?` The Agent filter (<b>${agentLabel()}</b>) doesn't narrow this tab — see ASR Daily Metric for that person's own totals.`:''}</div>`
-            : (state.agent.length ? `<div class="scope-banner">The Agent filter (<b>${agentLabel()}</b>) doesn't narrow this company-wide trend — see ASR Daily Metric for that person's own totals.</div>` : ''))));
+            ? `<div class="scope-banner">Scoped to <b>${scopeLabel()}</b> — computed live from Sched's matching rows (same Daily/Weekly/Monthly cascade as the company-wide view).</div>`
+            : '')));
+  // Tiles, charts, and the Period detail table all go through the same live raw-row aggregation
+  // (execCompanyTotals / execChartRawAggBy), so Date Range, Team, LOB, and Agent apply consistently
+  // everywhere on this tab -- no filter narrows one part of the page but not another.
   const {prevStart, prevEnd} = prevPeriodRange(state.start, state.end);
-  const execCur = aggregateRowsForTiles(t.rows);
-  const execPrev = execCompanyTotals(prevStart, prevEnd);
+  const execCur = execCompanyTotals(state.start, state.end, {agentAware:true});
+  const execPrev = execCompanyTotals(prevStart, prevEnd, {agentAware:true});
   p.innerHTML = `
     ${scopeBanner}
     ${execKpiTilesHtml(execCur, execPrev, prevStart, prevEnd)}

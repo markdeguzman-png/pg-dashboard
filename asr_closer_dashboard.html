@@ -524,7 +524,7 @@ const TABS = [
 const CLOSER_LOBS = ['Closer', 'Closer - Outbound'];
 function isCloserLob(lob){ return CLOSER_LOBS.includes(lob); }
 const MAIN_TABS = [
-  { name: 'SETTER', tabIndices: [0,1,2,3,4], lobs: ['ASR','Internal Setter'] },
+  { name: 'SETTER', tabIndices: [0,3,4], lobs: ['ASR','Internal Setter'] },
   { name: 'CLOSER', tabIndices: [5,6], lobs: CLOSER_LOBS },
 ];
 let activeMainTab = 0;
@@ -1689,9 +1689,7 @@ function renderAll(){
   document.getElementById('dataUpdatedHeader').textContent = DATA_UPDATED_AT;
 
   renderExecSummary(t);
-  renderASRTrend(t);
-  renderRepPerMetric();
-  renderASRDailyMetric();
+  renderASRDailyMetric(t);
   renderCallSourceBR();
   renderCloserTrend();
   renderClosersMetric();
@@ -1716,22 +1714,11 @@ function fullMetricCols(periodKey, periodLabel){
 }
 
 // 1. Executive Summary Trend
-function renderExecSummary(t){
-  const p = document.getElementById('panel-0');
+// The 11 KPI tiles shown on Executive Summary Trend -- factored out so ASR Daily Metric can show
+// the identical set (same formulas, same live "vs prev period" comparison) without duplicating
+// ~20 lines of near-identical markup/logic twice.
+function execKpiTilesHtml(t){
   const rows = t.rows;
-  const chartWindowNote = t.gran==='daily' ? `last ${t.chartRows.length} days` : (t.gran==='weekly' ? `last ${t.chartRows.length} weeks` : `last ${t.chartRows.length} months`);
-  const scopeBanner = t.blocked
-    ? `<div class="scope-banner blocked">⚠ ${t.blockedReason}</div>`
-    : (t.noDataYet
-        ? `<div class="scope-banner blocked">⚠ No data yet for this range — Sched's latest posted day is <b>${t.noDataYetMax}</b>. The tiles below are showing 0, not a different period's totals.</div>`
-        : (t.teamScopedEmpty
-        ? `<div class="scope-banner blocked">⚠ <b>${scopeLabel()}</b> has no activity in Sched for this scope, so there's nothing to show here — try Rep per Metric / ASR Daily Metric, which include non-ASR teams too.</div>`
-        : (t.teamScoped
-            ? `<div class="scope-banner">Scoped to <b>${scopeLabel()}</b> — computed live from Sched's matching rows (same Daily/Weekly/Monthly cascade as the company-wide view).${state.agent.length?` The Agent filter (<b>${agentLabel()}</b>) doesn't narrow this further — see Rep per Metric for that person's own totals.`:''}</div>`
-            : (state.agent.length ? `<div class="scope-banner">The Agent filter (<b>${agentLabel()}</b>) doesn't narrow this company-wide trend — see Rep per Metric for that person's own totals.</div>` : ''))));
-  // "vs prev period" comparison: the equivalent same-length period immediately preceding the
-  // selection, computed live off RAW_SCHED (ratio-of-sums, same formulas as repMetrics26) so it's
-  // on equal footing with the current totals regardless of which granularity cascade produced them.
   const {prevStart, prevEnd} = prevPeriodRange(state.start, state.end);
   const prevT = execCompanyTotals(prevStart, prevEnd);
   const curSets = sum(rows,'sets'), curAppt = sum(rows,'appt'), curWarmT = avg(rows,'warmT'),
@@ -1740,8 +1727,7 @@ function renderExecSummary(t){
     curAov = curClosedDeal ? curRevenue/curClosedDeal : 0,
     curCalls90s = sum(rows,'calls90s'), curConnectRate = avg(rows,'connectRate');
   const prevNote = ` vs prev period (${prevStart} → ${prevEnd})`;
-  p.innerHTML = `
-    ${scopeBanner}
+  return `
     <div class="metrics-container">
       ${kpiTile('Sets', fmtInt(curSets), `IB ${fmtInt(sum(rows,'ibSets'))} · OB ${fmtInt(sum(rows,'obSets'))}<br>${deltaSub(curSets, prevT.sets)}`)}
       ${kpiTile('Appointments', fmtInt(curAppt), deltaSub(curAppt, prevT.appt))}
@@ -1756,6 +1742,25 @@ function renderExecSummary(t){
       ${kpiTile('Connect Rate', fmtPct(curConnectRate), deltaSub(curConnectRate, prevT.connectRate, fmtPct))}
     </div>
     <div class="note">Tiles compare the selected period${prevNote}, computed live from Sched.</div>
+  `;
+}
+
+function renderExecSummary(t){
+  const p = document.getElementById('panel-0');
+  const rows = t.rows;
+  const chartWindowNote = t.gran==='daily' ? `last ${t.chartRows.length} days` : (t.gran==='weekly' ? `last ${t.chartRows.length} weeks` : `last ${t.chartRows.length} months`);
+  const scopeBanner = t.blocked
+    ? `<div class="scope-banner blocked">⚠ ${t.blockedReason}</div>`
+    : (t.noDataYet
+        ? `<div class="scope-banner blocked">⚠ No data yet for this range — Sched's latest posted day is <b>${t.noDataYetMax}</b>. The tiles below are showing 0, not a different period's totals.</div>`
+        : (t.teamScopedEmpty
+        ? `<div class="scope-banner blocked">⚠ <b>${scopeLabel()}</b> has no activity in Sched for this scope, so there's nothing to show here — try Rep per Metric / ASR Daily Metric, which include non-ASR teams too.</div>`
+        : (t.teamScoped
+            ? `<div class="scope-banner">Scoped to <b>${scopeLabel()}</b> — computed live from Sched's matching rows (same Daily/Weekly/Monthly cascade as the company-wide view).${state.agent.length?` The Agent filter (<b>${agentLabel()}</b>) doesn't narrow this further — see Rep per Metric for that person's own totals.`:''}</div>`
+            : (state.agent.length ? `<div class="scope-banner">The Agent filter (<b>${agentLabel()}</b>) doesn't narrow this company-wide trend — see Rep per Metric for that person's own totals.</div>` : ''))));
+  p.innerHTML = `
+    ${scopeBanner}
+    ${execKpiTilesHtml(t)}
     <div class="section-title">Sets, Warm Transfer %, Show Rate %, Booking Rate % — Monthly / Weekly / Daily</div>
     <div class="note">These 12 charts are NOT affected by the Date Range filter above -- they always show the latest 3 months / 6 weeks / ${EXEC_CHART_DAILY_N} days. Team and Agent filters do apply, same as the rest of this tab.</div>
     ${EXEC_CHART_METRICS.map(m => `
@@ -2034,32 +2039,17 @@ function renderRepPerMetric(){
 }
 
 // 6. ASR Daily Metric (grouped by team, with subtotal rows)
-function renderASRDailyMetric(){
+function renderASRDailyMetric(t){
   const p = document.getElementById('panel-3');
   p.innerHTML = `
-    <div class="section-title">Team-grouped rep detail</div>
-    <div class="note">Computed live from Sched's per-rep-per-day records (periodically refreshed from Sched, covers ${RAW_SCHED_MIN_DATE} → ${RAW_SCHED_MAX_DATE}; the most recent ~week can still revise as Sched backfills -- treat it as provisional) — mirrors the sheet's team-grouped layout with subtotal rows; respects Date Range / Team / Agent filters above.</div>
+    ${execKpiTilesHtml(t)}
+    <div class="section-title">Rep detail</div>
+    <div class="note">Computed live from Sched's per-rep-per-day records (periodically refreshed from Sched, covers ${RAW_SCHED_MIN_DATE} → ${RAW_SCHED_MAX_DATE}; the most recent ~week can still revise as Sched backfills -- treat it as provisional) — one row per Team/Name, not grouped; respects Date Range / Team / Agent filters above.</div>
     <div class="table-section"><table><thead id="tbl-asrdaily-head"></thead><tbody id="tbl-asrdaily-body"></tbody></table></div>
   `;
   const cols = [{key:'team', label:'Team'}, ...fullMetricCols('name','Name')];
-  const sumKeys = ['sets','ibSets','obSets','appt','shows','ibShows','obShows','revenue','ibRevenue',
-    'obRevenue','closedDeal','calls90s','ibCalls90s','obCalls90s','ibCalls','obCalls'];
-  const avgKeys = ['warmT','ibWarmT','obWarmT','showRate','ibShowRate','obShowRate',
-    'bookingRate','ibBookingRate','obBookingRate','connectRate'];
-  let rows = [];
-  const teamsToShow = isCloserLob(state.lob) ? [] : (state.team.length ? state.team : ALL_TEAMS);
-  const allReps = repRowsForRange();
-  teamsToShow.forEach(team=>{
-    let reps = allReps.filter(r=>r.team===team);
-    reps = reps.filter(r=>matchesAgentFilter(r.name));
-    if(!reps.length) return;
-    rows = rows.concat(reps);
-    const subtotal = {team, name: team+' Total', _subtotal:true};
-    sumKeys.forEach(k => subtotal[k] = sum(reps,k));
-    avgKeys.forEach(k => subtotal[k] = avg(reps,k));
-    rows.push(subtotal);
-  });
-  renderTable('tbl-asrdaily', rows, cols, { rowClass:r=> r._subtotal?'subtotal':'' });
+  const rows = isCloserLob(state.lob) ? [] : repRowsForRange().filter(r=>matchesTeamFilter(r.team) && matchesAgentFilter(r.name));
+  renderTable('tbl-asrdaily', rows, cols);
 }
 
 // 7. BR % per Call Source

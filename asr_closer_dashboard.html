@@ -1902,7 +1902,6 @@ function renderCloserTrend(){
   const p = document.getElementById('panel-5');
   const ct = closerTrendForRange();
   const rows = ct.rows;
-  const chartWindowNote = ct.gran==='daily' ? `last ${ct.chartRows.length} days` : (ct.gran==='weekly' ? `last ${ct.chartRows.length} weeks` : `last ${ct.chartRows.length} months`);
   const lobBlocked = SETTER_LOBS.includes(state.lob);
   const scopeBanner = lobBlocked
     ? `<div class="scope-banner blocked">⚠ LOB is set to ${state.lob}, but this is the Closer company trend — switch LOB to Closer or All to see it (or open Executive Summary Trend).</div>`
@@ -1949,16 +1948,6 @@ function renderCloserTrend(){
         <div id="chart-closer-${m.id}-d"></div>
       </div>
     </div>`).join('')}
-    <div class="chart-card">
-      <h3>Products Sold &amp; Closed Deal over time <span style="color:var(--gray); font-weight:400; text-transform:none; letter-spacing:0">(${chartWindowNote})</span></h3>
-      <div class="legend"><span><i style="background:var(--s-orange)"></i>Products Sold</span><span><i style="background:var(--s-blue)"></i>Closed Deal</span></div>
-      <div id="chart-closer-trend"></div>
-    </div>
-    <div class="chart-card">
-      <h3>Upfront Revenue over time <span style="color:var(--gray); font-weight:400; text-transform:none; letter-spacing:0">(${chartWindowNote})</span></h3>
-      <div class="legend"><span><i style="background:var(--s-aqua)"></i>Revenue ($)</span></div>
-      <div id="chart-closer-rev"></div>
-    </div>
     <div class="section-title">Top closers by revenue (current snapshot)</div>
     <div class="note">Per-closer breakdown is the current-period snapshot from Closers Metric — the sheet's CLOSER Trend View also carries a full per-closer Monthly/Weekly/Daily block for each of the 23 closers individually; only the company-wide roll-up above is reproduced here.</div>
     <div class="chart-card"><div id="chart-closer-topbar"></div></div>
@@ -1977,11 +1966,6 @@ function renderCloserTrend(){
     lineChart(`chart-closer-${m.id}-w`, closerWeekly, series, closerWeekLbl, {showValues:'all'});
     lineChart(`chart-closer-${m.id}-d`, closerDaily, series, closerDayLbl, {showValues:'last'});
   });
-  lineChart('chart-closer-trend', ct.chartRows, [
-    {key:'productsSold', name:'Products Sold', color:getVar('--s-orange')},
-    {key:'closedDeal', name:'Closed Deal', color:getVar('--s-blue')},
-  ], ct.label);
-  lineChart('chart-closer-rev', ct.chartRows, [{key:'revenue', name:'Revenue', color:getVar('--s-aqua'), fmt:fmtMoney}], ct.label);
   const closers = filteredClosers();
   const top = closers.slice().sort((a,b)=>b.revenue-a.revenue).slice(0,12);
   barChart('chart-closer-topbar', top, 'revenue', r=>r.name, getVar('--s-aqua'), fmtMoney);

@@ -1024,6 +1024,18 @@ function repRowsForRange(){
   }));
 }
 
+// Company-wide (Team/LOB-filtered) ASR/Setter totals for an ARBITRARY date range, via the same
+// raw-row summing + repMetrics26() ratio-of-sums formulas used by the live per-team cascade above
+// -- lets Executive Summary Trend's KPI tiles compare the selected period against the equivalent
+// prior period (mirrors closerCompanyTotals()'s role for the CLOSER tab).
+function execCompanyTotals(startStr, endStr){
+  const o = blankRawSums();
+  RAW_SCHED.forEach(r => {
+    if(r[3] >= startStr && r[3] <= endStr && matchesLobFilter(r[2]) && matchesTeamFilter(r[1])) addRawRow(o, r);
+  });
+  return repMetrics26(o);
+}
+
 // Live per-team Daily/Weekly/Monthly trend data, computed directly from RAW_SCHED instead of a
 // static once-captured TEAM_MONTHLY snapshot -- TEAM_MONTHLY was only ever captured once, early in
 // this dashboard's build, and drifted from reality (e.g. Team Mimi's Sep MTD Sets read 1,418 there
@@ -1652,21 +1664,33 @@ function renderExecSummary(t){
         : (t.teamScoped
             ? `<div class="scope-banner">Scoped to <b>${scopeLabel()}</b> — computed live from Sched's matching rows (same Daily/Weekly/Monthly cascade as the company-wide view).${state.agent.length?` The Agent filter (<b>${agentLabel()}</b>) doesn't narrow this further — see Rep per Metric for that person's own totals.`:''}</div>`
             : (state.agent.length ? `<div class="scope-banner">The Agent filter (<b>${agentLabel()}</b>) doesn't narrow this company-wide trend — see Rep per Metric for that person's own totals.</div>` : ''))));
+  // "vs prev period" comparison: the equivalent same-length period immediately preceding the
+  // selection, computed live off RAW_SCHED (ratio-of-sums, same formulas as repMetrics26) so it's
+  // on equal footing with the current totals regardless of which granularity cascade produced them.
+  const {prevStart, prevEnd} = prevPeriodRange(state.start, state.end);
+  const prevT = execCompanyTotals(prevStart, prevEnd);
+  const curSets = sum(rows,'sets'), curAppt = sum(rows,'appt'), curWarmT = avg(rows,'warmT'),
+    curShows = sum(rows,'shows'), curShowRate = avg(rows,'showRate'), curBookingRate = avg(rows,'bookingRate'),
+    curRevenue = sum(rows,'revenue'), curClosedDeal = sum(rows,'closedDeal'),
+    curAov = curClosedDeal ? curRevenue/curClosedDeal : 0,
+    curCalls90s = sum(rows,'calls90s'), curConnectRate = avg(rows,'connectRate');
+  const prevNote = ` vs prev period (${prevStart} → ${prevEnd})`;
   p.innerHTML = `
     ${scopeBanner}
     <div class="metrics-container">
-      ${kpiTile('Sets', fmtInt(sum(rows,'sets')), `IB ${fmtInt(sum(rows,'ibSets'))} · OB ${fmtInt(sum(rows,'obSets'))}`)}
-      ${kpiTile('Appointments', fmtInt(sum(rows,'appt')))}
-      ${kpiTile('Warm Transfer %', fmtPct(avg(rows,'warmT')), `IB ${fmtPct(avg(rows,'ibWarmT'))} · OB ${fmtPct(avg(rows,'obWarmT'))}`)}
-      ${kpiTile('Shows', fmtInt(sum(rows,'shows')), `IB ${fmtInt(sum(rows,'ibShows'))} · OB ${fmtInt(sum(rows,'obShows'))}`)}
-      ${kpiTile('Show Rate %', fmtPct(avg(rows,'showRate')), `IB ${fmtPct(avg(rows,'ibShowRate'))} · OB ${fmtPct(avg(rows,'obShowRate'))}`)}
-      ${kpiTile('Booking Rate %', fmtPct(avg(rows,'bookingRate')), `IB ${fmtPct(avg(rows,'ibBookingRate'))} · OB ${fmtPct(avg(rows,'obBookingRate'))}`)}
-      ${kpiTile('Upfront Revenue', fmtMoney(sum(rows,'revenue')), `IB ${fmtMoney(sum(rows,'ibRevenue'))} · OB ${fmtMoney(sum(rows,'obRevenue'))}`)}
-      ${kpiTile('Closed Deal', fmtInt(sum(rows,'closedDeal')))}
-      ${kpiTile('AOV', fmtMoney(sum(rows,'closedDeal') ? sum(rows,'revenue')/sum(rows,'closedDeal') : 0))}
-      ${kpiTile('90 sec Calls', fmtInt(sum(rows,'calls90s')), `IB ${fmtInt(sum(rows,'ibCalls90s'))} · OB ${fmtInt(sum(rows,'obCalls90s'))}`)}
-      ${kpiTile('Connect Rate', fmtPct(avg(rows,'connectRate')))}
+      ${kpiTile('Sets', fmtInt(curSets), `IB ${fmtInt(sum(rows,'ibSets'))} · OB ${fmtInt(sum(rows,'obSets'))}<br>${deltaSub(curSets, prevT.sets)}`)}
+      ${kpiTile('Appointments', fmtInt(curAppt), deltaSub(curAppt, prevT.appt))}
+      ${kpiTile('Warm Transfer %', fmtPct(curWarmT), `IB ${fmtPct(avg(rows,'ibWarmT'))} · OB ${fmtPct(avg(rows,'obWarmT'))}<br>${deltaSub(curWarmT, prevT.warmT, fmtPct)}`)}
+      ${kpiTile('Shows', fmtInt(curShows), `IB ${fmtInt(sum(rows,'ibShows'))} · OB ${fmtInt(sum(rows,'obShows'))}<br>${deltaSub(curShows, prevT.shows)}`)}
+      ${kpiTile('Show Rate %', fmtPct(curShowRate), `IB ${fmtPct(avg(rows,'ibShowRate'))} · OB ${fmtPct(avg(rows,'obShowRate'))}<br>${deltaSub(curShowRate, prevT.showRate, fmtPct)}`)}
+      ${kpiTile('Booking Rate %', fmtPct(curBookingRate), `IB ${fmtPct(avg(rows,'ibBookingRate'))} · OB ${fmtPct(avg(rows,'obBookingRate'))}<br>${deltaSub(curBookingRate, prevT.bookingRate, fmtPct)}`)}
+      ${kpiTile('Upfront Revenue', fmtMoney(curRevenue), `IB ${fmtMoney(sum(rows,'ibRevenue'))} · OB ${fmtMoney(sum(rows,'obRevenue'))}<br>${deltaSub(curRevenue, prevT.revenue, fmtMoney)}`)}
+      ${kpiTile('Closed Deal', fmtInt(curClosedDeal), deltaSub(curClosedDeal, prevT.closedDeal))}
+      ${kpiTile('AOV', fmtMoney(curAov), deltaSub(curAov, prevT.closedDeal?prevT.revenue/prevT.closedDeal:0, fmtMoney))}
+      ${kpiTile('90 sec Calls', fmtInt(curCalls90s), `IB ${fmtInt(sum(rows,'ibCalls90s'))} · OB ${fmtInt(sum(rows,'obCalls90s'))}<br>${deltaSub(curCalls90s, prevT.calls90s)}`)}
+      ${kpiTile('Connect Rate', fmtPct(curConnectRate), deltaSub(curConnectRate, prevT.connectRate, fmtPct))}
     </div>
+    <div class="note">Tiles compare the selected period${prevNote}, computed live from Sched.</div>
     <div class="section-title">Sets, Warm Transfer %, Show Rate %, Booking Rate % — Monthly / Weekly / Daily</div>
     <div class="note">These 12 charts are NOT affected by the Date Range filter above -- they always show the latest 3 months / 6 weeks / ${EXEC_CHART_DAILY_N} days. Team and Agent filters do apply, same as the rest of this tab.</div>
     ${EXEC_CHART_METRICS.map(m => `

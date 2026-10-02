@@ -161,6 +161,12 @@
   td{ padding:9px 12px; border-bottom:1px solid var(--line); color:var(--white); white-space:nowrap; font-variant-numeric:tabular-nums; }
   tbody tr:hover{ background:rgba(253,51,0,0.07); }
   tbody tr.subtotal{ background:rgba(253,51,0,0.10); font-weight:700; }
+  /* Frozen/sticky columns for wide tables -- left offset is computed per-table in JS (actual
+     rendered width, not a hardcoded guess), these just handle the positioning + opaque
+     background so scrolling content doesn't show through underneath. */
+  th.sticky-col{ position:sticky; z-index:3; background:#3a3a3a; box-shadow:2px 0 4px rgba(0,0,0,0.3); overflow:hidden; text-overflow:ellipsis; }
+  td.sticky-col{ position:sticky; z-index:1; background:#242424; box-shadow:2px 0 4px rgba(0,0,0,0.3); overflow:hidden; text-overflow:ellipsis; }
+  tbody tr.subtotal td.sticky-col{ background:linear-gradient(rgba(253,51,0,0.10),rgba(253,51,0,0.10)),#242424; }
   .no-data{ text-align:center; padding:40px 20px; color:var(--gray); }
   .pill{ padding:2px 8px; border-radius:10px; font-size:10.5px; font-weight:700; }
   .pill.good{ background:rgba(76,175,80,.18); color:var(--good); }
@@ -1330,7 +1336,7 @@ function renderTable(tableId, rows, cols, opts){
       return st.dir*((va||0)-(vb||0));
     });
   }
-  thead.innerHTML = '<tr>' + cols.map(c=>`<th data-col="${c.key}" class="${st&&st.col===c.key?'sorted':''}">${c.label}</th>`).join('') + '</tr>';
+  thead.innerHTML = '<tr>' + cols.map(c=>`<th data-col="${c.key}" class="${(st&&st.col===c.key?'sorted ':'')}${c.sticky?'sticky-col':''}">${c.label}</th>`).join('') + '</tr>';
   thead.querySelectorAll('th').forEach(th=>{
     th.addEventListener('click', ()=>{
       const col = th.dataset.col;
@@ -1341,8 +1347,32 @@ function renderTable(tableId, rows, cols, opts){
   });
   tbody.innerHTML = sorted.map(r=>{
     const cls = opts.rowClass ? opts.rowClass(r) : '';
-    return `<tr class="${cls}">` + cols.map(c=> `<td>${c.fmt ? c.fmt(r[c.key], r) : (r[c.key] ?? '')}</td>`).join('') + '</tr>';
+    return `<tr class="${cls}">` + cols.map(c=> `<td${c.sticky?' class="sticky-col"':''}>${c.fmt ? c.fmt(r[c.key], r) : (r[c.key] ?? '')}</td>`).join('') + '</tr>';
   }).join('');
+
+  // Frozen columns: left-offset uses each column's declared `width` (c.width, default 130px),
+  // NOT a measured getBoundingClientRect() -- this dashboard pre-renders every tab's table while
+  // only one tab is visible (the rest sit under display:none), and a hidden element's
+  // getBoundingClientRect() always reports 0 width, which previously collapsed every sticky
+  // column to the same left:0 and made only the last one visible. Fixing the width explicitly
+  // (instead of auto-sizing to content) sidesteps that entirely.
+  const stickyIdxs = cols.map((c,i)=>c.sticky?i:-1).filter(i=>i>=0);
+  if(stickyIdxs.length){
+    const headCells = thead.querySelectorAll('th');
+    const bodyRows = tbody.querySelectorAll('tr');
+    let leftAcc = 0;
+    stickyIdxs.forEach(colIdx => {
+      const c = cols[colIdx];
+      const w = c.width || 130;
+      const th = headCells[colIdx];
+      if(th){ th.style.left = leftAcc+'px'; th.style.width = w+'px'; th.style.minWidth = w+'px'; th.style.maxWidth = w+'px'; }
+      bodyRows.forEach(tr => {
+        const td = tr.children[colIdx];
+        if(td){ td.style.left = leftAcc+'px'; td.style.width = w+'px'; td.style.minWidth = w+'px'; td.style.maxWidth = w+'px'; }
+      });
+      leftAcc += w;
+    });
+  }
 }
 
 // ---------------- panel builders ----------------
@@ -1787,7 +1817,7 @@ function renderCallSourceBR(){
     brSlicerState.obRating = ev.target.value; renderCallSourceBR();
   });
   renderTable('tbl-br', filteredRows, [
-    {key:'team', label:'Team'}, {key:'name', label:'Name'},
+    {key:'team', label:'Current Team', sticky:true, width:120}, {key:'name', label:'Name', sticky:true, width:170},
     {key:'ivr1Calls', label:'IVR1 Calls'}, {key:'ivr1BR', label:'IVR1 Booking %', fmt:fmtPct},
     {key:'ivr2Calls', label:'IVR2 Calls'}, {key:'ivr2BR', label:'IVR2 Booking %', fmt:fmtPct},
     {key:'ivr3Calls', label:'IVR3 Calls'}, {key:'ivr3BR', label:'IVR3 Booking %', fmt:fmtPct},

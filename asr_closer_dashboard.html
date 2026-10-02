@@ -1819,6 +1819,9 @@ function renderExecSummary(t){
   });
   const cols = fullMetricCols('period', 'Date');
   const withPeriod = execDaily.map(r=>({...r, period: r.date}));
+  // Default sort: Date descending (most recent first), until the user clicks a column header to
+  // choose their own -- renderTable persists sortState per table id, so this only applies once.
+  if(!sortState['tbl-exec']) sortState['tbl-exec'] = {col:'period', dir:-1};
   renderTable('tbl-exec', withPeriod, cols);
 }
 

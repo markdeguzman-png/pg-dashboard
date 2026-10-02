@@ -74,6 +74,45 @@
     border-radius:4px; color:var(--black); font-size:13px; font-family:inherit;
   }
   .filter-group select:disabled{ opacity:.45; cursor:not-allowed; }
+
+  /* Multi-select widget (Team / Agent) -- a button showing a summary label, opening a checkbox
+     panel on click. Styled to match the plain <select> elements beside it (LOB stays a native
+     single-select; only Team/Agent support picking more than one). */
+  .multiselect{ position:relative; }
+  .multiselect-btn{
+    width:100%; text-align:left; padding:10px 30px 10px 12px; background:#F4F2F0; border:1px solid var(--light-gray);
+    border-radius:4px; color:var(--black); font-size:13px; font-family:inherit; cursor:pointer;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; position:relative;
+  }
+  .multiselect-btn::after{
+    content:'▾'; position:absolute; right:10px; top:50%; transform:translateY(-50%); color:var(--gray); font-size:11px;
+  }
+  .multiselect-btn:hover{ border-color:var(--orange); }
+  .multiselect.open .multiselect-btn{ border-color:var(--orange); }
+  .multiselect-panel{
+    display:none; position:absolute; top:calc(100% + 4px); left:0; min-width:100%; width:max-content; max-width:320px;
+    background:#F4F2F0; border:1px solid var(--orange); border-radius:4px; box-shadow:0 8px 20px rgba(0,0,0,0.5);
+    z-index:50; max-height:320px; overflow-y:auto; padding:6px;
+  }
+  .multiselect.open .multiselect-panel{ display:block; }
+  .multiselect-search{
+    width:100%; padding:7px 9px; margin-bottom:4px; border:1px solid var(--light-gray); border-radius:3px;
+    font-size:12.5px; font-family:inherit; color:var(--black); background:var(--white);
+  }
+  .multiselect-actions{ display:flex; gap:10px; padding:4px 6px 6px; font-size:11px; }
+  .multiselect-actions a{ color:var(--dark-orange); cursor:pointer; font-weight:700; text-decoration:none; }
+  .multiselect-actions a:hover{ text-decoration:underline; }
+  .multiselect-group-label{
+    font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:var(--gray);
+    padding:6px 6px 2px;
+  }
+  .multiselect-option{
+    display:flex; align-items:center; gap:7px; padding:5px 6px; border-radius:3px; font-size:12.5px; color:var(--black);
+    cursor:pointer; white-space:nowrap;
+  }
+  .multiselect-option:hover{ background:rgba(253,51,0,0.10); }
+  .multiselect-option input{ margin:0; flex:none; }
+  .multiselect-empty{ padding:10px 6px; font-size:12px; color:var(--gray); text-align:center; }
   .presets{ display:flex; gap:6px; flex-wrap:wrap; }
   .preset-btn{
     padding:8px 12px; background:transparent; border:1px solid var(--light-gray);
@@ -220,11 +259,17 @@
       </div>
       <div class="filter-group">
         <label>Team</label>
-        <select id="teamFilter"><option value="">All Teams</option></select>
+        <div class="multiselect" id="teamFilterWrap">
+          <button type="button" class="multiselect-btn" id="teamFilterBtn">All Teams</button>
+          <div class="multiselect-panel" id="teamFilterPanel"></div>
+        </div>
       </div>
       <div class="filter-group grow">
         <label>Agent</label>
-        <select id="agentFilter"><option value="">All Agents</option></select>
+        <div class="multiselect" id="agentFilterWrap">
+          <button type="button" class="multiselect-btn" id="agentFilterBtn">All Agents</button>
+          <div class="multiselect-panel" id="agentFilterPanel"></div>
+        </div>
       </div>
       <button class="reset-btn" id="resetBtn">Reset Filters</button>
     </div>
@@ -499,7 +544,9 @@ const MAIN_TABS = [
 let activeMainTab = 0;
 const SERIES_COLORS = ['var(--s-blue)','var(--s-orange)','var(--s-aqua)','var(--s-yellow)','var(--s-magenta)','var(--s-violet)'];
 
-let state = { start:null, end:null, lob:'', team:'', agent:'' };
+// team/agent are arrays -- [] means "All" (no filter), otherwise any row whose team/name is in
+// the array matches. Both filters support selecting more than one value (see setupMultiSelect()).
+let state = { start:null, end:null, lob:'', team:[], agent:[] };
 let sortState = {}; // per table id -> {col, dir}
 
 // SETTER's default LOB scope when nothing specific is picked from the dropdown -- ASR and
@@ -513,12 +560,108 @@ const SETTER_LOBS = MAIN_TABS[0].lobs;
 function matchesLobFilter(lob){
   return state.lob ? lob === state.lob : SETTER_LOBS.includes(lob);
 }
+// Team/Agent both support multi-select -- empty array means "All" (no filter), otherwise match
+// any of the selected values. Use these everywhere instead of comparing state.team/state.agent
+// directly, so every tab treats a 2+ selection consistently.
+function matchesTeamFilter(team){ return !state.team.length || state.team.includes(team); }
+function matchesAgentFilter(name){ return !state.agent.length || state.agent.includes(name); }
 // Human-readable label for whatever combination of Team/LOB is currently scoping a view, e.g.
-// "Team Mimi", "LOB Internal Setter", or "Team Mimi + LOB ASR". Used in scope banners so the
-// wording doesn't assume team-only scoping the way it used to.
+// "Team Mimi", "Team Mimi, Team Anne + LOB ASR". Used in scope banners so the wording doesn't
+// assume single-team scoping the way it used to.
 function scopeLabel(){
-  return [state.team, state.lob ? 'LOB '+state.lob : ''].filter(Boolean).join(' + ');
+  const teamPart = state.team.length ? state.team.join(', ') : '';
+  return [teamPart, state.lob ? 'LOB '+state.lob : ''].filter(Boolean).join(' + ');
 }
+function agentLabel(){ return state.agent.join(', '); }
+
+// Generic checkbox-dropdown multi-select, used for both Team and Agent (native <select multiple>
+// needs ctrl/cmd+click, which most people never discover -- this is a button + checkbox panel
+// instead). `getOptionGroups()` returns [{label, options:[string,...]}, ...] (label:null for a
+// flat list); `getSelected()`/`setSelected(arr)` read/write the backing state array and perform
+// whatever side effects (re-render, dependent-dropdown rebuilds) that filter needs.
+function setupMultiSelect({wrapId, btnId, panelId, allLabel, getOptionGroups, getSelected, setSelected, search}){
+  const wrap = document.getElementById(wrapId);
+  const btn = document.getElementById(btnId);
+  const panel = document.getElementById(panelId);
+
+  function labelFor(){
+    const selected = getSelected();
+    if(!selected.length) return allLabel;
+    if(selected.length===1) return selected[0];
+    return selected.length + ' selected';
+  }
+
+  function renderPanel(filterText){
+    const selected = getSelected();
+    const groups = getOptionGroups();
+    const ft = (filterText||'').toLowerCase();
+    let html = '';
+    if(search) html += `<input type="text" class="multiselect-search" placeholder="Search...">`;
+    html += `<div class="multiselect-actions"><a data-action="all">Select all</a><a data-action="clear">Clear</a></div>`;
+    let anyOption = false;
+    groups.forEach(g => {
+      const opts = g.options.filter(o => !ft || o.toLowerCase().includes(ft));
+      if(!opts.length) return;
+      anyOption = true;
+      if(g.label) html += `<div class="multiselect-group-label">${g.label}</div>`;
+      opts.forEach(o => {
+        const checked = selected.includes(o);
+        html += `<label class="multiselect-option"><input type="checkbox" value="${o.replace(/"/g,'&quot;')}" ${checked?'checked':''}>${o}</label>`;
+      });
+    });
+    if(!anyOption) html += `<div class="multiselect-empty">No matches</div>`;
+    panel.innerHTML = html;
+    if(filterText){ const si = panel.querySelector('.multiselect-search'); if(si){ si.value = filterText; } }
+
+    const searchInput = panel.querySelector('.multiselect-search');
+    if(searchInput){
+      searchInput.addEventListener('click', ev=>ev.stopPropagation());
+      searchInput.addEventListener('input', (ev)=>{
+        const caret = ev.target.selectionStart;
+        renderPanel(ev.target.value);
+        const si2 = panel.querySelector('.multiselect-search');
+        if(si2){ si2.focus(); si2.setSelectionRange(caret, caret); }
+      });
+    }
+    panel.querySelector('[data-action="all"]').addEventListener('click', (ev)=>{
+      ev.stopPropagation();
+      const visible = groups.flatMap(g=>g.options).filter(o => !ft || o.toLowerCase().includes(ft));
+      setSelected(Array.from(new Set([...getSelected(), ...visible])));
+      btn.textContent = labelFor();
+      renderPanel(ft);
+    });
+    panel.querySelector('[data-action="clear"]').addEventListener('click', (ev)=>{
+      ev.stopPropagation();
+      setSelected([]);
+      btn.textContent = labelFor();
+      renderPanel(ft);
+    });
+    panel.querySelectorAll('.multiselect-option').forEach(lbl=>lbl.addEventListener('click', ev=>ev.stopPropagation()));
+    panel.querySelectorAll('.multiselect-option input').forEach(cb=>{
+      cb.addEventListener('change', ()=>{
+        const cur = getSelected();
+        const next = cb.checked ? Array.from(new Set([...cur, cb.value])) : cur.filter(x=>x!==cb.value);
+        setSelected(next);
+        btn.textContent = labelFor();
+      });
+    });
+  }
+
+  btn.addEventListener('click', (ev)=>{
+    ev.stopPropagation();
+    const willOpen = !wrap.classList.contains('open');
+    document.querySelectorAll('.multiselect.open').forEach(w=>w.classList.remove('open'));
+    if(willOpen){ wrap.classList.add('open'); renderPanel(''); const si=panel.querySelector('.multiselect-search'); if(si) si.focus(); }
+  });
+
+  // Exposed so option-list rebuilds (LOB/Team changing what Agent can show, a main-tab switch,
+  // etc.) can refresh the button label + re-render the panel's available options in place,
+  // without re-attaching the open/close click handler every time.
+  wrap._msRefresh = () => { btn.textContent = labelFor(); if(wrap.classList.contains('open')) renderPanel(''); };
+}
+document.addEventListener('click', (ev)=>{
+  document.querySelectorAll('.multiselect.open').forEach(w=>{ if(!w.contains(ev.target)) w.classList.remove('open'); });
+});
 
 function fmtInt(n){ return Math.round(n).toLocaleString(); }
 function fmtMoney(n){ return '$' + Math.round(n).toLocaleString(); }
@@ -532,6 +675,39 @@ function dstr(d){
   return `${y}-${m}-${day}`;
 }
 
+function refreshTeamFilterUI(){ const w=document.getElementById('teamFilterWrap'); if(w&&w._msRefresh) w._msRefresh(); }
+function refreshAgentFilterUI(){ const w=document.getElementById('agentFilterWrap'); if(w&&w._msRefresh) w._msRefresh(); }
+
+// Agent's available options depend on the current Team/LOB selection -- shared by the Agent
+// multiselect's own option list AND by pruneAgentSelection() below (dropping any selected name
+// that's no longer valid once Team/LOB narrows).
+function agentOptionGroups(){
+  const roster = state.team.length ? LIVE_ROSTER.filter(r=>state.team.includes(r.team)) : LIVE_ROSTER;
+  const byName = (a,b) => a.name.localeCompare(b.name);
+  // A specific LOB is selected -- just list that LOB's people alphabetically, no need for the
+  // ASR/Closer/Other grouping split below (there's only one group once narrowed this far). This
+  // also makes any of the 13 real LOB values work correctly, not just ASR/Closer - Outbound.
+  if (state.lob) {
+    return [{label:null, options: roster.filter(r=>r.lob===state.lob).sort(byName).map(r=>r.name)}];
+  }
+  // No LOB filter: keep the familiar grouped view. Internal Setter reps fall under "ASR /
+  // Setters" alongside ASR (both are SETTER_LOBS) rather than "Other", since that's the scope
+  // SETTER's tabs actually compute over when nothing more specific is picked.
+  const asrReps = roster.filter(r=>SETTER_LOBS.includes(r.lob)).sort(byName).map(r=>r.name);
+  const closers = roster.filter(r=>r.lob==='Closer - Outbound').sort(byName).map(r=>r.name);
+  const others = roster.filter(r=>!SETTER_LOBS.includes(r.lob) && r.lob!=='Closer - Outbound').sort(byName).map(r=>r.name);
+  const groups = [];
+  if (asrReps.length) groups.push({label:'ASR / Setters', options:asrReps});
+  if (closers.length) groups.push({label:'Closers / PG1 Advisors', options:closers});
+  if (others.length) groups.push({label:'Other (non-ASR/Closer)', options:others});
+  return groups;
+}
+function pruneAgentSelection(){
+  const validNames = new Set(agentOptionGroups().flatMap(g=>g.options));
+  state.agent = state.agent.filter(n => validNames.has(n));
+  refreshAgentFilterUI();
+}
+
 function initFilters(){
   document.getElementById('asofLabel').textContent = ASOF;
   const minDate = TREND_DAILY[0].date, maxDate = ASOF;
@@ -540,33 +716,48 @@ function initFilters(){
   s.value = '2026-07-01'; e.value = ASOF;
   state.start = s.value; state.end = e.value;
 
-  const teamSel = document.getElementById('teamFilter');
   const lobSel = document.getElementById('lobFilter');
   rebuildLobOptions();
-  rebuildTeamOptions();
-  rebuildAgentOptions();
+
+  setupMultiSelect({
+    wrapId:'teamFilterWrap', btnId:'teamFilterBtn', panelId:'teamFilterPanel', allLabel:'All Teams',
+    getOptionGroups: () => [{label:null, options: ALL_TEAMS}],
+    getSelected: () => state.team,
+    setSelected: (arr) => {
+      state.team = arr;
+      // Known ASR/Closer teams pin the LOB they belong to, so the two stay consistent -- but only
+      // when exactly one team is selected; with 0 or 2+ selected (possibly spanning both sides),
+      // guessing a single LOB would be wrong, so clear it to "All" instead of leaving whatever was
+      // pinned by a previous single-team selection lingering and silently narrowing the new
+      // multi-team selection.
+      if (state.team.length === 1) {
+        const t = state.team[0];
+        if (CLOSER_TEAMS.includes(t)) state.lob = 'Closer - Outbound';
+        else if (ASR_TEAMS.includes(t)) state.lob = 'ASR';
+        else state.lob = '';
+      } else {
+        state.lob = '';
+      }
+      lobSel.value = state.lob;
+      pruneAgentSelection();
+      renderAll();
+    },
+  });
+  setupMultiSelect({
+    wrapId:'agentFilterWrap', btnId:'agentFilterBtn', panelId:'agentFilterPanel', allLabel:'All Agents', search:true,
+    getOptionGroups: agentOptionGroups,
+    getSelected: () => state.agent,
+    setSelected: (arr) => { state.agent = arr; renderAll(); },
+  });
+  refreshTeamFilterUI();
+  refreshAgentFilterUI();
 
   s.addEventListener('change', () => { state.start = s.value; renderAll(); });
   e.addEventListener('change', () => { state.end = e.value; renderAll(); });
   lobSel.addEventListener('change', () => {
-    state.lob = lobSel.value; state.team = ''; state.agent = '';
-    rebuildTeamOptions(); rebuildAgentOptions(); renderAll();
+    state.lob = lobSel.value; state.team = []; state.agent = [];
+    refreshTeamFilterUI(); refreshAgentFilterUI(); renderAll();
   });
-  teamSel.addEventListener('change', () => {
-    state.team = teamSel.value; state.agent = '';
-    // Known ASR/Closer teams pin the LOB they belong to, so the two stay consistent. Teams outside
-    // that split (Support, Team Philip, Team High Ticket, Team King, Team Anne, ...) aren't
-    // exclusively ASR or Closer, so leave LOB on "All" and let each person's own row-level LOB
-    // decide what shows where instead of forcing a wrong bucket.
-    if (state.team) {
-      if (CLOSER_TEAMS.includes(state.team)) state.lob = 'Closer - Outbound';
-      else if (ASR_TEAMS.includes(state.team)) state.lob = 'ASR';
-      else state.lob = '';
-    }
-    lobSel.value = state.lob;
-    rebuildAgentOptions(); renderAll();
-  });
-  document.getElementById('agentFilter').addEventListener('change', (ev) => { state.agent = ev.target.value; renderAll(); });
 
   document.querySelectorAll('.preset-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
@@ -591,9 +782,9 @@ function initFilters(){
   });
 
   document.getElementById('resetBtn').addEventListener('click', ()=>{
-    s.value='2026-07-01'; e.value=ASOF; teamSel.value=''; lobSel.value='';
-    state = {start:s.value, end:e.value, lob:'', team:'', agent:''};
-    rebuildTeamOptions(); rebuildAgentOptions();
+    s.value='2026-07-01'; e.value=ASOF; lobSel.value='';
+    state = {start:s.value, end:e.value, lob:'', team:[], agent:[]};
+    refreshTeamFilterUI(); refreshAgentFilterUI();
     document.querySelectorAll('.preset-btn').forEach(b=>b.classList.toggle('active', b.dataset.preset==='all'));
     renderAll();
   });
@@ -613,53 +804,6 @@ function rebuildLobOptions(){
   const stillValid = [...sel.options].some(o=>o.value===prev);
   sel.value = stillValid ? prev : '';
   state.lob = sel.value;
-}
-
-function rebuildTeamOptions(){
-  const sel = document.getElementById('teamFilter');
-  const prev = state.team;
-  sel.innerHTML = '<option value="">All Teams</option>';
-  ALL_TEAMS.forEach(t => { const o=document.createElement('option'); o.value=t; o.textContent=t; sel.appendChild(o); });
-  // keep the current team selected if it's still a valid option, else clear it
-  const stillValid = [...sel.options].some(o=>o.value===prev);
-  sel.value = stillValid ? prev : '';
-  state.team = sel.value;
-}
-
-function rebuildAgentOptions(){
-  const sel = document.getElementById('agentFilter');
-  sel.innerHTML = '<option value="">All Agents</option>';
-  const roster = state.team ? LIVE_ROSTER.filter(r=>r.team===state.team) : LIVE_ROSTER;
-  const byName = (a,b) => a.name.localeCompare(b.name);
-  // A specific LOB is selected -- just list that LOB's people alphabetically, no need for the
-  // ASR/Closer/Other grouping split below (there's only one group once narrowed this far). This
-  // also makes any of the 13 real LOB values work correctly, not just ASR/Closer - Outbound.
-  if (state.lob) {
-    roster.filter(r=>r.lob===state.lob).sort(byName)
-      .forEach(r=>{ const o=document.createElement('option'); o.value=r.name; o.textContent=r.name; sel.appendChild(o); });
-    return;
-  }
-  // No LOB filter: keep the familiar grouped view. Internal Setter reps fall under "ASR /
-  // Setters" alongside ASR (both are SETTER_LOBS) rather than "Other", since that's the scope
-  // SETTER's tabs actually compute over when nothing more specific is picked.
-  const asrReps = roster.filter(r=>SETTER_LOBS.includes(r.lob)).sort(byName);
-  const closers = roster.filter(r=>r.lob==='Closer - Outbound').sort(byName);
-  const others = roster.filter(r=>!SETTER_LOBS.includes(r.lob) && r.lob!=='Closer - Outbound').sort(byName);
-  if (asrReps.length) {
-    const grp1 = document.createElement('optgroup'); grp1.label='ASR / Setters';
-    asrReps.forEach(r=>{ const o=document.createElement('option'); o.value=r.name; o.textContent=r.name; grp1.appendChild(o); });
-    sel.appendChild(grp1);
-  }
-  if (closers.length) {
-    const grp2 = document.createElement('optgroup'); grp2.label='Closers / PG1 Advisors';
-    closers.forEach(c=>{ const o=document.createElement('option'); o.value=c.name; o.textContent=c.name; grp2.appendChild(o); });
-    sel.appendChild(grp2);
-  }
-  if (others.length) {
-    const grp3 = document.createElement('optgroup'); grp3.label='Other (non-ASR/Closer)';
-    others.forEach(r=>{ const o=document.createElement('option'); o.value=r.name; o.textContent=r.name; grp3.appendChild(o); });
-    sel.appendChild(grp3);
-  }
 }
 
 function inRange(dateStr){
@@ -708,9 +852,9 @@ function trendForRange(){
   // of the static TEAM_MONTHLY snapshot that was only ever captured once early in this
   // dashboard's build and had since drifted from reality (e.g. Team Mimi's Sep MTD Sets read
   // 1,418 there against 1,539 live). An LOB-only selection (no team) still routes through here --
-  // state.team is passed through as-is ('' meaning "no team restriction") and teamRawAggBy /
-  // matchesLobFilter apply whichever of the two filters is actually set.
-  if (state.team || state.lob) {
+  // state.team is passed through as-is ([] meaning "no team restriction", possibly multiple teams
+  // selected) and teamRawAggBy / matchesLobFilter apply whichever of the two filters is actually set.
+  if (state.team.length || state.lob) {
     const teamDaily = teamDailyRowsFor(state.team);
     if (!teamDaily.length) {
       return { gran:'monthly', rows:[], chartRows:[], label:r=>r.month, teamScoped:true, teamScopedEmpty:true };
@@ -927,14 +1071,16 @@ function weekBeginningOf(dateStr){
   d.setDate(d.getDate() - (dow===0?6:dow-1)); // back to Monday
   return dstr(d);
 }
-// `team` may be '' to mean "no team restriction" (lob-only scoping) -- used by trendForRange()'s
-// scoped branch when only the LOB filter is active. LOB matching goes through matchesLobFilter()
-// (reads state.lob ambiently) rather than a hardcoded 'ASR' check, so this works for Internal
-// Setter and any other LOB too, not just ASR.
+// `team` accepts a single team name (renderASRTrend's per-team loop reports on one team at a
+// time), an array of names (state.team, now multi-select), or '' / [] to mean "no team
+// restriction" (lob-only scoping, used by trendForRange()'s scoped branch when only the LOB
+// filter is active). LOB matching goes through matchesLobFilter() (reads state.lob ambiently)
+// rather than a hardcoded 'ASR' check, so this works for Internal Setter and any other LOB too.
 function teamRawAggBy(team, keyFn){
+  const teamList = Array.isArray(team) ? team : (team ? [team] : []);
   const map = new Map();
   for(const r of RAW_SCHED){
-    if((team && r[1]!==team) || !matchesLobFilter(r[2])) continue;
+    if((teamList.length && !teamList.includes(r[1])) || !matchesLobFilter(r[2])) continue;
     const key = keyFn(r[3]);
     if(!map.has(key)) map.set(key, blankRawSums());
     addRawRow(map.get(key), r);
@@ -961,8 +1107,8 @@ function teamMonthlyRowsFor(team){
 function execChartRawAggBy(keyFn){
   const map = new Map();
   for(const r of RAW_SCHED){
-    if(state.team && r[1]!==state.team) continue;
-    if(state.agent && r[0]!==state.agent) continue;
+    if(!matchesTeamFilter(r[1])) continue;
+    if(!matchesAgentFilter(r[0])) continue;
     if(!matchesLobFilter(r[2])) continue;
     const key = keyFn(r[3]);
     if(!map.has(key)) map.set(key, blankRawSums());
@@ -1056,15 +1202,14 @@ function addCallSourceRatings(rows){
 function filteredReps(){
   if(state.lob === 'Closer - Outbound') return []; // ASR reps don't exist under the Closer LOB
   let reps = repRowsForRange();
-  if(state.team) reps = reps.filter(r=>r.team===state.team);
-  if(state.agent) reps = reps.filter(r=>r.name===state.agent);
+  reps = reps.filter(r=>matchesTeamFilter(r.team) && matchesAgentFilter(r.name));
   return reps;
 }
 function filteredClosers(){
   if(SETTER_LOBS.includes(state.lob)) return []; // closers don't exist under a SETTER-side LOB
   let c = closerRowsForRange();
-  if(state.team) c = c.filter(x=>x.team===state.team); // currently a no-op (all closers are Team Jen), kept for correctness
-  if(state.agent) c = c.filter(x=>x.name===state.agent);
+  // Team filter is currently a no-op (all closers are Team Jen), kept for correctness.
+  c = c.filter(x=>matchesTeamFilter(x.team) && matchesAgentFilter(x.name));
   return c;
 }
 
@@ -1400,8 +1545,8 @@ function buildMainTabBar(){
       // Team/Agent too so a selection from the other main tab's context doesn't linger (e.g. a
       // Closer team staying selected after switching to SETTER). rebuildLobOptions() clears
       // state.lob itself if it's no longer one of this main tab's allowed values.
-      state.team = ''; state.agent = '';
-      rebuildLobOptions(); rebuildTeamOptions(); rebuildAgentOptions();
+      state.team = []; state.agent = [];
+      rebuildLobOptions(); refreshTeamFilterUI(); refreshAgentFilterUI();
       renderAll();
     });
   });
@@ -1477,8 +1622,8 @@ function renderExecSummary(t){
         : (t.teamScopedEmpty
         ? `<div class="scope-banner blocked">⚠ <b>${scopeLabel()}</b> has no activity in Sched for this scope, so there's nothing to show here — try Rep per Metric / ASR Daily Metric, which include non-ASR teams too.</div>`
         : (t.teamScoped
-            ? `<div class="scope-banner">Scoped to <b>${scopeLabel()}</b> — computed live from Sched's matching rows (same Daily/Weekly/Monthly cascade as the company-wide view).${state.agent?` The Agent filter (<b>${state.agent}</b>) doesn't narrow this further — see Rep per Metric for that person's own totals.`:''}</div>`
-            : (state.agent ? `<div class="scope-banner">The Agent filter (<b>${state.agent}</b>) doesn't narrow this company-wide trend — see Rep per Metric for that person's own totals.</div>` : ''))));
+            ? `<div class="scope-banner">Scoped to <b>${scopeLabel()}</b> — computed live from Sched's matching rows (same Daily/Weekly/Monthly cascade as the company-wide view).${state.agent.length?` The Agent filter (<b>${agentLabel()}</b>) doesn't narrow this further — see Rep per Metric for that person's own totals.`:''}</div>`
+            : (state.agent.length ? `<div class="scope-banner">The Agent filter (<b>${agentLabel()}</b>) doesn't narrow this company-wide trend — see Rep per Metric for that person's own totals.</div>` : ''))));
   p.innerHTML = `
     ${scopeBanner}
     <div class="metrics-container">
@@ -1559,7 +1704,7 @@ function getVar(name){ return getComputedStyle(document.body).getPropertyValue(n
 const ASR_TREND_TEAM_COLORS = ['--s-blue','--s-orange','--s-aqua','--s-yellow','--s-magenta','--s-violet'];
 function renderASRTrend(t){
   const p = document.getElementById('panel-1');
-  const teamsToShow = (state.lob === 'Closer - Outbound') ? [] : (state.team ? [state.team] : ALL_TEAMS);
+  const teamsToShow = (state.lob === 'Closer - Outbound') ? [] : (state.team.length ? state.team : ALL_TEAMS);
   // Live per-team Monthly, computed from RAW_SCHED (see teamMonthlyRowsFor) instead of the static
   // TEAM_MONTHLY snapshot -- that snapshot was only ever captured once early in this dashboard's
   // build and drifted from reality, and only ever covered the original 3 ASR teams.
@@ -1591,7 +1736,7 @@ function renderASRTrend(t){
     ? `<div class="scope-banner blocked">⚠ LOB is set to Closer, but this is the ASR team trend — switch LOB to ASR or All to see it.</div>`
     : (noDataYet
         ? `<div class="scope-banner blocked">⚠ No data yet for this range — Sched's latest posted day for the selected team(s) is <b>${teamsMaxDate}</b>. The tiles below are showing 0, not a different period's totals.</div>`
-        : (state.agent ? `<div class="scope-banner">The Agent filter (<b>${state.agent}</b>) doesn't narrow this team trend — see Rep per Metric for that person's own totals.</div>` : ''));
+        : (state.agent.length ? `<div class="scope-banner">The Agent filter (<b>${agentLabel()}</b>) doesn't narrow this team trend — see Rep per Metric for that person's own totals.</div>` : ''));
 
   p.innerHTML = `
     ${scopeBanner}
@@ -1645,7 +1790,7 @@ function renderCloserTrend(){
     ? `<div class="scope-banner blocked">⚠ ${ct.blockedReason}</div>`
     : (ct.noDataYet
         ? `<div class="scope-banner blocked">⚠ No data yet for this range — Sched's latest posted day is <b>${ct.noDataYetMax}</b>. The tiles below are showing 0, not a different period's totals.</div>`
-        : (state.agent ? `<div class="scope-banner">The Agent filter (<b>${state.agent}</b>) doesn't narrow this company-wide trend — see Closers Metric for that person's own totals.</div>` : ''));
+        : (state.agent.length ? `<div class="scope-banner">The Agent filter (<b>${agentLabel()}</b>) doesn't narrow this company-wide trend — see Closers Metric for that person's own totals.</div>` : ''));
   p.innerHTML = `
     ${scopeBanner}
     <div class="metrics-container">
@@ -1751,11 +1896,11 @@ function renderASRDailyMetric(){
   const avgKeys = ['warmT','ibWarmT','obWarmT','showRate','ibShowRate','obShowRate',
     'bookingRate','ibBookingRate','obBookingRate','connectRate'];
   let rows = [];
-  const teamsToShow = (state.lob === 'Closer - Outbound') ? [] : (state.team ? [state.team] : ALL_TEAMS);
+  const teamsToShow = (state.lob === 'Closer - Outbound') ? [] : (state.team.length ? state.team : ALL_TEAMS);
   const allReps = repRowsForRange();
   teamsToShow.forEach(team=>{
     let reps = allReps.filter(r=>r.team===team);
-    if(state.agent) reps = reps.filter(r=>r.name===state.agent);
+    reps = reps.filter(r=>matchesAgentFilter(r.name));
     if(!reps.length) return;
     rows = rows.concat(reps);
     const subtotal = {team, name: team+' Total', _subtotal:true};
@@ -1774,8 +1919,7 @@ let brSlicerState = { strongWeak: '', obRating: '' };
 function renderCallSourceBR(){
   const p = document.getElementById('panel-4');
   let rows = state.lob === 'Closer - Outbound' ? [] : callSourceRowsForRange();
-  if(state.team) rows = rows.filter(r=>r.team===state.team);
-  if(state.agent) rows = rows.filter(r=>r.name===state.agent);
+  rows = rows.filter(r=>matchesTeamFilter(r.team) && matchesAgentFilter(r.name));
   rows = addCallSourceRatings(rows);
 
   // Slicer options come from whatever combos actually exist in the currently-scoped rows (before

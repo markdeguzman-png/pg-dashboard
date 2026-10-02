@@ -601,7 +601,7 @@ const TABS = [
 const CLOSER_LOBS = ['Closer', 'Closer - Outbound'];
 function isCloserLob(lob){ return CLOSER_LOBS.includes(lob); }
 const MAIN_TABS = [
-  { name: 'SETTER', tabIndices: [0,3,4], lobs: ['ASR','Internal Setter'] },
+  { name: 'SETTER', tabIndices: [0,3,4], lobs: ['ASR','Internal Setter','FP'] },
   { name: 'CLOSER', tabIndices: [5,6], lobs: CLOSER_LOBS },
 ];
 let activeMainTab = 0;
@@ -612,9 +612,9 @@ const SERIES_COLORS = ['var(--s-blue)','var(--s-orange)','var(--s-aqua)','var(--
 let state = { start:null, end:null, lob:'', team:[], agent:[] };
 let sortState = {}; // per table id -> {col, dir}
 
-// SETTER's default LOB scope when nothing specific is picked from the dropdown -- ASR and
-// Internal Setter both genuinely contribute Sets, so "All LOBs" under SETTER should mean "both
-// of those", not silently collapse to ASR-only the way several of these filters used to.
+// SETTER's default LOB scope when nothing specific is picked from the dropdown -- ASR, Internal
+// Setter, and FP all genuinely contribute Sets, so "All LOBs" under SETTER should mean all three,
+// not silently collapse to ASR-only the way several of these filters used to.
 const SETTER_LOBS = MAIN_TABS[0].lobs;
 // Every row-filtering function below (Rep per Metric, BR % per Call Source, ASR Trend View,
 // Executive Summary Trend's team/lob-scoped path) should go through this instead of hardcoding

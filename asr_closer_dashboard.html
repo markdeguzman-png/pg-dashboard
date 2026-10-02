@@ -248,6 +248,7 @@
   }
   html[data-theme="light"] th.sticky-col{ background:#F0ECE8; }
   html[data-theme="light"] td.sticky-col{ background:#FFFFFF; }
+  html[data-theme="light"] tbody tr.subtotal td.sticky-col{ background:linear-gradient(rgba(217,43,0,0.08),rgba(217,43,0,0.08)),#FFFFFF; }
   html[data-theme="light"] table thead th{ background:#F0ECE8; color:var(--white); }
   html[data-theme="light"] table tbody tr:nth-child(even){ background:rgba(0,0,0,0.02); }
   html[data-theme="light"] .chart-card{ background:#FFFFFF; border:1px solid var(--line); }
@@ -1362,6 +1363,12 @@ function callSourceRowsForRange(){
     obCalls: o.obCalls, obBookingRate: o.obCalls90s ? o.obSets/o.obCalls90s*100 : 0,
     obConnectRate: o.obCalls ? o.obCalls90s/o.obCalls*100 : 0,
     sets: o.sets, bookingRate: o.calls90s ? o.sets/o.calls90s*100 : 0,
+    // Raw numerators/denominators behind the ratios above -- not shown as their own columns, kept
+    // only so the Grand Total row can recompute each rate as a true ratio-of-sums instead of an
+    // average-of-rates (which would misweight reps with very different call volumes).
+    ivr1Sets: o.ivr1Sets, ivr2Sets: o.ivr2Sets, ivr3Sets: o.ivr3Sets, ivr4Sets: o.ivr4Sets,
+    ibSets: o.ibSets, ibCalls90s: o.ibCalls90s, obSets: o.obSets, obCalls90s: o.obCalls90s,
+    calls90s: o.calls90s,
   }));
 }
 
@@ -1683,6 +1690,12 @@ function renderTable(tableId, rows, cols, opts){
     const cls = opts.rowClass ? opts.rowClass(r) : '';
     return `<tr class="${cls}">` + cols.map(c=> `<td${c.sticky?' class="sticky-col"':''}>${c.fmt ? c.fmt(r[c.key], r) : (r[c.key] ?? '')}</td>`).join('') + '</tr>';
   }).join('');
+  // A footer row (e.g. Grand Total) stays pinned at the end regardless of sort clicks -- it's
+  // appended straight to the DOM after `sorted`, never part of the array renderTable()'s own
+  // click handler re-sorts, so clicking a header can't shuffle it into the middle of the data.
+  if(opts.footerRow){
+    tbody.innerHTML += `<tr class="subtotal">` + cols.map(c=> `<td${c.sticky?' class="sticky-col"':''}>${c.fmt ? c.fmt(opts.footerRow[c.key], opts.footerRow) : (opts.footerRow[c.key] ?? '')}</td>`).join('') + '</tr>';
+  }
 
   // Frozen columns: left-offset uses each column's declared `width` (c.width, default 130px),
   // NOT a measured getBoundingClientRect() -- this dashboard pre-renders every tab's table while
@@ -2217,6 +2230,31 @@ function renderCallSourceBR(){
   document.getElementById('brSlicerObRating').addEventListener('change', (ev)=>{
     brSlicerState.obRating = ev.target.value; renderCallSourceBR();
   });
+  // Grand Total: every rate recomputed as a true ratio-of-sums across whatever rows are currently
+  // shown (post-slicer) -- not an average of each rep's own rate, which would misweight reps with
+  // very different call volumes. OB BR Rating is a quartile RANK among reps, so it has no
+  // meaningful value for the total itself and is shown as "—".
+  const gtIvr1Calls=sum(filteredRows,'ivr1Calls'), gtIvr1Sets=sum(filteredRows,'ivr1Sets');
+  const gtIvr2Calls=sum(filteredRows,'ivr2Calls'), gtIvr2Sets=sum(filteredRows,'ivr2Sets');
+  const gtIvr3Calls=sum(filteredRows,'ivr3Calls'), gtIvr3Sets=sum(filteredRows,'ivr3Sets');
+  const gtIvr4Calls=sum(filteredRows,'ivr4Calls'), gtIvr4Sets=sum(filteredRows,'ivr4Sets');
+  const gtIbCalls=sum(filteredRows,'ibCalls'), gtIbSets=sum(filteredRows,'ibSets'), gtIbCalls90s=sum(filteredRows,'ibCalls90s');
+  const gtObCalls=sum(filteredRows,'obCalls'), gtObSets=sum(filteredRows,'obSets'), gtObCalls90s=sum(filteredRows,'obCalls90s');
+  const gtSets=sum(filteredRows,'sets'), gtCalls90s=sum(filteredRows,'calls90s');
+  const gtIbBookingRate = gtIbCalls90s ? gtIbSets/gtIbCalls90s*100 : 0;
+  const gtObBookingRate = gtObCalls90s ? gtObSets/gtObCalls90s*100 : 0;
+  const grandTotal = {
+    team:'', name:'Grand Total',
+    ivr1Calls:gtIvr1Calls, ivr1BR: gtIvr1Calls?gtIvr1Sets/gtIvr1Calls*100:0,
+    ivr2Calls:gtIvr2Calls, ivr2BR: gtIvr2Calls?gtIvr2Sets/gtIvr2Calls*100:0,
+    ivr3Calls:gtIvr3Calls, ivr3BR: gtIvr3Calls?gtIvr3Sets/gtIvr3Calls*100:0,
+    ivr4Calls:gtIvr4Calls, ivr4BR: gtIvr4Calls?gtIvr4Sets/gtIvr4Calls*100:0,
+    ibCalls:gtIbCalls, ibBookingRate:gtIbBookingRate, ibConnectRate: gtIbCalls?gtIbCalls90s/gtIbCalls*100:0,
+    obCalls:gtObCalls, obBookingRate:gtObBookingRate, obConnectRate: gtObCalls?gtObCalls90s/gtObCalls*100:0,
+    sets:gtSets, bookingRate: gtCalls90s?gtSets/gtCalls90s*100:0,
+    strongWeakBR: (gtIbBookingRate>=35?'Strong IB':'Weak IB') + ' - ' + (gtObBookingRate>=45?'Strong OB':'Weak OB'),
+    obBRRating: '—',
+  };
   renderTable('tbl-br', filteredRows, [
     {key:'team', label:'Current Team', sticky:true, width:120}, {key:'name', label:'Name', sticky:true, width:170},
     {key:'ivr1Calls', label:'IVR1 Calls'}, {key:'ivr1BR', label:'IVR1 Booking %', fmt:fmtPct},
@@ -2227,7 +2265,7 @@ function renderCallSourceBR(){
     {key:'obCalls', label:'OB Calls'}, {key:'obBookingRate', label:'OB Booking %', fmt:fmtPct}, {key:'obConnectRate', label:'OB Connect %', fmt:fmtPct},
     {key:'sets', label:'Sets'}, {key:'bookingRate', label:'Booking Rate', fmt:fmtPct},
     {key:'strongWeakBR', label:'Strong-Weak BR %'}, {key:'obBRRating', label:'OB BR Rating'},
-  ]);
+  ], { footerRow: grandTotal });
 }
 
 // init

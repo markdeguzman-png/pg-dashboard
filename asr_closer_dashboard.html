@@ -1145,14 +1145,18 @@ function execMetricSeries(metricKey, fmt){
     {key: 'ob'+cap, name:'OB', color:getVar('--s-aqua'), fmt},
   ];
 }
-// The 4 metrics Executive Summary Trend charts as Monthly/Weekly/Daily trios. `stacked` is only
-// set on Sets -- it's the one additive metric here where IB + OB actually sums to Total; stacking
+// The 5 metrics Executive Summary Trend charts as Monthly/Weekly/Daily trios. `stacked` is only
+// set on Sets -- it's the one additive metric here where IB + OB reliably sums to Total; stacking
 // the percentage metrics would misrepresent them (see groupedColumnChart's opts.stacked note).
+// Revenue is additive too, but daily rows don't always carry a full IB/OB split in the source
+// (IB+OB can undercount Total on some days), so it's grouped rather than stacked to avoid a
+// stacked bar visibly falling short of its own Total.
 const EXEC_CHART_METRICS = [
   {id:'sets', key:'sets', label:'Sets', fmt:fmtInt, stacked:true},
   {id:'warmt', key:'warmT', label:'Warm Transfer %', fmt:fmtPct},
   {id:'showrate', key:'showRate', label:'Show Rate %', fmt:fmtPct},
   {id:'bookingrate', key:'bookingRate', label:'Booking Rate %', fmt:fmtPct},
+  {id:'revenue', key:'revenue', label:'Upfront Revenue', fmt:fmtMoney},
 ];
 let EXEC_CHART_DAILY_N = 30; // dropped to 10 below if 30 points reads as too crowded
 
@@ -1754,8 +1758,6 @@ function execKpiTilesHtml(t){
 
 function renderExecSummary(t){
   const p = document.getElementById('panel-0');
-  const rows = t.rows;
-  const chartWindowNote = t.gran==='daily' ? `last ${t.chartRows.length} days` : (t.gran==='weekly' ? `last ${t.chartRows.length} weeks` : `last ${t.chartRows.length} months`);
   const scopeBanner = t.blocked
     ? `<div class="scope-banner blocked">⚠ ${t.blockedReason}</div>`
     : (t.noDataYet
@@ -1768,8 +1770,8 @@ function renderExecSummary(t){
   p.innerHTML = `
     ${scopeBanner}
     ${execKpiTilesHtml(t)}
-    <div class="section-title">Sets, Warm Transfer %, Show Rate %, Booking Rate % — Monthly / Weekly / Daily</div>
-    <div class="note">These 12 charts are NOT affected by the Date Range filter above -- they always show the latest 3 months / 6 weeks / ${EXEC_CHART_DAILY_N} days. Team and Agent filters do apply, same as the rest of this tab.</div>
+    <div class="section-title">Sets, Warm Transfer %, Show Rate %, Booking Rate %, Upfront Revenue — Monthly / Weekly / Daily</div>
+    <div class="note">These 15 charts are NOT affected by the Date Range filter above -- they always show the latest 3 months / 6 weeks / ${EXEC_CHART_DAILY_N} days. Team and Agent filters do apply, same as the rest of this tab.</div>
     ${EXEC_CHART_METRICS.map(m => `
     <div class="chart-row">
       <div class="chart-card">
@@ -1790,13 +1792,8 @@ function renderExecSummary(t){
         <div id="chart-exec-${m.id}-d"></div>
       </div>
     </div>`).join('')}
-    <div class="chart-card">
-      <h3>Upfront Revenue over time <span style="color:var(--gray); font-weight:400; text-transform:none; letter-spacing:0">(${chartWindowNote})</span></h3>
-      <div class="legend"><span><i style="background:var(--s-aqua)"></i>Revenue ($)</span></div>
-      <div id="chart-exec-rev"></div>
-    </div>
     <div class="section-title">Period detail — all 26 metrics, as shown on the sheet</div>
-    <div class="note">Daily rows don't carry an IB/OB Revenue split in the source (only Weekly/Monthly do) — shown as "—". The table below reflects your exact date selection; the Revenue chart above always shows the fuller ${chartWindowNote} trend so the line reads clearly.</div>
+    <div class="note">Static last ${EXEC_CHART_DAILY_N} days, NOT affected by the Date Range filter above (same window and formulas as the Daily charts) -- Team, LOB, and Agent filters do apply.</div>
     <div class="table-section"><table><thead id="tbl-exec-head"></thead><tbody id="tbl-exec-body"></tbody></table></div>
   `;
   const execMonthly = execChartMonthlyRows().slice(-3);
@@ -1820,10 +1817,8 @@ function renderExecSummary(t){
     lineChart(`chart-exec-${m.id}-w`, execWeekly, series, weekLbl, {showValues:'all'});
     lineChart(`chart-exec-${m.id}-d`, execDaily, series, dayLbl, {showValues:'last'});
   });
-  lineChart('chart-exec-rev', t.chartRows, [{key:'revenue', name:'Revenue', color:getVar('--s-aqua'), fmt:fmtMoney}], t.label);
-  const periodLabel = t.gran==='daily'?'Date':(t.gran==='weekly'?'Week Beginning':'Month');
-  const cols = fullMetricCols('period', periodLabel);
-  const withPeriod = rows.map(r=>({...r, period: t.label(r)}));
+  const cols = fullMetricCols('period', 'Date');
+  const withPeriod = execDaily.map(r=>({...r, period: r.date}));
   renderTable('tbl-exec', withPeriod, cols);
 }
 

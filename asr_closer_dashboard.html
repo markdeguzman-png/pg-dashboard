@@ -1190,6 +1190,64 @@ function closerCompanyTotals(startStr, endStr){
   };
 }
 
+// Fixed-window aggregation for CLOSER Trend View's per-metric Monthly/Weekly/Daily chart trio --
+// mirrors execChartRawAggBy()/repMetrics26() above (Executive Summary Trend's equivalent), but
+// scoped to the Closer LOB and Closer's own fields (no IB/OB split -- Closer doesn't have an
+// inbound/outbound breakdown the way ASR/Setter does). Ignores Date Range entirely; Team/Agent do
+// apply, same as the rest of this tab.
+function closerChartRawAggBy(keyFn){
+  const map = new Map();
+  for(const r of RAW_SCHED){
+    if(!isCloserLob(r[2])) continue;
+    if(!matchesTeamFilter(r[1])) continue;
+    if(!matchesAgentFilter(r[0])) continue;
+    const key = keyFn(r[3]);
+    if(!map.has(key)) map.set(key, {show:0, apptsLessCancelled:0, closedDeal:0, revenue:0, rs1:0, clubs:0, pg1:0});
+    const o = map.get(key);
+    o.show += r[26]; o.apptsLessCancelled += r[40]; o.closedDeal += r[27];
+    o.revenue += r[28]; o.rs1 += r[41]; o.clubs += r[30]; o.pg1 += r[31];
+  }
+  return map;
+}
+function closerPeriodMetrics(o){
+  return {
+    show: o.show,
+    showRate: o.apptsLessCancelled ? o.show/o.apptsLessCancelled*100 : 0,
+    closeRate: o.show ? o.closedDeal/o.show*100 : 0,
+    revenue: o.revenue,
+    aov: o.closedDeal ? o.revenue/o.closedDeal : 0,
+    rs1: o.rs1,
+    clubs: o.clubs - o.rs1,
+    pg1: o.pg1,
+  };
+}
+function closerChartDailyRows(){
+  return Array.from(closerChartRawAggBy(d=>d).entries())
+    .map(([date,sums])=>({date, ...closerPeriodMetrics(sums)})).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
+}
+function closerChartWeeklyRows(){
+  return Array.from(closerChartRawAggBy(weekBeginningOf).entries())
+    .map(([weekBeginning,sums])=>({weekBeginning, ...closerPeriodMetrics(sums)})).sort((a,b)=>a.weekBeginning<b.weekBeginning?-1:a.weekBeginning>b.weekBeginning?1:0);
+}
+function closerChartMonthlyRows(){
+  return Array.from(closerChartRawAggBy(d=>d.slice(0,7)).entries())
+    .map(([month,sums])=>({month, ...closerPeriodMetrics(sums)})).sort((a,b)=>a.month<b.month?-1:a.month>b.month?1:0);
+}
+function closerMetricSeries(metricKey, fmt){
+  return [{key: metricKey, name:'Total', color:getVar('--s-orange'), fmt}];
+}
+const CLOSER_CHART_METRICS = [
+  {id:'show', key:'show', label:'Closer Show', fmt:fmtInt},
+  {id:'showrate', key:'showRate', label:'Closer Show Rate %', fmt:fmtPct},
+  {id:'closerate', key:'closeRate', label:'Closer Closed Rate %', fmt:fmtPct},
+  {id:'revenue', key:'revenue', label:'Closer Upfront Revenue $', fmt:fmtMoney},
+  {id:'aov', key:'aov', label:'Closer AOV $', fmt:fmtMoney},
+  {id:'rs1', key:'rs1', label:'RS1', fmt:fmtInt},
+  {id:'clubs', key:'clubs', label:'Clubs', fmt:fmtInt},
+  {id:'pg1', key:'pg1', label:'PG1', fmt:fmtInt},
+];
+let CLOSER_CHART_DAILY_N = 30;
+
 function callSourceRowsForRange(){
   return rawSchedAggForRange().filter(o=>matchesLobFilter(o.lob)).map(o=>({
     team: o.team, name: o.name,
@@ -1871,6 +1929,26 @@ function renderCloserTrend(){
       ${kpiTile('PG1', fmtInt(curr?.pg1||0), curr?deltaSub(curr.pg1, prev.pg1):'')}
     </div>
     <div class="note">Tiles: exact sums for ${state.start} → ${state.end} vs the equivalent prior period (${prevStart} → ${prevEnd}), computed live from Sched (covers ${RAW_SCHED_MIN_DATE} → ${RAW_SCHED_MAX_DATE}). Chart/table below show ${ct.gran} granularity from the sheet's own captured snapshot${ct.exactMonth ? ' — a whole-month selection, using the sheet\'s real Monthly figure directly.' : ' (Daily is a captured 10-day sample; wider or older ranges fall back to Weekly/Monthly, preferring the sheet\'s real Monthly total whenever the range is a full month).'}</div>
+    <div class="section-title">Closer Show, Show Rate %, Closed Rate %, Upfront Revenue $, AOV $, RS1, Clubs, PG1 — Monthly / Weekly / Daily</div>
+    <div class="note">These 24 charts are NOT affected by the Date Range filter above -- they always show the latest 3 months / 6 weeks / ${CLOSER_CHART_DAILY_N} days. Team and Agent filters do apply, same as the rest of this tab.</div>
+    ${CLOSER_CHART_METRICS.map(m => `
+    <div class="chart-row">
+      <div class="chart-card">
+        <h3>${m.label} — Monthly <span style="color:var(--gray); font-weight:400; text-transform:none; letter-spacing:0">(last 3 months)</span></h3>
+        <div class="legend"><span><i style="background:var(--s-orange)"></i>${m.label}</span></div>
+        <div id="chart-closer-${m.id}-m"></div>
+      </div>
+      <div class="chart-card">
+        <h3>${m.label} — Weekly <span style="color:var(--gray); font-weight:400; text-transform:none; letter-spacing:0">(last 6 weeks)</span></h3>
+        <div class="legend"><span><i style="background:var(--s-orange)"></i>${m.label}</span></div>
+        <div id="chart-closer-${m.id}-w"></div>
+      </div>
+      <div class="chart-card">
+        <h3>${m.label} — Daily <span style="color:var(--gray); font-weight:400; text-transform:none; letter-spacing:0">(last ${CLOSER_CHART_DAILY_N} days)</span></h3>
+        <div class="legend"><span><i style="background:var(--s-orange)"></i>${m.label}</span></div>
+        <div id="chart-closer-${m.id}-d"></div>
+      </div>
+    </div>`).join('')}
     <div class="chart-card">
       <h3>Products Sold &amp; Closed Deal over time <span style="color:var(--gray); font-weight:400; text-transform:none; letter-spacing:0">(${chartWindowNote})</span></h3>
       <div class="legend"><span><i style="background:var(--s-orange)"></i>Products Sold</span><span><i style="background:var(--s-blue)"></i>Closed Deal</span></div>
@@ -1887,6 +1965,18 @@ function renderCloserTrend(){
     <div class="section-title">Period detail — all 10 metrics, as shown on the sheet</div>
     <div class="table-section"><table><thead id="tbl-closertrend-head"></thead><tbody id="tbl-closertrend-body"></tbody></table></div>
   `;
+  const closerMonthly = closerChartMonthlyRows().slice(-3);
+  const closerWeekly = closerChartWeeklyRows().slice(-6);
+  const closerDaily = closerChartDailyRows().slice(-CLOSER_CHART_DAILY_N);
+  const closerMonthLbl = r => r.month.slice(5)+'/'+r.month.slice(2,4);
+  const closerWeekLbl = r => 'WB '+r.weekBeginning.slice(5);
+  const closerDayLbl = r => r.date.slice(5);
+  CLOSER_CHART_METRICS.forEach(m => {
+    const series = closerMetricSeries(m.key, m.fmt);
+    groupedColumnChart(`chart-closer-${m.id}-m`, closerMonthly, series, closerMonthLbl, {showValues:true});
+    lineChart(`chart-closer-${m.id}-w`, closerWeekly, series, closerWeekLbl, {showValues:'all'});
+    lineChart(`chart-closer-${m.id}-d`, closerDaily, series, closerDayLbl, {showValues:'last'});
+  });
   lineChart('chart-closer-trend', ct.chartRows, [
     {key:'productsSold', name:'Products Sold', color:getVar('--s-orange')},
     {key:'closedDeal', name:'Closed Deal', color:getVar('--s-blue')},

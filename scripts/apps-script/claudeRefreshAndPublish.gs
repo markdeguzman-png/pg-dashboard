@@ -63,7 +63,13 @@ function claudeRefreshAndPublish() {
 // ---- Sheets API pull (same retry-with-backoff as the original claudeExportSchedSnapshot) ----
 function fetchSchedValues_() {
   var sourceId = '1pcsC28bwL0_5S0oa65LHXHJTRgNFT4rO-bqpszvDmD8';
-  var range = 'Sched!A1:CI8500';
+  // Open-ended row (no trailing row number) instead of a hardcoded cap like 'A1:CI8500' -- Sched
+  // grows by a few hundred rows a day, so any fixed cap WILL eventually sit below the sheet's
+  // real row count and silently truncate the most recent days (the exact symptom investigated
+  // 2026-10-03: a Completed, error-free run that kept reading an unchanging slice of old data).
+  // The Sheets API returns only the populated extent of an open-ended range, so this has no
+  // practical ceiling and never needs revisiting as Sched keeps growing.
+  var range = 'Sched!A1:CI';
   var url = 'https://sheets.googleapis.com/v4/spreadsheets/' + sourceId +
     '/values/' + encodeURIComponent(range) + '?valueRenderOption=FORMATTED_VALUE';
   var token = ScriptApp.getOAuthToken();

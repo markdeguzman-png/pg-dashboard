@@ -2257,14 +2257,15 @@ function renderCallSourceBR(){
   };
   renderTable('tbl-br', filteredRows, [
     {key:'team', label:'Current Team', sticky:true, width:120}, {key:'name', label:'Name', sticky:true, width:170},
+    {key:'strongWeakBR', label:'Strong-Weak BR %'}, {key:'obBRRating', label:'OB BR Rating'},
+    {key:'sets', label:'Sets'}, {key:'bookingRate', label:'Booking Rate', fmt:fmtPct},
+    {key:'ibBookingRate', label:'IB Booking %', fmt:fmtPct}, {key:'obBookingRate', label:'OB Booking %', fmt:fmtPct},
     {key:'ivr1Calls', label:'IVR1 Calls'}, {key:'ivr1BR', label:'IVR1 Booking %', fmt:fmtPct},
     {key:'ivr2Calls', label:'IVR2 Calls'}, {key:'ivr2BR', label:'IVR2 Booking %', fmt:fmtPct},
     {key:'ivr3Calls', label:'IVR3 Calls'}, {key:'ivr3BR', label:'IVR3 Booking %', fmt:fmtPct},
     {key:'ivr4Calls', label:'IVR4 Calls'}, {key:'ivr4BR', label:'IVR4 Booking %', fmt:fmtPct},
-    {key:'ibCalls', label:'IB Calls'}, {key:'ibBookingRate', label:'IB Booking %', fmt:fmtPct}, {key:'ibConnectRate', label:'IB Connect %', fmt:fmtPct},
-    {key:'obCalls', label:'OB Calls'}, {key:'obBookingRate', label:'OB Booking %', fmt:fmtPct}, {key:'obConnectRate', label:'OB Connect %', fmt:fmtPct},
-    {key:'sets', label:'Sets'}, {key:'bookingRate', label:'Booking Rate', fmt:fmtPct},
-    {key:'strongWeakBR', label:'Strong-Weak BR %'}, {key:'obBRRating', label:'OB BR Rating'},
+    {key:'ibCalls', label:'IB Calls'}, {key:'ibConnectRate', label:'IB Connect %', fmt:fmtPct},
+    {key:'obCalls', label:'OB Calls'}, {key:'obConnectRate', label:'OB Connect %', fmt:fmtPct},
   ], { footerRow: grandTotal });
 }
 

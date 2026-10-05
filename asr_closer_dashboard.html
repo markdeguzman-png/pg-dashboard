@@ -205,6 +205,7 @@
   th:hover{ color:var(--orange); }
   th.sorted::after{ content:' ▾'; color:var(--orange); }
   td{ padding:9px 12px; border-bottom:1px solid var(--line); color:var(--white); white-space:nowrap; font-variant-numeric:tabular-nums; }
+  tbody tr:nth-child(even){ background:rgba(255,255,255,0.035); }
   tbody tr:hover{ background:rgba(253,51,0,0.07); }
   tbody tr.subtotal{ background:rgba(253,51,0,0.10); font-weight:700; }
   /* Frozen/sticky columns for wide tables -- left offset is computed per-table in JS (actual
@@ -212,6 +213,7 @@
      background so scrolling content doesn't show through underneath. */
   th.sticky-col{ position:sticky; z-index:3; background:#3a3a3a; box-shadow:2px 0 4px rgba(0,0,0,0.3); overflow:hidden; text-overflow:ellipsis; }
   td.sticky-col{ position:sticky; z-index:1; background:#242424; box-shadow:2px 0 4px rgba(0,0,0,0.3); overflow:hidden; text-overflow:ellipsis; }
+  tbody tr:nth-child(even) td.sticky-col{ background:linear-gradient(rgba(255,255,255,0.035),rgba(255,255,255,0.035)),#242424; }
   tbody tr.subtotal td.sticky-col{ background:linear-gradient(rgba(253,51,0,0.10),rgba(253,51,0,0.10)),#242424; }
   .no-data{ text-align:center; padding:40px 20px; color:var(--gray); }
   .pill{ padding:2px 8px; border-radius:10px; font-size:10.5px; font-weight:700; }
@@ -248,9 +250,10 @@
   }
   html[data-theme="light"] th.sticky-col{ background:#F0ECE8; }
   html[data-theme="light"] td.sticky-col{ background:#FFFFFF; }
+  html[data-theme="light"] tbody tr:nth-child(even) td.sticky-col{ background:linear-gradient(rgba(0,0,0,0.035),rgba(0,0,0,0.035)),#FFFFFF; }
   html[data-theme="light"] tbody tr.subtotal td.sticky-col{ background:linear-gradient(rgba(217,43,0,0.08),rgba(217,43,0,0.08)),#FFFFFF; }
   html[data-theme="light"] table thead th{ background:#F0ECE8; color:var(--white); }
-  html[data-theme="light"] table tbody tr:nth-child(even){ background:rgba(0,0,0,0.02); }
+  html[data-theme="light"] table tbody tr:nth-child(even){ background:rgba(0,0,0,0.035); }
   html[data-theme="light"] .chart-card{ background:#FFFFFF; border:1px solid var(--line); }
   html[data-theme="light"] .scope-banner{ background:#FFF4E5; color:#7A4A00; border-color:#F0C97A; }
   html[data-theme="light"] .scope-banner.blocked{ background:#FDEAEA; color:#8A1F1F; border-color:#F0AFAF; }

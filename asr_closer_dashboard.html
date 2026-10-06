@@ -2129,6 +2129,9 @@ function renderClosersMetric(){
     <div class="note">Computed live from Sched's per-rep-per-day records (periodically refreshed from Sched, covers ${RAW_SCHED_MIN_DATE} → ${RAW_SCHED_MAX_DATE}; the most recent ~week can still revise as Sched backfills -- treat it as provisional) — exact sums for the selected Date Range / Team / Agent, not a fixed snapshot. Click a column header to sort.</div>
     <div class="table-section"><table><thead id="tbl-closers-head"></thead><tbody id="tbl-closers-body"></tbody></table></div>
   `;
+  // Default sort: Upfront Revenue descending, until the user clicks a column header to choose
+  // their own (renderTable persists sortState per table id, so this only ever applies once).
+  if(!sortState['tbl-closers']) sortState['tbl-closers'] = {col:'revenue', dir:-1};
   renderTable('tbl-closers', closers, [
     {key:'team', label:'Team'}, {key:'name', label:'Name'},
     {key:'revenue', label:'Upfront Revenue', fmt:fmtMoney}, {key:'aov', label:'AOV $', fmt:fmtMoney},

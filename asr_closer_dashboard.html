@@ -1312,21 +1312,29 @@ function closerChartRawAggBy(keyFn){
     if(!matchesTeamFilter(r[1])) continue;
     if(!matchesAgentFilter(r[0])) continue;
     const key = keyFn(r[3]);
-    if(!map.has(key)) map.set(key, {show:0, apptsLessCancelled:0, closedDeal:0, revenue:0, rs1:0, clubs:0, pg1:0});
+    if(!map.has(key)) map.set(key, {appt:0, productsSold:0, show:0, apptsLessCancelled:0, closedDeal:0, revenue:0, rs1:0, clubs:0, pg1:0});
     const o = map.get(key);
+    o.appt += r[25]; o.productsSold += r[29];
     o.show += r[26]; o.apptsLessCancelled += r[40]; o.closedDeal += r[27];
     o.revenue += r[28]; o.rs1 += r[41]; o.clubs += r[30]; o.pg1 += r[31];
   }
   return map;
 }
+// Returns both the chart trio's 8 metric keys (show/showRate/closeRate/revenue/aov/rs1/clubs/pg1)
+// and the Period detail table's 10 column keys (productsSold/appointments/apptsLessCancelled/
+// shows/showRate/closedDeal/closeRate/revenue/aov/rs1Putter) off the same underlying sums, so both
+// views stay consistent with each other.
 function closerPeriodMetrics(o){
   return {
-    show: o.show,
+    appointments: o.appt, productsSold: o.productsSold,
+    show: o.show, shows: o.show,
+    apptsLessCancelled: o.apptsLessCancelled,
     showRate: o.apptsLessCancelled ? o.show/o.apptsLessCancelled*100 : 0,
+    closedDeal: o.closedDeal,
     closeRate: o.show ? o.closedDeal/o.show*100 : 0,
     revenue: o.revenue,
     aov: o.closedDeal ? o.revenue/o.closedDeal : 0,
-    rs1: o.rs1,
+    rs1: o.rs1, rs1Putter: o.rs1,
     clubs: o.clubs - o.rs1,
     pg1: o.pg1,
   };
@@ -2065,8 +2073,6 @@ function closerKpiTilesHtml(){
 
 function renderCloserTrend(){
   const p = document.getElementById('panel-5');
-  const ct = closerTrendForRange();
-  const rows = ct.rows;
   const lobBlocked = SETTER_LOBS.includes(state.lob);
   const scopeBanner = lobBlocked
     ? `<div class="scope-banner blocked">⚠ LOB is set to ${state.lob}, but this is the Closer company trend — switch LOB to Closer or All to see it (or open Executive Summary Trend).</div>`
@@ -2075,7 +2081,7 @@ function renderCloserTrend(){
   p.innerHTML = `
     ${scopeBanner}
     ${closerKpiTilesHtml()}
-    <div class="note">Tiles: exact sums for ${state.start} → ${state.end} vs the equivalent prior period (${prevStart} → ${prevEnd}), computed live from Sched (covers ${RAW_SCHED_MIN_DATE} → ${RAW_SCHED_MAX_DATE}). Chart/table below show ${ct.gran} granularity from the sheet's own captured snapshot${ct.exactMonth ? ' — a whole-month selection, using the sheet\'s real Monthly figure directly.' : ' (Daily is a captured 10-day sample; wider or older ranges fall back to Weekly/Monthly, preferring the sheet\'s real Monthly total whenever the range is a full month).'}</div>
+    <div class="note">Tiles: exact sums for ${state.start} → ${state.end} vs the equivalent prior period (${prevStart} → ${prevEnd}), computed live from Sched (covers ${RAW_SCHED_MIN_DATE} → ${RAW_SCHED_MAX_DATE}).</div>
     <div class="section-title">Closer Show, Show Rate %, Closed Rate %, Upfront Revenue $, AOV $, RS1, Clubs, PG1 — Monthly / Weekly / Daily</div>
     <div class="note">These 24 charts are NOT affected by the Date Range filter above -- they always show the latest 3 months / 6 weeks / ${CLOSER_CHART_DAILY_N} days. Team and Agent filters do apply, same as the rest of this tab.</div>
     ${CLOSER_CHART_METRICS.map(m => `
@@ -2100,6 +2106,7 @@ function renderCloserTrend(){
     <div class="note">Per-closer breakdown is the current-period snapshot from Closers Metric — the sheet's CLOSER Trend View also carries a full per-closer Monthly/Weekly/Daily block for each of the 23 closers individually; only the company-wide roll-up above is reproduced here.</div>
     <div class="chart-card"><div id="chart-closer-topbar"></div></div>
     <div class="section-title">Period detail — all 10 metrics, as shown on the sheet</div>
+    <div class="note">Static last ${CLOSER_CHART_DAILY_N} days, NOT affected by the Date Range filter above (same window and formulas as the Daily charts) -- Team, LOB, and Agent filters do apply.</div>
     <div class="table-section"><table><thead id="tbl-closertrend-head"></thead><tbody id="tbl-closertrend-body"></tbody></table></div>
   `;
   const closerMonthly = closerChartMonthlyRows().slice(-3);
@@ -2117,9 +2124,13 @@ function renderCloserTrend(){
   const closers = filteredClosers();
   const top = closers.slice().sort((a,b)=>b.revenue-a.revenue).slice(0,12);
   barChart('chart-closer-topbar', top, 'revenue', r=>r.name, getVar('--s-aqua'), fmtMoney);
-  const periodLabel = ct.gran==='daily'?'Date':(ct.gran==='weekly'?'Week Beginning':'Month');
-  const withPeriod = rows.map(r=>({...r, period: ct.label(r)}));
-  renderTable('tbl-closertrend', withPeriod, closerMetricCols('period', periodLabel));
+  // Same fixed window as the charts above (closerDaily, already Team/LOB/Agent-aware and clamped
+  // to today) -- NOT closerTrendForRange()'s Date-Range-tied `ct.rows`, which this table used to
+  // read from and which could go empty whenever the Date Range didn't line up with its captured
+  // snapshot. Matches how Executive Summary Trend's own Period detail table reads from execDaily.
+  const withPeriod = closerDaily.map(r=>({...r, period: r.date}));
+  if(!sortState['tbl-closertrend']) sortState['tbl-closertrend'] = {col:'period', dir:-1};
+  renderTable('tbl-closertrend', withPeriod, closerMetricCols('period', 'Date'));
 }
 
 // 4. Closers Metric

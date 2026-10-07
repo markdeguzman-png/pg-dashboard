@@ -1369,6 +1369,15 @@ const CLOSER_CHART_METRICS = [
   {id:'pg1', key:'pg1', label:'PG1', fmt:fmtInt},
 ];
 let CLOSER_CHART_DAILY_N = 30;
+// Per-closer snapshot bar charts under CLOSER Trend View -- one per metric, each showing every
+// closer in scope (not just a top-N slice), sorted by that chart's own metric descending.
+const CLOSER_TOPBAR_METRICS = [
+  {key:'revenue', label:'Upfront Revenue', fmt:fmtMoney, color:'--s-aqua'},
+  {key:'closeRate', label:'Close Rate %', fmt:fmtPct, color:'--s-orange'},
+  {key:'rs1', label:'RS1', fmt:fmtInt, color:'--s-blue'},
+  {key:'clubs', label:'Clubs', fmt:fmtInt, color:'--s-yellow'},
+  {key:'pg1', label:'PG1', fmt:fmtInt, color:'--s-magenta'},
+];
 
 function callSourceRowsForRange(){
   return rawSchedAggForRange().filter(o=>matchesLobFilter(o.lob)).map(o=>({
@@ -2105,9 +2114,10 @@ function renderCloserTrend(){
         <div id="chart-closer-${m.id}-d"></div>
       </div>
     </div>`).join('')}
-    <div class="section-title">Top closers by revenue (current snapshot)</div>
-    <div class="note">Per-closer breakdown is the current-period snapshot from Closers Metric — the sheet's CLOSER Trend View also carries a full per-closer Monthly/Weekly/Daily block for each of the 23 closers individually; only the company-wide roll-up above is reproduced here.</div>
-    <div class="chart-card"><div id="chart-closer-topbar"></div></div>
+    <div class="section-title">Closers by metric (current snapshot)</div>
+    <div class="note">Per-closer breakdown is the current-period snapshot from Closers Metric — the sheet's CLOSER Trend View also carries a full per-closer Monthly/Weekly/Daily block for each of the 23 closers individually; only the company-wide roll-up above is reproduced here. Every closer in scope is shown (sorted by that chart's own metric), not just a top-N slice.</div>
+    ${CLOSER_TOPBAR_METRICS.map(m => `
+    <div class="chart-card"><h3>${m.label}</h3><div id="chart-closer-topbar-${m.key}"></div></div>`).join('')}
     <div class="section-title">Period detail — all 10 metrics, as shown on the sheet</div>
     <div class="note">Static last ${CLOSER_CHART_DAILY_N} days, NOT affected by the Date Range filter above (same window and formulas as the Daily charts) -- Team, LOB, and Agent filters do apply.</div>
     <div class="table-section"><table><thead id="tbl-closertrend-head"></thead><tbody id="tbl-closertrend-body"></tbody></table></div>
@@ -2125,8 +2135,10 @@ function renderCloserTrend(){
     lineChart(`chart-closer-${m.id}-d`, closerDaily, series, closerDayLbl, {showValues:'last'});
   });
   const closers = filteredClosers();
-  const top = closers.slice().sort((a,b)=>b.revenue-a.revenue).slice(0,12);
-  barChart('chart-closer-topbar', top, 'revenue', r=>r.name, getVar('--s-aqua'), fmtMoney);
+  CLOSER_TOPBAR_METRICS.forEach(m => {
+    const sorted = closers.slice().sort((a,b)=>(b[m.key]||0)-(a[m.key]||0));
+    barChart(`chart-closer-topbar-${m.key}`, sorted, m.key, r=>r.name, getVar(m.color), m.fmt);
+  });
   // Same fixed window as the charts above (closerDaily, already Team/LOB/Agent-aware and clamped
   // to today) -- NOT closerTrendForRange()'s Date-Range-tied `ct.rows`, which this table used to
   // read from and which could go empty whenever the Date Range didn't line up with its captured

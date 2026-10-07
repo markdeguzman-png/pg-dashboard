@@ -1217,17 +1217,21 @@ function execChartRawAggBy(keyFn){
   }
   return map;
 }
+// Sched's Date column is the appointment's SCHEDULED date, not the day it was booked, so rows can
+// (and do) carry future dates for appointments already on the calendar. These "last N" windows are
+// meant to be trailing history, so future-dated rows are filtered out here before the caller's
+// .slice(-N) trailing window, rather than leaking into charts/tables labeled "last 30 days" etc.
 function execChartDailyRows(){
   return Array.from(execChartRawAggBy(d=>d).entries())
-    .map(([date,sums])=>({date, ...repMetrics26(sums)})).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
+    .map(([date,sums])=>({date, ...repMetrics26(sums)})).filter(r=>r.date<=ASOF).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
 }
 function execChartWeeklyRows(){
   return Array.from(execChartRawAggBy(weekBeginningOf).entries())
-    .map(([weekBeginning,sums])=>({weekBeginning, ...repMetrics26(sums)})).sort((a,b)=>a.weekBeginning<b.weekBeginning?-1:a.weekBeginning>b.weekBeginning?1:0);
+    .map(([weekBeginning,sums])=>({weekBeginning, ...repMetrics26(sums)})).filter(r=>r.weekBeginning<=ASOF).sort((a,b)=>a.weekBeginning<b.weekBeginning?-1:a.weekBeginning>b.weekBeginning?1:0);
 }
 function execChartMonthlyRows(){
   return Array.from(execChartRawAggBy(d=>d.slice(0,7)).entries())
-    .map(([month,sums])=>({month, ...repMetrics26(sums)})).sort((a,b)=>a.month<b.month?-1:a.month>b.month?1:0);
+    .map(([month,sums])=>({month, ...repMetrics26(sums)})).filter(r=>r.month<=ASOF.slice(0,7)).sort((a,b)=>a.month<b.month?-1:a.month>b.month?1:0);
 }
 // IB/OB field names consistently follow 'ib'/'ob' + capitalized metric key (ibSets, ibWarmT,
 // ibShowRate, ibBookingRate, ...), so the Total/IB/OB series for any of the 4 chart metrics can be
@@ -1327,17 +1331,18 @@ function closerPeriodMetrics(o){
     pg1: o.pg1,
   };
 }
+// See execChartDailyRows() above for why future-dated rows are filtered out here.
 function closerChartDailyRows(){
   return Array.from(closerChartRawAggBy(d=>d).entries())
-    .map(([date,sums])=>({date, ...closerPeriodMetrics(sums)})).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
+    .map(([date,sums])=>({date, ...closerPeriodMetrics(sums)})).filter(r=>r.date<=ASOF).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
 }
 function closerChartWeeklyRows(){
   return Array.from(closerChartRawAggBy(weekBeginningOf).entries())
-    .map(([weekBeginning,sums])=>({weekBeginning, ...closerPeriodMetrics(sums)})).sort((a,b)=>a.weekBeginning<b.weekBeginning?-1:a.weekBeginning>b.weekBeginning?1:0);
+    .map(([weekBeginning,sums])=>({weekBeginning, ...closerPeriodMetrics(sums)})).filter(r=>r.weekBeginning<=ASOF).sort((a,b)=>a.weekBeginning<b.weekBeginning?-1:a.weekBeginning>b.weekBeginning?1:0);
 }
 function closerChartMonthlyRows(){
   return Array.from(closerChartRawAggBy(d=>d.slice(0,7)).entries())
-    .map(([month,sums])=>({month, ...closerPeriodMetrics(sums)})).sort((a,b)=>a.month<b.month?-1:a.month>b.month?1:0);
+    .map(([month,sums])=>({month, ...closerPeriodMetrics(sums)})).filter(r=>r.month<=ASOF.slice(0,7)).sort((a,b)=>a.month<b.month?-1:a.month>b.month?1:0);
 }
 function closerMetricSeries(metricKey, fmt){
   return [{key: metricKey, name:'Total', color:getVar('--s-orange'), fmt}];

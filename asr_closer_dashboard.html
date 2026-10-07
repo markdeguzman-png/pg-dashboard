@@ -181,6 +181,12 @@
   .chart-row{ display:grid; grid-template-columns:1fr 1.5fr 3fr; gap:16px; margin-top:18px; }
   .chart-row .chart-card{ margin-top:0; }
   @media (max-width: 900px){ .chart-row{ grid-template-columns:1fr; } }
+  /* CLOSER Trend View's 5 per-closer snapshot bar charts, side by side in one row -- wraps down on
+     narrower viewports so the bars (and the closer-name labels on each) don't get crushed. */
+  .chart-row-5{ display:grid; grid-template-columns:repeat(5, 1fr); gap:16px; margin-top:18px; }
+  .chart-row-5 .chart-card{ margin-top:0; }
+  @media (max-width: 1400px){ .chart-row-5{ grid-template-columns:repeat(3, 1fr); } }
+  @media (max-width: 900px){ .chart-row-5{ grid-template-columns:1fr; } }
   .legend{ display:flex; gap:14px; font-size:11px; color:var(--gray); margin:6px 0 10px; flex-wrap:wrap; }
   .legend span{ display:inline-flex; align-items:center; gap:5px; }
   .legend i{ width:10px; height:10px; border-radius:2px; display:inline-block; }
@@ -2116,8 +2122,10 @@ function renderCloserTrend(){
     </div>`).join('')}
     <div class="section-title">Closers by metric (current snapshot)</div>
     <div class="note">Per-closer breakdown is the current-period snapshot from Closers Metric — the sheet's CLOSER Trend View also carries a full per-closer Monthly/Weekly/Daily block for each of the 23 closers individually; only the company-wide roll-up above is reproduced here. Every closer in scope is shown (sorted by that chart's own metric), not just a top-N slice.</div>
-    ${CLOSER_TOPBAR_METRICS.map(m => `
-    <div class="chart-card"><h3>${m.label}</h3><div id="chart-closer-topbar-${m.key}"></div></div>`).join('')}
+    <div class="chart-row-5">
+      ${CLOSER_TOPBAR_METRICS.map(m => `
+      <div class="chart-card"><h3>${m.label}</h3><div id="chart-closer-topbar-${m.key}"></div></div>`).join('')}
+    </div>
     <div class="section-title">Period detail — all 10 metrics, as shown on the sheet</div>
     <div class="note">Static last ${CLOSER_CHART_DAILY_N} days, NOT affected by the Date Range filter above (same window and formulas as the Daily charts) -- Team, LOB, and Agent filters do apply.</div>
     <div class="table-section"><table><thead id="tbl-closertrend-head"></thead><tbody id="tbl-closertrend-body"></tbody></table></div>

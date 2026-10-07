@@ -1055,13 +1055,14 @@ function closerTrendForRange(){
 }
 
 // Column order mirrors Closers Metric's Closer/PG1 Advisor detail table (Upfront Revenue, AOV,
-// Closed Rate, RS1, Appointments, Appts less Cancelled, Shows, Show Rate, Closed Deal) -- Products
-// Sold has no equivalent there, so it's appended at the end.
+// Closed Rate, RS1, Clubs, PG1, Appointments, Appts less Cancelled, Shows, Show Rate, Closed
+// Deal) -- Products Sold has no equivalent there, so it's appended at the end.
 function closerMetricCols(periodKey, periodLabel){
   return [
     {key:periodKey, label:periodLabel},
     {key:'revenue', label:'Upfront Revenue', fmt:fmtMoney}, {key:'aov', label:'AOV', fmt:fmtMoney},
     {key:'closeRate', label:'Close Rate', fmt:fmtPct}, {key:'rs1Putter', label:'RS1 Putter'},
+    {key:'clubs', label:'Clubs'}, {key:'pg1', label:'PG1'},
     {key:'appointments', label:'Appointments'}, {key:'apptsLessCancelled', label:'Appts less Cancelled'},
     {key:'shows', label:'Shows'}, {key:'showRate', label:'Show Rate', fmt:fmtPct},
     {key:'closedDeal', label:'Closed Deal'}, {key:'productsSold', label:'Products Sold'},
@@ -2126,7 +2127,7 @@ function renderCloserTrend(){
       ${CLOSER_TOPBAR_METRICS.map(m => `
       <div class="chart-card"><h3>${m.label}</h3><div id="chart-closer-topbar-${m.key}"></div></div>`).join('')}
     </div>
-    <div class="section-title">Period detail — all 10 metrics, as shown on the sheet</div>
+    <div class="section-title">Period detail — all 12 metrics, as shown on the sheet</div>
     <div class="note">Static last ${CLOSER_CHART_DAILY_N} days, NOT affected by the Date Range filter above (same window and formulas as the Daily charts) -- Team, LOB, and Agent filters do apply.</div>
     <div class="table-section"><table><thead id="tbl-closertrend-head"></thead><tbody id="tbl-closertrend-body"></tbody></table></div>
   `;

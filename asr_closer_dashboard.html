@@ -1048,14 +1048,17 @@ function closerTrendForRange(){
   return {gran:'monthly', rows: rows.length?rows:CLOSER_TREND_MONTHLY, chartRows: CLOSER_TREND_MONTHLY.slice(-3), label:r=>r.month};
 }
 
+// Column order mirrors Closers Metric's Closer/PG1 Advisor detail table (Upfront Revenue, AOV,
+// Closed Rate, RS1, Appointments, Appts less Cancelled, Shows, Show Rate, Closed Deal) -- Products
+// Sold has no equivalent there, so it's appended at the end.
 function closerMetricCols(periodKey, periodLabel){
   return [
     {key:periodKey, label:periodLabel},
-    {key:'productsSold', label:'Products Sold'}, {key:'appointments', label:'Appointments'},
-    {key:'apptsLessCancelled', label:'Appts less Cancelled'}, {key:'shows', label:'Shows'},
-    {key:'showRate', label:'Show Rate', fmt:fmtPct}, {key:'closedDeal', label:'Closed Deal'},
-    {key:'closeRate', label:'Close Rate', fmt:fmtPct}, {key:'revenue', label:'Upfront Revenue', fmt:fmtMoney},
-    {key:'aov', label:'AOV', fmt:fmtMoney}, {key:'rs1Putter', label:'RS1 Putter'},
+    {key:'revenue', label:'Upfront Revenue', fmt:fmtMoney}, {key:'aov', label:'AOV', fmt:fmtMoney},
+    {key:'closeRate', label:'Close Rate', fmt:fmtPct}, {key:'rs1Putter', label:'RS1 Putter'},
+    {key:'appointments', label:'Appointments'}, {key:'apptsLessCancelled', label:'Appts less Cancelled'},
+    {key:'shows', label:'Shows'}, {key:'showRate', label:'Show Rate', fmt:fmtPct},
+    {key:'closedDeal', label:'Closed Deal'}, {key:'productsSold', label:'Products Sold'},
   ];
 }
 

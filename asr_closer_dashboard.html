@@ -1881,6 +1881,40 @@ function fullMetricCols(periodKey, periodLabel){
   ];
 }
 
+// Static "Formulas used" reference table appended under each sub-tab -- straightforward raw counts
+// (Sets, Appointments, Shows, Upfront Revenue, etc.) are left out; only metrics actually computed
+// via a formula are listed. `rows` is [metric label, formula text].
+function formulaTableHtml(rows){
+  return `
+    <div class="section-title">Formulas used</div>
+    <div class="note">Straightforward raw counts (Sets, Appointments, Shows, Upfront Revenue, etc.) aren't listed -- only metrics computed via a formula.</div>
+    <div class="table-section"><table>
+      <thead><tr><th>Metric</th><th>Formula</th></tr></thead>
+      <tbody>${rows.map(([metric,formula])=>`<tr><td>${metric}</td><td>${formula}</td></tr>`).join('')}</tbody>
+    </table></div>`;
+}
+// Shared by Executive Summary Trend and ASR Daily Metric -- both read fullMetricCols()'s 26
+// metrics (and the same AOV tile) through identical repMetrics26()/execCompanyTotals() formulas.
+const SETTER_FORMULA_ROWS = [
+  ['Warm Transfer %', 'Warm Transfers ÷ Sets × 100'],
+  ['IB Warm Transfer %', 'IB Warm Transfers ÷ IB Sets × 100'],
+  ['OB Warm Transfer %', 'OB Warm Transfers ÷ OB Sets × 100'],
+  ['Show Rate %', 'Shows ÷ Appointments × 100'],
+  ['IB Show Rate %', 'IB Shows ÷ IB Appointments × 100'],
+  ['OB Show Rate %', 'OB Shows ÷ OB Appointments × 100'],
+  ['Booking Rate %', 'Sets ÷ 90-sec Calls × 100'],
+  ['IB Booking Rate %', 'IB Sets ÷ IB 90-sec Calls × 100'],
+  ['OB Booking Rate %', 'OB Sets ÷ OB 90-sec Calls × 100'],
+  ['Connect Rate', '90-sec Calls ÷ (IB Calls + OB Calls) × 100'],
+  ['AOV $ (KPI tile only)', 'Upfront Revenue ÷ Closed Deal'],
+];
+const CLOSER_FORMULA_ROWS = [
+  ['Show Rate %', 'Shows ÷ Appts less Cancelled × 100'],
+  ['Close Rate %', 'Closed Deal ÷ Shows × 100'],
+  ['AOV $', 'Upfront Revenue ÷ Closed Deal'],
+  ['Clubs', 'Raw Clubs count − RS1 (RS1 is a subset of Clubs, subtracted out so the two don\'t double-count)'],
+];
+
 // 1. Executive Summary Trend
 // The 11 KPI tiles shown on Executive Summary Trend -- factored out so ASR Daily Metric can show
 // the identical set (same formulas, same live "vs prev period" comparison) without duplicating
@@ -1953,6 +1987,7 @@ function renderExecSummary(t){
     <div class="section-title">Period detail — all 26 metrics, as shown on the sheet</div>
     <div class="note">Static last ${EXEC_CHART_DAILY_N} days, NOT affected by the Date Range filter above (same window and formulas as the Daily charts) -- Team, LOB, and Agent filters do apply.</div>
     <div class="table-section"><table><thead id="tbl-exec-head"></thead><tbody id="tbl-exec-body"></tbody></table></div>
+    ${formulaTableHtml(SETTER_FORMULA_ROWS)}
   `;
   const execMonthly = execChartMonthlyRows().slice(-3);
   const execWeekly = execChartWeeklyRows().slice(-6);
@@ -2130,6 +2165,7 @@ function renderCloserTrend(){
     <div class="section-title">Period detail — all 12 metrics, as shown on the sheet</div>
     <div class="note">Static last ${CLOSER_CHART_DAILY_N} days, NOT affected by the Date Range filter above (same window and formulas as the Daily charts) -- Team, LOB, and Agent filters do apply.</div>
     <div class="table-section"><table><thead id="tbl-closertrend-head"></thead><tbody id="tbl-closertrend-body"></tbody></table></div>
+    ${formulaTableHtml(CLOSER_FORMULA_ROWS)}
   `;
   const closerMonthly = closerChartMonthlyRows().slice(-3);
   const closerWeekly = closerChartWeeklyRows().slice(-6);
@@ -2168,6 +2204,7 @@ function renderClosersMetric(){
     <div class="section-title">Closer / PG1 Advisor detail</div>
     <div class="note">Computed live from Sched's per-rep-per-day records (periodically refreshed from Sched, covers ${RAW_SCHED_MIN_DATE} → ${RAW_SCHED_MAX_DATE}; the most recent ~week can still revise as Sched backfills -- treat it as provisional) — exact sums for the selected Date Range / Team / Agent, not a fixed snapshot. Click a column header to sort.</div>
     <div class="table-section"><table><thead id="tbl-closers-head"></thead><tbody id="tbl-closers-body"></tbody></table></div>
+    ${formulaTableHtml(CLOSER_FORMULA_ROWS)}
   `;
   // Default sort: Upfront Revenue descending, until the user clicks a column header to choose
   // their own (renderTable persists sortState per table id, so this only ever applies once).
@@ -2218,6 +2255,7 @@ function renderASRDailyMetric(){
     <div class="section-title">Rep detail</div>
     <div class="note">Computed live from Sched's per-rep-per-day records (periodically refreshed from Sched, covers ${RAW_SCHED_MIN_DATE} → ${RAW_SCHED_MAX_DATE}; the most recent ~week can still revise as Sched backfills -- treat it as provisional) — one row per Team/Name, not grouped; respects Date Range / Team / Agent filters above.</div>
     <div class="table-section"><table><thead id="tbl-asrdaily-head"></thead><tbody id="tbl-asrdaily-body"></tbody></table></div>
+    ${formulaTableHtml(SETTER_FORMULA_ROWS)}
   `;
   const cols = [{key:'team', label:'Team'}, ...fullMetricCols('name','Name')];
   const rows = isCloserLob(state.lob) ? [] : repRowsForRange().filter(r=>matchesTeamFilter(r.team) && matchesAgentFilter(r.name));
@@ -2269,6 +2307,17 @@ function renderCallSourceBR(){
       </div>
     </div>
     <div class="table-section"><table><thead id="tbl-br-head"></thead><tbody id="tbl-br-body"></tbody></table></div>
+    ${formulaTableHtml([
+      ['IVR1/2/3/4 BR %', 'IVR-n Sets ÷ IVR-n Calls × 100'],
+      ['IB Booking %', 'IB Sets ÷ IB 90-sec Calls × 100'],
+      ['OB Booking %', 'OB Sets ÷ OB 90-sec Calls × 100'],
+      ['Booking Rate % (Sets column)', 'Sets ÷ 90-sec Calls × 100'],
+      ['IB Connect Rate', 'IB 90-sec Calls ÷ IB Calls × 100'],
+      ['OB Connect Rate', 'OB 90-sec Calls ÷ OB Calls × 100'],
+      ['Strong-Weak BR %', '"Strong IB" if IB Booking % ≥ 35%, else "Weak IB" — combined with — "Strong OB" if OB Booking % ≥ 45%, else "Weak OB"'],
+      ['OB BR Rating', 'Quartile grade A (top) to D (bottom) of OB Booking % across the currently displayed/filtered rows (Excel QUARTILE.INC)'],
+      ['Grand Total row (every rate above)', 'Sum of numerators across filtered rows ÷ sum of denominators × 100 -- a true ratio-of-sums, not an average of each rep\'s own rate'],
+    ])}
   `;
   document.getElementById('brSlicerStrongWeak').addEventListener('change', (ev)=>{
     brSlicerState.strongWeak = ev.target.value; renderCallSourceBR();

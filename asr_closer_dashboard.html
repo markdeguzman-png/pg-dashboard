@@ -221,6 +221,9 @@
   td.sticky-col{ position:sticky; z-index:1; background:#242424; box-shadow:2px 0 4px rgba(0,0,0,0.3); overflow:hidden; text-overflow:ellipsis; }
   tbody tr:nth-child(even) td.sticky-col{ background:linear-gradient(rgba(255,255,255,0.035),rgba(255,255,255,0.035)),#242424; }
   tbody tr.subtotal td.sticky-col{ background:linear-gradient(rgba(253,51,0,0.10),rgba(253,51,0,0.10)),#242424; }
+  .formula-table{ font-size:11px; }
+  .formula-table th{ padding:8px 12px; font-size:9.5px; }
+  .formula-table td{ padding:6px 12px; white-space:normal; }
   .no-data{ text-align:center; padding:40px 20px; color:var(--gray); }
   .pill{ padding:2px 8px; border-radius:10px; font-size:10.5px; font-weight:700; }
   .pill.good{ background:rgba(76,175,80,.18); color:var(--good); }
@@ -1888,7 +1891,7 @@ function formulaTableHtml(rows){
   return `
     <div class="section-title">Formulas used</div>
     <div class="note">Straightforward raw counts (Sets, Appointments, Shows, Upfront Revenue, etc.) aren't listed -- only metrics computed via a formula.</div>
-    <div class="table-section"><table>
+    <div class="table-section"><table class="formula-table">
       <thead><tr><th>Metric</th><th>Formula</th></tr></thead>
       <tbody>${rows.map(([metric,formula])=>`<tr><td>${metric}</td><td>${formula}</td></tr>`).join('')}</tbody>
     </table></div>`;

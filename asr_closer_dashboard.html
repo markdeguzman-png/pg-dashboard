@@ -333,8 +333,8 @@
         <div class="presets">
           <button class="preset-btn" data-preset="today">Today</button>
           <button class="preset-btn" data-preset="yesterday">Yesterday</button>
-          <button class="preset-btn" data-preset="7">Last 7d</button>
-          <button class="preset-btn" data-preset="30">Last 30d</button>
+          <button class="preset-btn" data-preset="curweek">Current Week</button>
+          <button class="preset-btn" data-preset="prevweek">Prev Week</button>
           <button class="preset-btn" data-preset="mtd">Month to Date</button>
           <button class="preset-btn" data-preset="prevmonth">Previous Month</button>
           <button class="preset-btn" data-preset="90">Last 3mo</button>
@@ -863,6 +863,21 @@ function initFilters(){
       else if(p==='prevmonth'){
         start = new Date(end.getFullYear(), end.getMonth()-1, 1);
         end = new Date(end.getFullYear(), end.getMonth(), 0); // day 0 of this month = last day of the previous one
+      }
+      // Monday-start weeks, matching weekBeginningOf()'s math exactly so this stays aligned with
+      // the WEEKLY chart's own week boundaries elsewhere in the dashboard.
+      else if(p==='curweek'){
+        const dow = end.getDay(); // 0=Sun..6=Sat
+        start = new Date(end);
+        start.setDate(start.getDate() - (dow===0?6:dow-1)); // back to this week's Monday
+        // end stays at today (ASOF) -- doesn't extend into this week's not-yet-happened days.
+      }
+      else if(p==='prevweek'){
+        const dow = end.getDay();
+        const curMonday = new Date(end);
+        curMonday.setDate(curMonday.getDate() - (dow===0?6:dow-1));
+        start = new Date(curMonday); start.setDate(start.getDate()-7); // Monday, one week back
+        end = new Date(curMonday); end.setDate(end.getDate()-1); // Sunday right before this week's Monday
       }
       else { start = new Date(end); start.setDate(start.getDate() - (+p - 1)); }
       s.value = dstr(start); e.value = dstr(end);

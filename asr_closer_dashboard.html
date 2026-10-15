@@ -756,6 +756,9 @@ document.addEventListener('click', (ev)=>{
 function fmtInt(n){ return Math.round(n).toLocaleString(); }
 function fmtMoney(n){ return '$' + Math.round(n).toLocaleString(); }
 function fmtPct(n){ return (Math.round(n*10)/10).toFixed(1) + '%'; }
+const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+// Monthly chart x-axis label, e.g. "2026-10" -> "Oct-2026". Shared by every Monthly chart trio.
+function fmtMonthLabel(monthStr){ return MONTH_ABBR[+monthStr.slice(5,7)-1] + '-' + monthStr.slice(0,4); }
 // Timezone-safe YYYY-MM-DD formatter. `d` is always constructed as LOCAL midnight in this file
 // (e.g. `new Date(y, m, 1)`), so formatting via toISOString() (which converts to UTC first) would
 // silently roll the date back by one day for any viewer east of UTC — this reads the same local
@@ -2010,7 +2013,7 @@ function renderExecSummary(t){
   const execMonthly = execChartMonthlyRows().slice(-3);
   const execWeekly = execChartWeeklyRows().slice(-6);
   const execDaily = execChartDailyRows().slice(-EXEC_CHART_DAILY_N);
-  const monthLbl = r => r.month.slice(5)+'/'+r.month.slice(2,4);
+  const monthLbl = r => fmtMonthLabel(r.month);
   const weekLbl = r => 'WB '+r.weekBeginning.slice(5);
   const dayLbl = r => r.date.slice(5);
   EXEC_CHART_METRICS.forEach(m => {
@@ -2101,7 +2104,7 @@ function renderASRTrend(t){
   `;
   // team lines chart: one line per team, using 'month' as x -- always the fuller monthly trend,
   // not range-filtered (same rationale as Executive Summary Trend's charts).
-  const monthLabel = r => r.month.slice(5)+'/'+r.month.slice(2,4);
+  const monthLabel = r => fmtMonthLabel(r.month);
   const series = teamsToShow.map((team,i)=>({key:'__t'+i, name:team, color: getVar(ASR_TREND_TEAM_COLORS[i%ASR_TREND_TEAM_COLORS.length])}));
   const merged = allMonths.map(month=>{
     const o = {month};
@@ -2188,7 +2191,7 @@ function renderCloserTrend(){
   const closerMonthly = closerChartMonthlyRows().slice(-3);
   const closerWeekly = closerChartWeeklyRows().slice(-6);
   const closerDaily = closerChartDailyRows().slice(-CLOSER_CHART_DAILY_N);
-  const closerMonthLbl = r => r.month.slice(5)+'/'+r.month.slice(2,4);
+  const closerMonthLbl = r => fmtMonthLabel(r.month);
   const closerWeekLbl = r => 'WB '+r.weekBeginning.slice(5);
   const closerDayLbl = r => r.date.slice(5);
   CLOSER_CHART_METRICS.forEach(m => {

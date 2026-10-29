@@ -127,10 +127,10 @@
   .gran-note{ font-size:11px; color:var(--gray); margin-top:4px; }
 
   .main-tabs{
-    display:flex; gap:10px; margin-bottom:18px;
+    display:flex; flex-wrap:wrap; gap:10px; margin-bottom:18px;
   }
   .main-tab{
-    flex:1; padding:14px 20px; background:var(--panel); border:2px solid var(--line); border-radius:8px;
+    flex:1 1 140px; padding:14px 20px; background:var(--panel); border:2px solid var(--line); border-radius:8px;
     color:var(--light-gray); cursor:pointer; font-size:15px; font-weight:800; text-transform:uppercase;
     letter-spacing:0.5px; transition:all .2s;
   }
@@ -599,7 +599,9 @@ const ALL_LOBS = Array.from(new Set(LIVE_ROSTER.map(r=>r.lob).filter(Boolean))).
 
 const TABS = [
   "Executive Summary Trend","ASR Trend View","Rep per Metric","ASR Daily Metric","BR % per Call Source",
-  "CLOSER Trend View","Closers Metric"
+  "CLOSER Trend View","Closers Metric",
+  "Mid-Ticket Trend View","Mid-Ticket Metric","PG1 Trend View","PG1 Metric",
+  "Inbound Summary Trend","Inbound Daily Metric"
 ];
 // Two top-level groups -- SETTER-side tabs vs CLOSER-side tabs -- selected above the date filter,
 // with the existing sub-tab bar scoped to whichever group is active.
@@ -613,12 +615,21 @@ const TABS = [
 // string so both labels keep working across that transition.
 const CLOSER_LOBS = ['Closer', 'Closer - Outbound'];
 function isCloserLob(lob){ return CLOSER_LOBS.includes(lob); }
+// Org restructure (discovered 2026-10-29): the old undifferentiated "Closer" LOB population mostly
+// moved into two new LOBs, Mid-Ticket and PG1. Mid-Ticket, PG1, and Inbound Team main tabs exist
+// as placeholders for now (renderComingSoonTab) -- they'll be sourced from a separate Google Sheet
+// later, not from Sched/RAW_SCHED, so these LOBs stay IN SETTER_SETS_LOBS below (same as before
+// this restructure was discovered) rather than being carved out. These lists currently only drive
+// each placeholder tab's own LOB-dropdown narrowing (see MAIN_TABS' `lobs`).
+const MIDTICKET_LOBS = ['Mid-Ticket'];
+const PG1_TAB_LOBS = ['PG1'];
+const INBOUND_LOBS = ['Inbound Team'];
 // Every non-Closer LOB that has EVER recorded a nonzero Sets value, computed straight from
 // RAW_SCHED instead of a hand-maintained list -- so a LOB that starts (or stops) contributing
 // Sets doesn't need another manual edit here (see the isCloserLob() comment above for why a
 // hardcoded LOB list bit us once already, when Sched silently relabeled "Closer - Outbound").
-// Closer/Closer - Outbound are excluded on purpose even though a few stray "Closer"-tagged rows
-// do carry Sets -- that LOB is the CLOSER tab's own domain, not Setter's.
+// Closer is excluded on purpose even though a few stray "Closer"-tagged rows do carry Sets --
+// that LOB is the CLOSER tab's own domain, not Setter's.
 const SETTER_SETS_LOBS = (() => {
   const setsByLob = new Map();
   for (const r of RAW_SCHED) {
@@ -628,6 +639,9 @@ const SETTER_SETS_LOBS = (() => {
   return Array.from(setsByLob.entries()).filter(([,sets]) => sets > 0).map(([lob]) => lob).sort();
 })();
 const MAIN_TABS = [
+  { name: 'Mid-Ticket', tabIndices: [7,8], lobs: MIDTICKET_LOBS },
+  { name: 'PG1', tabIndices: [9,10], lobs: PG1_TAB_LOBS },
+  { name: 'Inbound', tabIndices: [11,12], lobs: INBOUND_LOBS },
   { name: 'SETTER', tabIndices: [0,3,4], lobs: SETTER_SETS_LOBS },
   { name: 'CLOSER', tabIndices: [5,6], lobs: CLOSER_LOBS },
 ];
@@ -642,7 +656,7 @@ let sortState = {}; // per table id -> {col, dir}
 // SETTER's default LOB scope when nothing specific is picked from the dropdown -- every LOB that
 // ever contributes Sets (see SETTER_SETS_LOBS above), so "All LOBs" under SETTER means all of
 // them, not silently collapse to ASR-only the way several of these filters used to.
-const SETTER_LOBS = MAIN_TABS[0].lobs;
+const SETTER_LOBS = SETTER_SETS_LOBS;
 // Every row-filtering function below (Rep per Metric, BR % per Call Source, ASR Trend View,
 // Executive Summary Trend's team/lob-scoped path) should go through this instead of hardcoding
 // `lob==='ASR'` -- an explicit LOB selection narrows to exactly that value; with none selected,
@@ -1151,8 +1165,11 @@ function repMetrics26(o){
   };
 }
 
-function repRowsForRange(){
-  return rawSchedAggForRange().filter(o=>matchesLobFilter(o.lob)).map(o=>({
+// `lobMatcher` scopes this to whichever exec-style tab is calling it -- the real SETTER tabs pass
+// matchesLobFilter() (the ambient, global-LOB-dropdown-aware scope), while a standalone tab like
+// Inbound passes a fixed single-LOB matcher instead, independent of the global LOB dropdown.
+function repRowsForRange(lobMatcher){
+  return rawSchedAggForRange().filter(o=>lobMatcher(o.lob)).map(o=>({
     team: o.team, name: o.name, ...repMetrics26(o),
   }));
 }
@@ -1164,12 +1181,12 @@ function repRowsForRange(){
 // to also narrow by matchesAgentFilter -- Executive Summary Trend deliberately ignores Agent (it's
 // a company/team-wide view, with its own banner saying so), but ASR Daily Metric's tiles are meant
 // to match its per-rep table exactly, so they need Agent applied too.
-function execCompanyTotals(startStr, endStr, opts){
+function execCompanyTotals(lobMatcher, startStr, endStr, opts){
   opts = opts || {};
   const o = blankRawSums();
   RAW_SCHED.forEach(r => {
     if(r[3] < startStr || r[3] > endStr) return;
-    if(!matchesLobFilter(r[2]) || !matchesTeamFilter(r[1])) return;
+    if(!lobMatcher(r[2]) || !matchesTeamFilter(r[1])) return;
     if(opts.agentAware && !matchesAgentFilter(r[0])) return;
     addRawRow(o, r);
   });
@@ -1236,12 +1253,12 @@ function teamMonthlyRowsFor(team){
 // trio -- deliberately ignores the Date Range filter entirely (always the latest 3 months / 6
 // weeks / N days off the real data, sliced by the caller), but still respects Team, Agent, and
 // LOB the same way everything else on this tab does.
-function execChartRawAggBy(keyFn){
+function execChartRawAggBy(lobMatcher, keyFn){
   const map = new Map();
   for(const r of RAW_SCHED){
     if(!matchesTeamFilter(r[1])) continue;
     if(!matchesAgentFilter(r[0])) continue;
-    if(!matchesLobFilter(r[2])) continue;
+    if(!lobMatcher(r[2])) continue;
     const key = keyFn(r[3]);
     if(!map.has(key)) map.set(key, blankRawSums());
     addRawRow(map.get(key), r);
@@ -1252,16 +1269,16 @@ function execChartRawAggBy(keyFn){
 // (and do) carry future dates for appointments already on the calendar. These "last N" windows are
 // meant to be trailing history, so future-dated rows are filtered out here before the caller's
 // .slice(-N) trailing window, rather than leaking into charts/tables labeled "last 30 days" etc.
-function execChartDailyRows(){
-  return Array.from(execChartRawAggBy(d=>d).entries())
+function execChartDailyRows(lobMatcher){
+  return Array.from(execChartRawAggBy(lobMatcher, d=>d).entries())
     .map(([date,sums])=>({date, ...repMetrics26(sums)})).filter(r=>r.date<=ASOF).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
 }
-function execChartWeeklyRows(){
-  return Array.from(execChartRawAggBy(weekBeginningOf).entries())
+function execChartWeeklyRows(lobMatcher){
+  return Array.from(execChartRawAggBy(lobMatcher, weekBeginningOf).entries())
     .map(([weekBeginning,sums])=>({weekBeginning, ...repMetrics26(sums)})).filter(r=>r.weekBeginning<=ASOF).sort((a,b)=>a.weekBeginning<b.weekBeginning?-1:a.weekBeginning>b.weekBeginning?1:0);
 }
-function execChartMonthlyRows(){
-  return Array.from(execChartRawAggBy(d=>d.slice(0,7)).entries())
+function execChartMonthlyRows(lobMatcher){
+  return Array.from(execChartRawAggBy(lobMatcher, d=>d.slice(0,7)).entries())
     .map(([month,sums])=>({month, ...repMetrics26(sums)})).filter(r=>r.month<=ASOF.slice(0,7)).sort((a,b)=>a.month<b.month?-1:a.month>b.month?1:0);
 }
 // IB/OB field names consistently follow 'ib'/'ob' + capitalized metric key (ibSets, ibWarmT,
@@ -1296,8 +1313,8 @@ let EXEC_CHART_DAILY_N = 30; // dropped to 10 below if 30 points reads as too cr
 // Upfront Revenue=Closer_upfront_Revenue(AK), RS1=RS1(BQ), PG1=Closer_PG1(AU). Clubs is
 // Closer_Clubs(AR) minus RS1(BQ) -- the sheet's own "Clubs" figure nets RS1 out of the raw
 // Closer_Clubs count.
-function closerRowsForRange(){
-  return rawSchedAggForRange().filter(o=>isCloserLob(o.lob)).map(o=>({
+function closerRowsForRange(lobMatcher){
+  return rawSchedAggForRange().filter(o=>lobMatcher(o.lob)).map(o=>({
     team: o.team, name: o.name,
     appt: o.closerAppts, apptsLessCancelled: o.closerApptsLessCancelled,
     show: o.closerShow,
@@ -1312,13 +1329,14 @@ function closerRowsForRange(){
   }));
 }
 
-// Company-wide closer totals for an ARBITRARY date range (not just state.start/state.end) --
-// lets the KPI tiles compare the selected period against the equivalent prior period. Respects
-// Team/Agent filters the same way filteredClosers() does.
-function closerCompanyTotals(startStr, endStr){
+// Company-wide closer-style totals for an ARBITRARY date range (not just state.start/state.end)
+// -- lets the KPI tiles compare the selected period against the equivalent prior period. Respects
+// Team/Agent filters the same way filteredClosers() does. `lobMatcher` keeps this reusable by any
+// closer-shaped tab rather than hardcoding the LOB (currently only CLOSER Trend View calls it).
+function closerCompanyTotals(lobMatcher, startStr, endStr){
   const rows = RAW_SCHED.filter(r => r[3] >= startStr && r[3] <= endStr);
   const agg = aggregateRawSched(rows)
-    .filter(o=>isCloserLob(o.lob) && matchesTeamFilter(o.team) && matchesAgentFilter(o.name));
+    .filter(o=>lobMatcher(o.lob) && matchesTeamFilter(o.team) && matchesAgentFilter(o.name));
   const appt = sum(agg,'closerAppts'), apptsLessCancelled = sum(agg,'closerApptsLessCancelled'),
     show = sum(agg,'closerShow'), closedDeal = sum(agg,'closerClosedDeal'), revenue = sum(agg,'closerRevenue'),
     rs1 = sum(agg,'closerRS1'), clubsRaw = sum(agg,'closerClubs'), pg1 = sum(agg,'closerPG1');
@@ -1333,13 +1351,15 @@ function closerCompanyTotals(startStr, endStr){
 
 // Fixed-window aggregation for CLOSER Trend View's per-metric Monthly/Weekly/Daily chart trio --
 // mirrors execChartRawAggBy()/repMetrics26() above (Executive Summary Trend's equivalent), but
-// scoped to the Closer LOB and Closer's own fields (no IB/OB split -- Closer doesn't have an
-// inbound/outbound breakdown the way ASR/Setter does). Ignores Date Range entirely; Team/Agent do
-// apply, same as the rest of this tab.
-function closerChartRawAggBy(keyFn){
+// scoped to a "closer-shaped" LOB and that schema's own fields (no IB/OB split -- this shape
+// doesn't have an inbound/outbound breakdown the way ASR/Setter does). Ignores Date Range
+// entirely; Team/Agent do apply, same as the rest of these tabs.
+// `lobMatcher` makes this reusable by any closer-shaped tab -- currently only CLOSER Trend View
+// (passing isCloserLob), but kept generic rather than hardcoding the LOB.
+function closerChartRawAggBy(lobMatcher, keyFn){
   const map = new Map();
   for(const r of RAW_SCHED){
-    if(!isCloserLob(r[2])) continue;
+    if(!lobMatcher(r[2])) continue;
     if(!matchesTeamFilter(r[1])) continue;
     if(!matchesAgentFilter(r[0])) continue;
     const key = keyFn(r[3]);
@@ -1371,31 +1391,35 @@ function closerPeriodMetrics(o){
   };
 }
 // See execChartDailyRows() above for why future-dated rows are filtered out here.
-function closerChartDailyRows(){
-  return Array.from(closerChartRawAggBy(d=>d).entries())
+function closerChartDailyRows(lobMatcher){
+  return Array.from(closerChartRawAggBy(lobMatcher, d=>d).entries())
     .map(([date,sums])=>({date, ...closerPeriodMetrics(sums)})).filter(r=>r.date<=ASOF).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
 }
-function closerChartWeeklyRows(){
-  return Array.from(closerChartRawAggBy(weekBeginningOf).entries())
+function closerChartWeeklyRows(lobMatcher){
+  return Array.from(closerChartRawAggBy(lobMatcher, weekBeginningOf).entries())
     .map(([weekBeginning,sums])=>({weekBeginning, ...closerPeriodMetrics(sums)})).filter(r=>r.weekBeginning<=ASOF).sort((a,b)=>a.weekBeginning<b.weekBeginning?-1:a.weekBeginning>b.weekBeginning?1:0);
 }
-function closerChartMonthlyRows(){
-  return Array.from(closerChartRawAggBy(d=>d.slice(0,7)).entries())
+function closerChartMonthlyRows(lobMatcher){
+  return Array.from(closerChartRawAggBy(lobMatcher, d=>d.slice(0,7)).entries())
     .map(([month,sums])=>({month, ...closerPeriodMetrics(sums)})).filter(r=>r.month<=ASOF.slice(0,7)).sort((a,b)=>a.month<b.month?-1:a.month>b.month?1:0);
 }
 function closerMetricSeries(metricKey, fmt){
   return [{key: metricKey, name:'Total', color:getVar('--s-orange'), fmt}];
 }
-const CLOSER_CHART_METRICS = [
-  {id:'show', key:'show', label:'Closer Show', fmt:fmtInt},
-  {id:'showrate', key:'showRate', label:'Closer Show Rate %', fmt:fmtPct},
-  {id:'closerate', key:'closeRate', label:'Closer Closed Rate %', fmt:fmtPct},
-  {id:'revenue', key:'revenue', label:'Closer Upfront Revenue $', fmt:fmtMoney},
-  {id:'aov', key:'aov', label:'Closer AOV $', fmt:fmtMoney},
-  {id:'rs1', key:'rs1', label:'RS1', fmt:fmtInt},
-  {id:'clubs', key:'clubs', label:'Clubs', fmt:fmtInt},
-  {id:'pg1', key:'pg1', label:'PG1', fmt:fmtInt},
-];
+// A function (not a static array) so the chart titles read e.g. "Closer Show" using whichever
+// closer-shaped tab's own label is calling it, instead of a hardcoded prefix.
+function closerChartMetricsFor(tabLabel){
+  return [
+    {id:'show', key:'show', label:`${tabLabel} Show`, fmt:fmtInt},
+    {id:'showrate', key:'showRate', label:`${tabLabel} Show Rate %`, fmt:fmtPct},
+    {id:'closerate', key:'closeRate', label:`${tabLabel} Closed Rate %`, fmt:fmtPct},
+    {id:'revenue', key:'revenue', label:`${tabLabel} Upfront Revenue $`, fmt:fmtMoney},
+    {id:'aov', key:'aov', label:`${tabLabel} AOV $`, fmt:fmtMoney},
+    {id:'rs1', key:'rs1', label:'RS1', fmt:fmtInt},
+    {id:'clubs', key:'clubs', label:'Clubs', fmt:fmtInt},
+    {id:'pg1', key:'pg1', label:'PG1', fmt:fmtInt},
+  ];
+}
 let CLOSER_CHART_DAILY_N = 30;
 // Per-closer snapshot bar charts under CLOSER Trend View -- one per metric, each showing every
 // closer in scope (not just a top-N slice), sorted by that chart's own metric descending.
@@ -1453,14 +1477,16 @@ function addCallSourceRatings(rows){
 
 function filteredReps(){
   if(isCloserLob(state.lob)) return []; // ASR reps don't exist under the Closer LOB
-  let reps = repRowsForRange();
+  let reps = repRowsForRange(matchesLobFilter);
   reps = reps.filter(r=>matchesTeamFilter(r.team) && matchesAgentFilter(r.name));
   return reps;
 }
-function filteredClosers(){
-  if(SETTER_LOBS.includes(state.lob)) return []; // closers don't exist under a SETTER-side LOB
-  let c = closerRowsForRange();
-  // Team filter is currently a no-op (all closers are Team Jen), kept for correctness.
+// `lobMatcher` keeps this reusable by any closer-shaped tab rather than hardcoding the LOB.
+// Blocked whenever a specific LOB is selected that isn't this tab's own -- mirrors the scope-banner
+// logic each closer-style tab shows (see lobBlocked in renderCloserStyleTrend/Metric).
+function filteredClosers(lobMatcher){
+  if(state.lob && !lobMatcher(state.lob)) return [];
+  let c = closerRowsForRange(lobMatcher);
   c = c.filter(x=>matchesTeamFilter(x.team) && matchesAgentFilter(x.name));
   return c;
 }
@@ -1882,6 +1908,12 @@ function renderAll(){
   renderCallSourceBR();
   renderCloserTrend();
   renderClosersMetric();
+  renderMidTicketTrend();
+  renderMidTicketMetric();
+  renderPG1Trend();
+  renderPG1Metric();
+  renderInboundSummary();
+  renderInboundDaily();
 }
 
 // full 23-metric column set, shared by Executive Summary Trend & ASR Trend View team tables
@@ -1978,8 +2010,8 @@ function renderExecSummary(t){
   // (execCompanyTotals / execChartRawAggBy), so Date Range, Team, LOB, and Agent apply consistently
   // everywhere on this tab -- no filter narrows one part of the page but not another.
   const {prevStart, prevEnd} = prevPeriodRange(state.start, state.end);
-  const execCur = execCompanyTotals(state.start, state.end, {agentAware:true});
-  const execPrev = execCompanyTotals(prevStart, prevEnd, {agentAware:true});
+  const execCur = execCompanyTotals(matchesLobFilter, state.start, state.end, {agentAware:true});
+  const execPrev = execCompanyTotals(matchesLobFilter, prevStart, prevEnd, {agentAware:true});
   p.innerHTML = `
     ${scopeBanner}
     ${execKpiTilesHtml(execCur, execPrev, prevStart, prevEnd)}
@@ -2010,9 +2042,9 @@ function renderExecSummary(t){
     <div class="table-section"><table><thead id="tbl-exec-head"></thead><tbody id="tbl-exec-body"></tbody></table></div>
     ${formulaTableHtml(SETTER_FORMULA_ROWS)}
   `;
-  const execMonthly = execChartMonthlyRows().slice(-3);
-  const execWeekly = execChartWeeklyRows().slice(-6);
-  const execDaily = execChartDailyRows().slice(-EXEC_CHART_DAILY_N);
+  const execMonthly = execChartMonthlyRows(matchesLobFilter).slice(-3);
+  const execWeekly = execChartWeeklyRows(matchesLobFilter).slice(-6);
+  const execDaily = execChartDailyRows(matchesLobFilter).slice(-EXEC_CHART_DAILY_N);
   const monthLbl = r => fmtMonthLabel(r.month);
   const weekLbl = r => 'WB '+r.weekBeginning.slice(5);
   const dayLbl = r => r.date.slice(5);
@@ -2124,11 +2156,11 @@ function renderASRTrend(t){
 // 3. CLOSER Trend View — real company-wide closer trend (mirrors Executive Summary Trend's depth)
 // The 11 KPI tiles shown on CLOSER Trend View -- factored out so Closers Metric can show the
 // identical set (same formulas, same live "vs prev period" comparison) without duplicating markup.
-function closerKpiTilesHtml(){
-  const lobBlocked = SETTER_LOBS.includes(state.lob);
-  const curr = lobBlocked ? null : closerCompanyTotals(state.start, state.end);
+function closerKpiTilesHtml(lobMatcher){
+  const lobBlocked = state.lob && !lobMatcher(state.lob);
+  const curr = lobBlocked ? null : closerCompanyTotals(lobMatcher, state.start, state.end);
   const {prevStart, prevEnd} = prevPeriodRange(state.start, state.end);
-  const prev = lobBlocked ? null : closerCompanyTotals(prevStart, prevEnd);
+  const prev = lobBlocked ? null : closerCompanyTotals(lobMatcher, prevStart, prevEnd);
   return `
     <div class="metrics-container">
       ${kpiTile('Appointments', fmtInt(curr?.appt||0), curr?deltaSub(curr.appt, prev.appt):'')}
@@ -2146,91 +2178,104 @@ function closerKpiTilesHtml(){
   `;
 }
 
-function renderCloserTrend(){
-  const p = document.getElementById('panel-5');
-  const lobBlocked = SETTER_LOBS.includes(state.lob);
+// Generic engine behind CLOSER Trend View, kept reusable (scoped by `lobMatcher`, unique DOM id
+// prefixes so chart/table elements don't collide) for any future closer-shaped tab.
+// cfg: {panelId, lobMatcher, idPrefix, tablePrefix, tabLabel, snapshotNote}.
+function renderCloserStyleTrend(cfg){
+  const {panelId, lobMatcher, idPrefix, tablePrefix, tabLabel, snapshotNote} = cfg;
+  const p = document.getElementById(panelId);
+  const lobBlocked = state.lob && !lobMatcher(state.lob);
   const scopeBanner = lobBlocked
-    ? `<div class="scope-banner blocked">⚠ LOB is set to ${state.lob}, but this is the Closer company trend — switch LOB to Closer or All to see it (or open Executive Summary Trend).</div>`
+    ? `<div class="scope-banner blocked">⚠ LOB is set to ${state.lob}, but this is the ${tabLabel} company trend — switch LOB to ${tabLabel} or All to see it.</div>`
     : '';
   const {prevStart, prevEnd} = prevPeriodRange(state.start, state.end);
+  const chartMetrics = closerChartMetricsFor(tabLabel);
   p.innerHTML = `
     ${scopeBanner}
-    ${closerKpiTilesHtml()}
+    ${closerKpiTilesHtml(lobMatcher)}
     <div class="note">Tiles: exact sums for ${state.start} → ${state.end} vs the equivalent prior period (${prevStart} → ${prevEnd}), computed live from Sched (covers ${RAW_SCHED_MIN_DATE} → ${RAW_SCHED_MAX_DATE}).</div>
-    <div class="section-title">Closer Show, Show Rate %, Closed Rate %, Upfront Revenue $, AOV $, RS1, Clubs, PG1 — Monthly / Weekly / Daily</div>
+    <div class="section-title">${tabLabel} Show, Show Rate %, Closed Rate %, Upfront Revenue $, AOV $, RS1, Clubs, PG1 — Monthly / Weekly / Daily</div>
     <div class="note">These 24 charts are NOT affected by the Date Range filter above -- they always show the latest 3 months / 6 weeks / ${CLOSER_CHART_DAILY_N} days. Team and Agent filters do apply, same as the rest of this tab.</div>
-    ${CLOSER_CHART_METRICS.map(m => `
+    ${chartMetrics.map(m => `
     <div class="chart-row">
       <div class="chart-card">
         <h3>${m.label} — Monthly <span style="color:var(--gray); font-weight:400; text-transform:none; letter-spacing:0">(last 3 months)</span></h3>
         <div class="legend"><span><i style="background:var(--s-orange)"></i>${m.label}</span></div>
-        <div id="chart-closer-${m.id}-m"></div>
+        <div id="chart-${idPrefix}-${m.id}-m"></div>
       </div>
       <div class="chart-card">
         <h3>${m.label} — Weekly <span style="color:var(--gray); font-weight:400; text-transform:none; letter-spacing:0">(last 6 weeks)</span></h3>
         <div class="legend"><span><i style="background:var(--s-orange)"></i>${m.label}</span></div>
-        <div id="chart-closer-${m.id}-w"></div>
+        <div id="chart-${idPrefix}-${m.id}-w"></div>
       </div>
       <div class="chart-card">
         <h3>${m.label} — Daily <span style="color:var(--gray); font-weight:400; text-transform:none; letter-spacing:0">(last ${CLOSER_CHART_DAILY_N} days)</span></h3>
         <div class="legend"><span><i style="background:var(--s-orange)"></i>${m.label}</span></div>
-        <div id="chart-closer-${m.id}-d"></div>
+        <div id="chart-${idPrefix}-${m.id}-d"></div>
       </div>
     </div>`).join('')}
-    <div class="section-title">Closers by metric (current snapshot)</div>
-    <div class="note">Per-closer breakdown is the current-period snapshot from Closers Metric — the sheet's CLOSER Trend View also carries a full per-closer Monthly/Weekly/Daily block for each of the 23 closers individually; only the company-wide roll-up above is reproduced here. Every closer in scope is shown (sorted by that chart's own metric), not just a top-N slice.</div>
+    <div class="section-title">${tabLabel} by metric (current snapshot)</div>
+    <div class="note">${snapshotNote}</div>
     <div class="chart-row-5">
       ${CLOSER_TOPBAR_METRICS.map(m => `
-      <div class="chart-card"><h3>${m.label}</h3><div id="chart-closer-topbar-${m.key}"></div></div>`).join('')}
+      <div class="chart-card"><h3>${m.label}</h3><div id="chart-${idPrefix}-topbar-${m.key}"></div></div>`).join('')}
     </div>
     <div class="section-title">Period detail — all 12 metrics, as shown on the sheet</div>
     <div class="note">Static last ${CLOSER_CHART_DAILY_N} days, NOT affected by the Date Range filter above (same window and formulas as the Daily charts) -- Team, LOB, and Agent filters do apply.</div>
-    <div class="table-section"><table><thead id="tbl-closertrend-head"></thead><tbody id="tbl-closertrend-body"></tbody></table></div>
+    <div class="table-section"><table><thead id="tbl-${tablePrefix}-head"></thead><tbody id="tbl-${tablePrefix}-body"></tbody></table></div>
     ${formulaTableHtml(CLOSER_FORMULA_ROWS)}
   `;
-  const closerMonthly = closerChartMonthlyRows().slice(-3);
-  const closerWeekly = closerChartWeeklyRows().slice(-6);
-  const closerDaily = closerChartDailyRows().slice(-CLOSER_CHART_DAILY_N);
-  const closerMonthLbl = r => fmtMonthLabel(r.month);
-  const closerWeekLbl = r => 'WB '+r.weekBeginning.slice(5);
-  const closerDayLbl = r => r.date.slice(5);
-  CLOSER_CHART_METRICS.forEach(m => {
+  const chartMonthly = closerChartMonthlyRows(lobMatcher).slice(-3);
+  const chartWeekly = closerChartWeeklyRows(lobMatcher).slice(-6);
+  const chartDaily = closerChartDailyRows(lobMatcher).slice(-CLOSER_CHART_DAILY_N);
+  const monthLbl = r => fmtMonthLabel(r.month);
+  const weekLbl = r => 'WB '+r.weekBeginning.slice(5);
+  const dayLbl = r => r.date.slice(5);
+  chartMetrics.forEach(m => {
     const series = closerMetricSeries(m.key, m.fmt);
-    groupedColumnChart(`chart-closer-${m.id}-m`, closerMonthly, series, closerMonthLbl, {showValues:true});
-    lineChart(`chart-closer-${m.id}-w`, closerWeekly, series, closerWeekLbl, {showValues:'all'});
-    lineChart(`chart-closer-${m.id}-d`, closerDaily, series, closerDayLbl, {showValues:'last'});
+    groupedColumnChart(`chart-${idPrefix}-${m.id}-m`, chartMonthly, series, monthLbl, {showValues:true});
+    lineChart(`chart-${idPrefix}-${m.id}-w`, chartWeekly, series, weekLbl, {showValues:'all'});
+    lineChart(`chart-${idPrefix}-${m.id}-d`, chartDaily, series, dayLbl, {showValues:'last'});
   });
-  const closers = filteredClosers();
+  const rows = filteredClosers(lobMatcher);
   CLOSER_TOPBAR_METRICS.forEach(m => {
-    const sorted = closers.slice().sort((a,b)=>(b[m.key]||0)-(a[m.key]||0));
-    barChart(`chart-closer-topbar-${m.key}`, sorted, m.key, r=>r.name, getVar(m.color), m.fmt);
+    const sorted = rows.slice().sort((a,b)=>(b[m.key]||0)-(a[m.key]||0));
+    barChart(`chart-${idPrefix}-topbar-${m.key}`, sorted, m.key, r=>r.name, getVar(m.color), m.fmt);
   });
-  // Same fixed window as the charts above (closerDaily, already Team/LOB/Agent-aware and clamped
-  // to today) -- NOT closerTrendForRange()'s Date-Range-tied `ct.rows`, which this table used to
-  // read from and which could go empty whenever the Date Range didn't line up with its captured
-  // snapshot. Matches how Executive Summary Trend's own Period detail table reads from execDaily.
-  const withPeriod = closerDaily.map(r=>({...r, period: r.date}));
-  if(!sortState['tbl-closertrend']) sortState['tbl-closertrend'] = {col:'period', dir:-1};
-  renderTable('tbl-closertrend', withPeriod, closerMetricCols('period', 'Date'));
+  // Same fixed window as the charts above (chartDaily, already Team/LOB/Agent-aware and clamped to
+  // today), not a Date-Range-tied snapshot that could go empty whenever the Date Range didn't line
+  // up with it. Matches how Executive Summary Trend's own Period detail table reads from execDaily.
+  const withPeriod = chartDaily.map(r=>({...r, period: r.date}));
+  if(!sortState['tbl-'+tablePrefix]) sortState['tbl-'+tablePrefix] = {col:'period', dir:-1};
+  renderTable('tbl-'+tablePrefix, withPeriod, closerMetricCols('period', 'Date'));
 }
 
-// 4. Closers Metric
-function renderClosersMetric(){
-  const p = document.getElementById('panel-6');
-  const closers = filteredClosers();
+function renderCloserTrend(){
+  renderCloserStyleTrend({
+    panelId:'panel-5', lobMatcher:isCloserLob, idPrefix:'closer', tablePrefix:'closertrend', tabLabel:'Closer',
+    snapshotNote: 'Per-closer breakdown is the current-period snapshot from Closers Metric — the sheet\'s CLOSER Trend View also carries a full per-closer Monthly/Weekly/Daily block for each closer individually; only the company-wide roll-up above is reproduced here. Every closer in scope is shown (sorted by that chart\'s own metric), not just a top-N slice.',
+  });
+}
+
+// Generic engine behind Closers Metric, kept reusable for any future closer-shaped tab.
+// cfg: {panelId, lobMatcher, tablePrefix, tabLabel}.
+function renderCloserStyleMetric(cfg){
+  const {panelId, lobMatcher, tablePrefix, tabLabel} = cfg;
+  const p = document.getElementById(panelId);
+  const rows = filteredClosers(lobMatcher);
   const {prevStart, prevEnd} = prevPeriodRange(state.start, state.end);
   p.innerHTML = `
-    ${closerKpiTilesHtml()}
+    ${closerKpiTilesHtml(lobMatcher)}
     <div class="note">Tiles: exact sums for ${state.start} → ${state.end} vs the equivalent prior period (${prevStart} → ${prevEnd}), computed live from Sched.</div>
-    <div class="section-title">Closer / PG1 Advisor detail</div>
+    <div class="section-title">${tabLabel} Advisor detail</div>
     <div class="note">Computed live from Sched's per-rep-per-day records (periodically refreshed from Sched, covers ${RAW_SCHED_MIN_DATE} → ${RAW_SCHED_MAX_DATE}; the most recent ~week can still revise as Sched backfills -- treat it as provisional) — exact sums for the selected Date Range / Team / Agent, not a fixed snapshot. Click a column header to sort.</div>
-    <div class="table-section"><table><thead id="tbl-closers-head"></thead><tbody id="tbl-closers-body"></tbody></table></div>
+    <div class="table-section"><table><thead id="tbl-${tablePrefix}-head"></thead><tbody id="tbl-${tablePrefix}-body"></tbody></table></div>
     ${formulaTableHtml(CLOSER_FORMULA_ROWS)}
   `;
   // Default sort: Upfront Revenue descending, until the user clicks a column header to choose
   // their own (renderTable persists sortState per table id, so this only ever applies once).
-  if(!sortState['tbl-closers']) sortState['tbl-closers'] = {col:'revenue', dir:-1};
-  renderTable('tbl-closers', closers, [
+  if(!sortState['tbl-'+tablePrefix]) sortState['tbl-'+tablePrefix] = {col:'revenue', dir:-1};
+  renderTable('tbl-'+tablePrefix, rows, [
     {key:'team', label:'Team'}, {key:'name', label:'Name'},
     {key:'revenue', label:'Upfront Revenue', fmt:fmtMoney}, {key:'aov', label:'AOV $', fmt:fmtMoney},
     {key:'closeRate', label:'Closed Rate %', fmt:fmtPct},
@@ -2240,6 +2285,24 @@ function renderClosersMetric(){
     {key:'closedDeal', label:'Closed Deal'},
   ]);
 }
+
+// 4. Closers Metric
+function renderClosersMetric(){
+  renderCloserStyleMetric({panelId:'panel-6', lobMatcher:isCloserLob, tablePrefix:'closers', tabLabel:'Closer'});
+}
+
+// Mid-Ticket, PG1, and Inbound are placeholder tabs for now -- the main-tab navigation exists
+// (reordered per request: Mid-Ticket, PG1, Inbound, then Setter/Closer), but these three will be
+// sourced from a separate Google Sheet later, not from Sched/RAW_SCHED, so no data is wired in yet.
+function renderComingSoonTab(panelId, tabLabel){
+  document.getElementById(panelId).innerHTML = `
+    <div class="scope-banner">${tabLabel} will be sourced from a separate Google Sheet — this tab is a placeholder for now, not yet wired to live data.</div>
+  `;
+}
+function renderMidTicketTrend(){ renderComingSoonTab('panel-7', 'Mid-Ticket Trend View'); }
+function renderMidTicketMetric(){ renderComingSoonTab('panel-8', 'Mid-Ticket Metric'); }
+function renderPG1Trend(){ renderComingSoonTab('panel-9', 'PG1 Trend View'); }
+function renderPG1Metric(){ renderComingSoonTab('panel-10', 'PG1 Metric'); }
 
 // 5. Rep per Metric
 function renderRepPerMetric(){
@@ -2269,8 +2332,8 @@ function renderASRDailyMetric(){
   // so they go through execCompanyTotals(..., {agentAware:true}) -- a straight live sum for the
   // exact selected range/Team/LOB/Agent -- rather than aggregating a team-only trend cascade.
   const {prevStart, prevEnd} = prevPeriodRange(state.start, state.end);
-  const dailyCur = execCompanyTotals(state.start, state.end, {agentAware:true});
-  const dailyPrev = execCompanyTotals(prevStart, prevEnd, {agentAware:true});
+  const dailyCur = execCompanyTotals(matchesLobFilter, state.start, state.end, {agentAware:true});
+  const dailyPrev = execCompanyTotals(matchesLobFilter, prevStart, prevEnd, {agentAware:true});
   p.innerHTML = `
     ${execKpiTilesHtml(dailyCur, dailyPrev, prevStart, prevEnd)}
     <div class="section-title">Rep detail</div>
@@ -2279,12 +2342,15 @@ function renderASRDailyMetric(){
     ${formulaTableHtml(SETTER_FORMULA_ROWS)}
   `;
   const cols = [{key:'team', label:'Team'}, ...fullMetricCols('name','Name')];
-  const rows = isCloserLob(state.lob) ? [] : repRowsForRange().filter(r=>matchesTeamFilter(r.team) && matchesAgentFilter(r.name));
+  const rows = isCloserLob(state.lob) ? [] : repRowsForRange(matchesLobFilter).filter(r=>matchesTeamFilter(r.team) && matchesAgentFilter(r.name));
   // Default sort: Sets descending, until the user clicks a column header to choose their own
   // (renderTable persists sortState per table id, so this only ever applies once).
   if(!sortState['tbl-asrdaily']) sortState['tbl-asrdaily'] = {col:'sets', dir:-1};
   renderTable('tbl-asrdaily', rows, cols);
 }
+
+function renderInboundSummary(){ renderComingSoonTab('panel-11', 'Inbound Summary Trend'); }
+function renderInboundDaily(){ renderComingSoonTab('panel-12', 'Inbound Daily Metric'); }
 
 // 7. BR % per Call Source
 // Local slicers for this table only (not part of the global Date/LOB/Team/Agent filter bar) --

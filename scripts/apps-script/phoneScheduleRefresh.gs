@@ -1,0 +1,343 @@
+// ============================================================================
+// Mid-Ticket / PG1 / Inbound tabs data pipeline: "Phone Team Sales Report 2026" Schedule tab +
+// Aloware call-log CSVs -> asr_closer_dashboard.html on GitHub -> Vercel auto-deploy.
+// Mirrors claudeRefreshAndPublish.gs's publish mechanism (same repo, same Git Data API push), but
+// reads from a DIFFERENT spreadsheet and a Drive folder of CSVs instead of the Sched tab, and
+// writes a NEW const (PHONE_LOB_DAILY) into the dashboard -- it does not touch RAW_SCHED/TREND_*,
+// which stay owned by claudeRefreshAndPublish.gs. Per explicit instruction, this pipeline is
+// scoped ONLY to the Mid-Ticket/PG1/Inbound tabs; it must never be wired into Setter or Closer.
+//
+// ONE-TIME SETUP (full instructions at the bottom of this file):
+//   1. Open the "Phone Team Sales Report 2026" spreadsheet's Apps Script editor (Extensions >
+//      Apps Script) -- this is a SEPARATE Apps Script project from "ASR - No Show"'s, bound to
+//      this different spreadsheet.
+//   2. Paste this whole file in as a new script file.
+//   3. Add a GITHUB_PAT script property (same token used for claudeRefreshAndPublish.gs works --
+//      it's scoped to the same pg-dashboard repo -- or generate a fresh one the same way).
+//   4. Add an hourly (or however-often-makes-sense) time-driven trigger for phoneRefreshAndPublish.
+//   5. Run phoneRefreshAndPublish once manually to test; check Executions and the GitHub repo for
+//      a new commit.
+// ============================================================================
+
+var PHONE_GITHUB_OWNER = 'markdeguzman-png';
+var PHONE_GITHUB_REPO = 'pg-dashboard';
+var PHONE_GITHUB_BRANCH = 'main';
+var PHONE_DASHBOARD_PATH = 'asr_closer_dashboard.html';
+var PHONE_RAW_URL = 'https://raw.githubusercontent.com/' + PHONE_GITHUB_OWNER + '/' +
+  PHONE_GITHUB_REPO + '/' + PHONE_GITHUB_BRANCH + '/' + PHONE_DASHBOARD_PATH;
+
+// The "Phone Team Sales Report 2026" spreadsheet and its Schedule tab.
+var PHONE_SHEET_ID = '15Hgi2w-JUpwQQEYDJVYdwX5PhwMOi6rW-63WxNry2zQ';
+var SCHEDULE_TAB_NAME = 'Schedule';
+
+// The Aloware call-log CSV folder -- treated as ONE growing source: every CSV currently in it is
+// read every run, including new weekly files as they're added later. No per-file bookkeeping.
+var ALOWARE_FOLDER_ID = '1GkJ0K4u6Gjmg3cPr-azngiFEEVvq6Iir';
+
+// Current LOB values (Schedule tab's own "Current LOB" column) that feed each of the 3 new tabs.
+// NOTE: this is "Inbound" here, not "Inbound Team" -- that's the label this specific source uses;
+// it's a different string than RAW_SCHED/Aloware's "Inbound Team" and the two must not be conflated.
+var TARGET_LOBS = ['Mid-Ticket', 'PG1', 'Inbound'];
+
+// A call counts as "Connected" when its Talk Time is at least this many seconds.
+var CONNECTED_CALL_MIN_SECONDS = 90;
+
+function phoneRefreshAndPublish() {
+  var scheduleValues = SpreadsheetApp.openById(PHONE_SHEET_ID).getSheetByName(SCHEDULE_TAB_NAME).getDataRange().getValues();
+  var scheduleRows = extractScheduleRows_(scheduleValues);
+  if (!scheduleRows.length) { Logger.log('No active Schedule rows extracted; aborting.'); return; }
+
+  var repLobByDate = buildRepLobByDate_(scheduleRows);
+  var alowareRows = fetchAlowareRows_();
+  var connectedByLobDate = computeConnectedCalls_(alowareRows, repLobByDate);
+
+  var dailyRows = aggregatePhoneDaily_(scheduleRows, connectedByLobDate);
+  if (!dailyRows.length) { Logger.log('No aggregated rows produced; aborting.'); return; }
+
+  var nowIso = new Date().toISOString();
+  var htmlResp = UrlFetchApp.fetch(PHONE_RAW_URL, { muteHttpExceptions: true });
+  if (htmlResp.getResponseCode() !== 200) {
+    throw new Error('Could not fetch current dashboard HTML from GitHub: ' + htmlResp.getResponseCode());
+  }
+  var result = splicePhoneHtml_(htmlResp.getContentText(), dailyRows, nowIso);
+  if (result === null) { Logger.log('No change in underlying Phone/Aloware data; skipping publish.'); return; }
+
+  publishPhoneToGitHub_(result.content, dailyRows);
+  PropertiesService.getScriptProperties().setProperty('PHONE_LAST_DATA_DIGEST', result.digest);
+}
+
+// ---- Schedule tab extraction ----
+function phoneColIdx_(headers, name) {
+  var i = headers.indexOf(name);
+  if (i === -1) throw new Error('Missing expected Schedule column: ' + name);
+  return i;
+}
+
+function phoneToNum_(v) {
+  if (v === undefined || v === null || v === '') return 0;
+  var n = parseFloat(String(v).replace(/,/g, '').replace(/\$/g, ''));
+  return isNaN(n) ? 0 : n;
+}
+
+function phoneRound2_(x) { return Math.round(x * 100) / 100; }
+
+// Schedule's Date column comes back from getValues() as a native Date object (not the "M/D/YYYY"
+// text string Sched's Sheets-API pull returns), so this reads actual date fields instead of
+// string-splitting like Sched's isoDate_() does.
+function phoneIsoDate_(v) {
+  if (!v) return null;
+  if (Object.prototype.toString.call(v) === '[object Date]') {
+    return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  }
+  var s = String(v).trim();
+  var parts = s.split('/');
+  if (parts.length === 3) {
+    var m = ('0' + parts[0]).slice(-2), d = ('0' + parts[1]).slice(-2), y = parts[2];
+    return y + '-' + m + '-' + d;
+  }
+  return null;
+}
+
+// One row per (Name, Date) -- skips rows with no Name/Date, or whose Current LOB isn't one of the
+// 3 we care about, or whose relevant numeric fields are all zero (matches zero-sum rows don't
+// change any sum, so dropping them keeps the extracted set lean without losing any real signal).
+function extractScheduleRows_(values) {
+  var headers = values[0];
+  var idx = {};
+  ['Name', 'Date', 'Current LOB', 'Clubs', 'PG1', 'Upfront_Revenue', 'closed_deals', 'PG1 Trial', 'PG1 Upfront'].forEach(function (h) {
+    idx[h] = phoneColIdx_(headers, h);
+  });
+  var rows = [];
+  for (var r = 1; r < values.length; r++) {
+    var row = values[r];
+    var name = row[idx['Name']];
+    if (!name) continue;
+    var lob = row[idx['Current LOB']];
+    if (TARGET_LOBS.indexOf(lob) === -1) continue;
+    var dateStr = phoneIsoDate_(row[idx['Date']]);
+    if (!dateStr) continue;
+    var clubs = phoneToNum_(row[idx['Clubs']]);
+    var pg1 = phoneToNum_(row[idx['PG1']]);
+    var upfrontRevenue = phoneToNum_(row[idx['Upfront_Revenue']]);
+    var closedDeals = phoneToNum_(row[idx['closed_deals']]);
+    var pg1Trial = phoneToNum_(row[idx['PG1 Trial']]);
+    var pg1Upfront = phoneToNum_(row[idx['PG1 Upfront']]);
+    if (!clubs && !pg1 && !upfrontRevenue && !closedDeals && !pg1Trial && !pg1Upfront) continue;
+    rows.push({
+      name: String(name).trim(), date: dateStr, lob: lob,
+      clubs: clubs, pg1: pg1, upfrontRevenue: phoneRound2_(upfrontRevenue), closedDeals: closedDeals,
+      pg1Trial: pg1Trial, pg1Upfront: pg1Upfront
+    });
+  }
+  return rows;
+}
+
+// name|date -> Current LOB, used to resolve which LOB bucket an Aloware call belongs to.
+function buildRepLobByDate_(scheduleRows) {
+  var map = {};
+  scheduleRows.forEach(function (r) { map[r.name + '|' + r.date] = r.lob; });
+  return map;
+}
+
+// ---- Aloware call-log folder (treated as one source: every CSV currently in it, every run) ----
+// Line Name carries per-line suffixes ("Belle Diaz BF1", "...BF1_deleted_1792700876") that don't
+// appear in Schedule's plain Name column -- stripped here before matching.
+function cleanLineName_(name) {
+  return String(name || '')
+    .replace(/_deleted_\d+\s*$/, '')
+    .replace(/\s*BF\d+\s*$/, '')
+    .trim();
+}
+
+function talkTimeToSeconds_(hms) {
+  var parts = String(hms || '0:0:0').split(':');
+  if (parts.length !== 3) return 0;
+  var h = parseInt(parts[0], 10) || 0, m = parseInt(parts[1], 10) || 0, s = parseInt(parts[2], 10) || 0;
+  return h * 3600 + m * 60 + s;
+}
+
+function fetchAlowareRows_() {
+  var out = [];
+  var files = DriveApp.getFolderById(ALOWARE_FOLDER_ID).getFiles();
+  while (files.hasNext()) {
+    var file = files.next();
+    var csvText = file.getBlob().getDataAsString();
+    var rows = Utilities.parseCsv(csvText);
+    if (!rows.length) continue;
+    var headers = rows[0];
+    var startedIdx = headers.indexOf('Started At');
+    var lineIdx = headers.indexOf('Line Name');
+    var userIdx = headers.indexOf('User Name');
+    var talkIdx = headers.indexOf('Talk Time');
+    if (startedIdx === -1 || talkIdx === -1) continue; // unexpected format; skip this file rather than fail the whole run
+    for (var i = 1; i < rows.length; i++) {
+      var row = rows[i];
+      var started = row[startedIdx];
+      if (!started) continue;
+      var dateStr = String(started).trim().slice(0, 10); // "YYYY-MM-DD HH:MM:SS" -> date part
+      var lineName = lineIdx > -1 ? cleanLineName_(row[lineIdx]) : '';
+      var userName = userIdx > -1 ? String(row[userIdx] || '').trim() : '';
+      var seconds = talkTimeToSeconds_(row[talkIdx]);
+      out.push({ date: dateStr, lineName: lineName, userName: userName, seconds: seconds });
+    }
+  }
+  return out;
+}
+
+// Per LOB per date, how many calls had >= CONNECTED_CALL_MIN_SECONDS of talk time. Matches by
+// Line Name first, falling back to User Name, against the Schedule's name|date -> LOB lookup --
+// same priority order used for the manual name-matching check this pipeline is based on.
+function computeConnectedCalls_(alowareRows, repLobByDate) {
+  var out = {}; // 'LOB|date' -> count
+  alowareRows.forEach(function (r) {
+    if (r.seconds < CONNECTED_CALL_MIN_SECONDS) return;
+    var lob = repLobByDate[r.lineName + '|' + r.date];
+    if (!lob) lob = repLobByDate[r.userName + '|' + r.date];
+    if (!lob) return;
+    var key = lob + '|' + r.date;
+    out[key] = (out[key] || 0) + 1;
+  });
+  return out;
+}
+
+// ---- Aggregation: one row per (LOB, Date), company-wide within that LOB ----
+function aggregatePhoneDaily_(scheduleRows, connectedByLobDate) {
+  var sums = {}; // 'LOB|date' -> sums
+  scheduleRows.forEach(function (r) {
+    var key = r.lob + '|' + r.date;
+    if (!sums[key]) {
+      sums[key] = { lob: r.lob, date: r.date, clubs: 0, pg1: 0, upfrontRevenue: 0, closedDeals: 0, pg1Trial: 0, pg1Upfront: 0 };
+    }
+    var o = sums[key];
+    o.clubs += r.clubs; o.pg1 += r.pg1; o.upfrontRevenue += r.upfrontRevenue;
+    o.closedDeals += r.closedDeals; o.pg1Trial += r.pg1Trial; o.pg1Upfront += r.pg1Upfront;
+  });
+  return Object.keys(sums).sort().map(function (key) {
+    var o = sums[key];
+    var connected = connectedByLobDate[key] || 0;
+    return [o.lob, o.date, o.clubs, o.pg1, phoneRound2_(o.upfrontRevenue), o.closedDeals, o.pg1Trial, o.pg1Upfront, connected];
+  });
+}
+
+// ---- Splice PHONE_LOB_DAILY into the dashboard HTML (own const, never touches RAW_SCHED/TREND_*) ----
+function phoneMd5Hex_(s) {
+  return Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, s)
+    .map(function (b) { var v = (b < 0 ? b + 256 : b).toString(16); return v.length === 1 ? '0' + v : v; })
+    .join('');
+}
+
+function phoneReplaceOnce_(str, regex, replacement, insertFallback) {
+  var found = false;
+  var result = str.replace(regex, function () { found = true; return replacement; });
+  if (found) return result;
+  if (!insertFallback) throw new Error('Splice target not found for pattern: ' + regex);
+  // First run: PHONE_LOB_DAILY doesn't exist yet in the dashboard HTML -- insert it right before
+  // the inlined-data end marker instead of failing.
+  return str.replace('// ===== end inlined data =====', replacement + '\n// ===== end inlined data =====');
+}
+
+function splicePhoneHtml_(html, dailyRows, nowIso) {
+  var dailyJs = JSON.stringify(dailyRows);
+  var digest = phoneMd5Hex_(dailyJs);
+  if (PropertiesService.getScriptProperties().getProperty('PHONE_LAST_DATA_DIGEST') === digest) return null;
+
+  // PHONE_LOB_DAILY row shape: [lob, date, clubs, pg1, upfrontRevenue, closedDeals, pg1Trial,
+  // pg1Upfront, connectedCalls]. One row per (Current LOB, Date), company-wide within that LOB --
+  // feeds the Mid-Ticket/PG1/Inbound tabs ONLY (Setter/Closer must never read this).
+  var constDecl = '// Mid-Ticket/PG1/Inbound tabs ONLY -- company-wide sums per (Current LOB, Date) from the\n' +
+    '// "Phone Team Sales Report 2026" Schedule tab + Aloware call logs (phoneRefreshAndPublish.gs).\n' +
+    '// Row shape: [lob, date, clubs, pg1, upfrontRevenue, closedDeals, pg1Trial, pg1Upfront, connectedCalls].\n' +
+    '// Refreshed ' + nowIso + '. Never read by Setter/Closer code.\n' +
+    'const PHONE_LOB_DAILY = ' + dailyJs + ';';
+
+  var out = phoneReplaceOnce_(html, /const PHONE_LOB_DAILY = \[.*?\];/s, constDecl, true);
+  return { content: out, digest: digest };
+}
+
+// ---- Publish straight to GitHub via the Git Data API (same mechanism as claudeRefreshAndPublish.gs) ----
+function publishPhoneToGitHub_(newContent, dailyRows) {
+  var token = PropertiesService.getScriptProperties().getProperty('GITHUB_PAT');
+  if (!token) throw new Error('GITHUB_PAT script property not set -- see setup instructions at the top of this file.');
+  var apiBase = 'https://api.github.com/repos/' + PHONE_GITHUB_OWNER + '/' + PHONE_GITHUB_REPO;
+  var authHeaders = {
+    Authorization: 'Bearer ' + token,
+    Accept: 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28'
+  };
+
+  var refResp = UrlFetchApp.fetch(apiBase + '/git/ref/heads/' + PHONE_GITHUB_BRANCH, { headers: authHeaders, muteHttpExceptions: true });
+  if (refResp.getResponseCode() !== 200) throw new Error('git/ref failed: ' + refResp.getContentText());
+  var latestCommitSha = JSON.parse(refResp.getContentText()).object.sha;
+
+  var commitResp = UrlFetchApp.fetch(apiBase + '/git/commits/' + latestCommitSha, { headers: authHeaders, muteHttpExceptions: true });
+  if (commitResp.getResponseCode() !== 200) throw new Error('git/commits get failed: ' + commitResp.getContentText());
+  var baseTreeSha = JSON.parse(commitResp.getContentText()).tree.sha;
+
+  var blobResp = UrlFetchApp.fetch(apiBase + '/git/blobs', {
+    method: 'post', headers: authHeaders, contentType: 'application/json', muteHttpExceptions: true,
+    payload: JSON.stringify({ content: Utilities.base64Encode(newContent, Utilities.Charset.UTF_8), encoding: 'base64' })
+  });
+  if (blobResp.getResponseCode() !== 201) throw new Error('git/blobs failed: ' + blobResp.getContentText());
+  var blobSha = JSON.parse(blobResp.getContentText()).sha;
+
+  var treeResp = UrlFetchApp.fetch(apiBase + '/git/trees', {
+    method: 'post', headers: authHeaders, contentType: 'application/json', muteHttpExceptions: true,
+    payload: JSON.stringify({ base_tree: baseTreeSha, tree: [{ path: PHONE_DASHBOARD_PATH, mode: '100644', type: 'blob', sha: blobSha }] })
+  });
+  if (treeResp.getResponseCode() !== 201) throw new Error('git/trees failed: ' + treeResp.getContentText());
+  var newTreeSha = JSON.parse(treeResp.getContentText()).sha;
+
+  var lastRow = dailyRows[dailyRows.length - 1];
+  var msg = 'Refresh Mid-Ticket/PG1/Inbound data (automated Apps Script publish)\n\n' +
+    dailyRows.length + ' (LOB, Date) rows. Latest: ' + lastRow[1] + ' / ' + lastRow[0] + '.';
+  var newCommitResp = UrlFetchApp.fetch(apiBase + '/git/commits', {
+    method: 'post', headers: authHeaders, contentType: 'application/json', muteHttpExceptions: true,
+    payload: JSON.stringify({ message: msg, tree: newTreeSha, parents: [latestCommitSha] })
+  });
+  if (newCommitResp.getResponseCode() !== 201) throw new Error('git/commits create failed: ' + newCommitResp.getContentText());
+  var newCommitSha = JSON.parse(newCommitResp.getContentText()).sha;
+
+  var updateRefResp = UrlFetchApp.fetch(apiBase + '/git/refs/heads/' + PHONE_GITHUB_BRANCH, {
+    method: 'patch', headers: authHeaders, contentType: 'application/json', muteHttpExceptions: true,
+    payload: JSON.stringify({ sha: newCommitSha, force: false })
+  });
+  if (updateRefResp.getResponseCode() !== 200) throw new Error('git/refs update failed: ' + updateRefResp.getContentText());
+
+  Logger.log('Published commit ' + newCommitSha + ' -- ' + dailyRows.length + ' rows, latest ' + lastRow[1] + ' / ' + lastRow[0] + '.');
+}
+
+// ============================================================================
+// SETUP INSTRUCTIONS
+//
+// 1. Open the "Phone Team Sales Report 2026" spreadsheet (the one at
+//    docs.google.com/spreadsheets/d/15Hgi2w-JUpwQQEYDJVYdwX5PhwMOi6rW-63WxNry2zQ), then
+//    Extensions > Apps Script. This creates/opens a Apps Script project bound to THIS
+//    spreadsheet -- separate from the "ASR - No Show" project claudeRefreshAndPublish.gs lives in.
+// 2. Add this whole file as a new script file (File > New > Script file, name it e.g.
+//    "PhoneScheduleRefresh").
+// 3. GitHub token: reuse the same fine-grained PAT already set up for claudeRefreshAndPublish.gs
+//    (it's scoped to this same pg-dashboard repo with Contents: Read and write, so it works here
+//    too) -- or generate a fresh one the same way if you'd rather keep them separate:
+//      - https://github.com/settings/personal-access-tokens/new
+//      - Resource owner: markdeguzman-png: Repository access: "Only select repositories" -> pg-dashboard
+//      - Permissions: Repository permissions -> Contents -> Read and write
+// 4. In THIS Apps Script project's editor: gear icon (Project Settings) -> Script Properties ->
+//    Add script property:
+//      Property: GITHUB_PAT
+//      Value:    <the token>
+// 5. Clock icon (Triggers) -> Add Trigger: function phoneRefreshAndPublish, event source
+//    "Time-driven", type "Hour timer", every hour (or whatever cadence makes sense once you see
+//    how big a single run is / how often Aloware adds new weekly files).
+// 6. Test it: select phoneRefreshAndPublish from the function dropdown, click Run. Authorize the
+//    new scopes it asks for (Spreadsheets, Drive, UrlFetch to github.com) when prompted. This
+//    first run reads ALL ~15,685 Schedule rows and every CSV in the Aloware folder, so it may take
+//    a while -- watch Executions (the play-button-with-a-clock icon) for how long it actually
+//    takes and whether it completes within the execution time limit; if it times out, tell Claude
+//    so the extraction can be split into smaller batches.
+// 7. Check https://github.com/markdeguzman-png/pg-dashboard for a new commit adding a
+//    PHONE_LOB_DAILY const to asr_closer_dashboard.html. Vercel auto-deploys from that push.
+//
+// This pipeline is intentionally independent of claudeRefreshAndPublish.gs -- different
+// spreadsheet, different Drive source, different const in the dashboard (PHONE_LOB_DAILY vs
+// RAW_SCHED/TREND_*). Running both triggers hourly is fine; they never touch each other's data.
+// ============================================================================

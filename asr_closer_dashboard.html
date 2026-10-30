@@ -2296,17 +2296,133 @@ function renderClosersMetric(){
   renderCloserStyleMetric({panelId:'panel-6', lobMatcher:isCloserLob, tablePrefix:'closers', tabLabel:'Closer'});
 }
 
-// Mid-Ticket, PG1, and Inbound are placeholder tabs for now -- the main-tab navigation exists
-// (reordered per request: Mid-Ticket, PG1, Inbound, then Setter/Closer), but these three will be
-// sourced from a separate Google Sheet later, not from Sched/RAW_SCHED, so no data is wired in yet.
+// PG1/Mid-Ticket/Inbound-tab ONLY data layer, sourced from PHONE_LOB_DAILY (the "Phone Team Sales
+// Report 2026" Schedule tab + Aloware call logs, via phoneScheduleRefresh.gs) -- entirely separate
+// from RAW_SCHED/TREND_*, which stay Setter/Closer's own. PHONE_LOB_DAILY row shape: [lob, date,
+// clubs, pg1, upfrontRevenue, closedDeals, pg1Trial, pg1Upfront, connectedCalls].
+function phoneBlankSums(){
+  return {clubs:0, pg1:0, upfrontRevenue:0, closedDeals:0, pg1Trial:0, pg1Upfront:0, connectedCalls:0};
+}
+function phoneAddRow(o, r){
+  o.clubs+=r.clubs; o.pg1+=r.pg1; o.upfrontRevenue+=r.upfrontRevenue; o.closedDeals+=r.closedDeals;
+  o.pg1Trial+=r.pg1Trial; o.pg1Upfront+=r.pg1Upfront; o.connectedCalls+=r.connectedCalls;
+}
+// Sched's Date column is the appointment's SCHEDULED date (see execChartDailyRows() above for the
+// full rationale) -- Schedule rows can carry the same kind of future dates, so this clamps to
+// ASOF before the caller's trailing window, same as every other "last N" source in this file.
+function phoneDailyRowsForLob(lob){
+  return PHONE_LOB_DAILY.filter(r=>r[0]===lob).map(r=>({
+    date:r[1], clubs:r[2], pg1:r[3], upfrontRevenue:r[4], closedDeals:r[5], pg1Trial:r[6], pg1Upfront:r[7], connectedCalls:r[8]
+  })).filter(r=>r.date<=ASOF).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
+}
+function phoneChartWeeklyRows(lob){
+  const map = new Map();
+  phoneDailyRowsForLob(lob).forEach(r=>{
+    const wb = weekBeginningOf(r.date);
+    if(!map.has(wb)) map.set(wb, phoneBlankSums());
+    phoneAddRow(map.get(wb), r);
+  });
+  return Array.from(map.entries()).map(([weekBeginning,sums])=>({weekBeginning, ...sums}))
+    .sort((a,b)=>a.weekBeginning<b.weekBeginning?-1:a.weekBeginning>b.weekBeginning?1:0);
+}
+function phoneChartMonthlyRows(lob){
+  const map = new Map();
+  phoneDailyRowsForLob(lob).forEach(r=>{
+    const mo = r.date.slice(0,7);
+    if(!map.has(mo)) map.set(mo, phoneBlankSums());
+    phoneAddRow(map.get(mo), r);
+  });
+  return Array.from(map.entries()).map(([month,sums])=>({month, ...sums}))
+    .sort((a,b)=>a.month<b.month?-1:a.month>b.month?1:0);
+}
+// Company-wide (within this LOB) sums for an ARBITRARY date range -- powers the KPI tiles' current
+// vs prior-period comparison, same role as execCompanyTotals()/closerCompanyTotals() play for
+// Setter/Closer, but reading PHONE_LOB_DAILY instead of RAW_SCHED.
+function phoneCompanyTotals(lob, startStr, endStr){
+  const o = phoneBlankSums();
+  PHONE_LOB_DAILY.forEach(r=>{
+    if(r[0]!==lob || r[1]<startStr || r[1]>endStr) return;
+    phoneAddRow(o, {clubs:r[2], pg1:r[3], upfrontRevenue:r[4], closedDeals:r[5], pg1Trial:r[6], pg1Upfront:r[7], connectedCalls:r[8]});
+  });
+  return o;
+}
+function phoneKpiTilesHtml(lob){
+  const cur = phoneCompanyTotals(lob, state.start, state.end);
+  const {prevStart, prevEnd} = prevPeriodRange(state.start, state.end);
+  const prev = phoneCompanyTotals(lob, prevStart, prevEnd);
+  const curAov = cur.closedDeals ? cur.upfrontRevenue/cur.closedDeals : 0;
+  const prevAov = prev.closedDeals ? prev.upfrontRevenue/prev.closedDeals : 0;
+  return `
+    <div class="metrics-container">
+      ${kpiTile('Upfront Revenue', fmtMoney(cur.upfrontRevenue), deltaSub(cur.upfrontRevenue, prev.upfrontRevenue, fmtMoney))}
+      ${kpiTile('PG1', fmtInt(cur.pg1), `Trial ${fmtInt(cur.pg1Trial)} · Upfront ${fmtInt(cur.pg1Upfront)}<br>${deltaSub(cur.pg1, prev.pg1)}`)}
+      ${kpiTile('Clubs', fmtInt(cur.clubs), deltaSub(cur.clubs, prev.clubs))}
+      ${kpiTile('AOV $', fmtMoney(curAov), deltaSub(curAov, prevAov, fmtMoney))}
+      ${kpiTile('Closed Deals', fmtInt(cur.closedDeals), deltaSub(cur.closedDeals, prev.closedDeals))}
+      ${kpiTile('Connected Calls', fmtInt(cur.connectedCalls), deltaSub(cur.connectedCalls, prev.connectedCalls))}
+    </div>
+  `;
+}
+// The 3 metrics charted as Monthly/Weekly/Daily trios on each Phone-sourced Trend View tab.
+const PHONE_CHART_METRICS = [
+  {id:'revenue', key:'upfrontRevenue', label:'Upfront Revenue', fmt:fmtMoney},
+  {id:'pg1', key:'pg1', label:'PG1', fmt:fmtInt},
+  {id:'clubs', key:'clubs', label:'Clubs', fmt:fmtInt},
+];
+// Generic engine behind the Mid-Ticket/PG1/Inbound Trend View tabs. cfg: {panelId, lob, idPrefix, tabLabel}.
+function renderPhoneTrend(cfg){
+  const {panelId, lob, idPrefix, tabLabel} = cfg;
+  const p = document.getElementById(panelId);
+  const {prevStart, prevEnd} = prevPeriodRange(state.start, state.end);
+  p.innerHTML = `
+    ${phoneKpiTilesHtml(lob)}
+    <div class="note">Tiles: exact sums for ${state.start} → ${state.end} vs the equivalent prior period (${prevStart} → ${prevEnd}), computed from the Phone Team Sales Report's Schedule tab (Current LOB = ${lob}). Connected Calls are from Aloware call logs, matched by rep name/date, counting calls with ≥90 seconds talk time. AOV = Upfront Revenue ÷ Closed Deals.</div>
+    <div class="section-title">Upfront Revenue, PG1, Clubs — Monthly / Weekly / Daily</div>
+    <div class="note">These 9 charts are NOT affected by the Date Range filter above -- they always show the latest 3 months / 6 weeks / 30 days.</div>
+    ${PHONE_CHART_METRICS.map(m => `
+    <div class="chart-row">
+      <div class="chart-card">
+        <h3>${m.label} — Monthly <span style="color:var(--gray); font-weight:400; text-transform:none; letter-spacing:0">(last 3 months)</span></h3>
+        <div class="legend"><span><i style="background:var(--s-orange)"></i>${m.label}</span></div>
+        <div id="chart-${idPrefix}-${m.id}-m"></div>
+      </div>
+      <div class="chart-card">
+        <h3>${m.label} — Weekly <span style="color:var(--gray); font-weight:400; text-transform:none; letter-spacing:0">(last 6 weeks)</span></h3>
+        <div class="legend"><span><i style="background:var(--s-orange)"></i>${m.label}</span></div>
+        <div id="chart-${idPrefix}-${m.id}-w"></div>
+      </div>
+      <div class="chart-card">
+        <h3>${m.label} — Daily <span style="color:var(--gray); font-weight:400; text-transform:none; letter-spacing:0">(last 30 days)</span></h3>
+        <div class="legend"><span><i style="background:var(--s-orange)"></i>${m.label}</span></div>
+        <div id="chart-${idPrefix}-${m.id}-d"></div>
+      </div>
+    </div>`).join('')}
+  `;
+  const chartMonthly = phoneChartMonthlyRows(lob).slice(-3);
+  const chartWeekly = phoneChartWeeklyRows(lob).slice(-6);
+  const chartDaily = phoneDailyRowsForLob(lob).slice(-30);
+  const monthLbl = r => fmtMonthLabel(r.month);
+  const weekLbl = r => 'WB '+r.weekBeginning.slice(5);
+  const dayLbl = r => r.date.slice(5);
+  PHONE_CHART_METRICS.forEach(m => {
+    const series = closerMetricSeries(m.key, m.fmt);
+    groupedColumnChart(`chart-${idPrefix}-${m.id}-m`, chartMonthly, series, monthLbl, {showValues:true});
+    lineChart(`chart-${idPrefix}-${m.id}-w`, chartWeekly, series, weekLbl, {showValues:'all'});
+    lineChart(`chart-${idPrefix}-${m.id}-d`, chartDaily, series, dayLbl, {showValues:'last'});
+  });
+}
+
+// Mid-Ticket Metric and PG1 Metric stay placeholder tabs for now -- only the Trend View sub-tabs
+// were asked for this round. These three will keep being sourced from a separate Google Sheet
+// (never Sched/RAW_SCHED).
 function renderComingSoonTab(panelId, tabLabel){
   document.getElementById(panelId).innerHTML = `
     <div class="scope-banner">${tabLabel} will be sourced from a separate Google Sheet — this tab is a placeholder for now, not yet wired to live data.</div>
   `;
 }
-function renderMidTicketTrend(){ renderComingSoonTab('panel-7', 'Mid-Ticket Trend View'); }
+function renderMidTicketTrend(){ renderPhoneTrend({panelId:'panel-7', lob:'Mid-Ticket', idPrefix:'midticket', tabLabel:'Mid-Ticket'}); }
 function renderMidTicketMetric(){ renderComingSoonTab('panel-8', 'Mid-Ticket Metric'); }
-function renderPG1Trend(){ renderComingSoonTab('panel-9', 'PG1 Trend View'); }
+function renderPG1Trend(){ renderPhoneTrend({panelId:'panel-9', lob:'PG1', idPrefix:'pg1', tabLabel:'PG1'}); }
 function renderPG1Metric(){ renderComingSoonTab('panel-10', 'PG1 Metric'); }
 
 // 5. Rep per Metric
@@ -2354,7 +2470,7 @@ function renderASRDailyMetric(){
   renderTable('tbl-asrdaily', rows, cols);
 }
 
-function renderInboundSummary(){ renderComingSoonTab('panel-11', 'Inbound Summary Trend'); }
+function renderInboundSummary(){ renderPhoneTrend({panelId:'panel-11', lob:'Inbound', idPrefix:'inbound', tabLabel:'Inbound'}); }
 function renderInboundDaily(){ renderComingSoonTab('panel-12', 'Inbound Daily Metric'); }
 
 // 7. BR % per Call Source

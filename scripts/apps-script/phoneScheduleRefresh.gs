@@ -240,6 +240,10 @@ function splicePhoneHtml_(html, rawRows, nowIso) {
     'const PHONE_RAW = ' + rawJs + ';';
 
   var out = phoneReplaceOnce_(html, /const PHONE_RAW = \[.*?\];/s, constDecl, true);
+  // Keep the dashboard's global "Data updated" banner honest for this pipeline too -- it was
+  // previously only ever touched by claudeRefreshAndPublish.gs's spliceHtml_, so a Phone-only
+  // refresh (Sched pipeline not having run) left the banner showing a stale, unrelated timestamp.
+  out = phoneReplaceOnce_(out, /const DATA_UPDATED_AT_ISO = "[^"]*";/, 'const DATA_UPDATED_AT_ISO = "' + nowIso + '";', false);
   return { content: out, digest: digest };
 }
 

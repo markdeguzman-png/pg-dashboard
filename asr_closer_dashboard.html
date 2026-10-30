@@ -2385,9 +2385,12 @@ function phoneRepRowsForRange(lob){
   const byName = new Map();
   phoneRowsForLob(lob).filter(r=>r[3]>=state.start && r[3]<=state.end).forEach(r=>{
     const name = r[0];
-    if(!byName.has(name)) byName.set(name, {name, team:r[1], ...phoneBlankSums()});
+    if(!byName.has(name)) byName.set(name, {name, team:r[1], _teamMaxDate:r[3], ...phoneBlankSums()});
     const o = byName.get(name);
-    o.team = r[1]; // most recent row (in PHONE_RAW's own order) wins, same convention aggregateRawSched() uses
+    // PHONE_RAW's row order is the Schedule sheet's own row order, NOT chronological (unlike
+    // RAW_SCHED, where "last iterated wins" is a valid stand-in for "most recent"), so team has to
+    // be taken from whichever row actually has the latest date, not whichever is iterated last.
+    if(r[3] >= o._teamMaxDate){ o.team = r[1]; o._teamMaxDate = r[3]; }
     phoneAddRawRow(o, r);
   });
   return Array.from(byName.values()).map(phoneWithDerived);
@@ -2524,6 +2527,7 @@ function renderPhoneMetric(cfg){
     ${phoneKpiTilesHtml(lob)}
     <div class="note">Tiles: exact sums for ${state.start} → ${state.end} vs the equivalent prior period (${prevStart} → ${prevEnd}), computed from the Phone Team Sales Report's Schedule tab (Current LOB = ${lob}) -- Team and Agent filters do apply. Connected Calls are from Aloware call logs, matched by rep name/date, counting calls with ≥90 seconds talk time. AOV = Upfront Revenue ÷ Closed Deals. Close Rate = Closed Deals ÷ Connected Calls.</div>
     <div class="section-title">${tabLabel} Advisor detail</div>
+    <div class="scope-banner">Showing Team: <b>${state.team.length ? state.team.join(', ') : 'All Teams'}</b> · LOB: <b>${lob}</b> (locked to this sub-tab)${state.agent.length ? ` · Agent: <b>${agentLabel()}</b>` : ''}</div>
     <div class="note">Exact sums for ${state.start} → ${state.end} -- Team and Agent filters do apply (picking an Agent narrows this to their own row). Click a column header to sort.</div>
     <div class="table-section"><table><thead id="tbl-${idPrefix}-metric-head"></thead><tbody id="tbl-${idPrefix}-metric-body"></tbody></table></div>
   `;

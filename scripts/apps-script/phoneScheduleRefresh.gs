@@ -180,15 +180,37 @@ function fetchAlowareRows_() {
   return out;
 }
 
+// Schedule's Name column sometimes carries a middle initial Aloware's Line Name/User Name doesn't
+// (e.g. Schedule "Amie B. Montederamos" vs Aloware "Amie Montederamos", "Kim Paolo B. Planas" vs
+// "Kim Paolo Planas") -- confirmed 2026-10-31 by spot-checking Aloware's raw CSVs: those reps had
+// real >=90s calls under the shorter name every day, but the exact-string join silently matched
+// zero of them, flooring Connected Calls (and therefore Close Rate) at 0 all month. Dropping a
+// single-letter middle token (an initial, with or without a trailing period) before joining fixes
+// this without needing a hand-maintained alias list, and is a no-op for every name that doesn't
+// have one. First and last tokens are never dropped, so a genuinely single-letter first/last name
+// survives untouched.
+function phoneNormalizeName_(name) {
+  var tokens = String(name || '').trim().split(/\s+/);
+  if (tokens.length <= 2) return tokens.join(' ').toLowerCase();
+  var kept = tokens.filter(function (tok, i) {
+    if (i === 0 || i === tokens.length - 1) return true;
+    return !/^[A-Za-z]\.?$/.test(tok);
+  });
+  return kept.join(' ').toLowerCase();
+}
+
 // Per (Name, date), how many calls had >= CONNECTED_CALL_MIN_SECONDS of talk time. Keyed by
-// whichever name the call itself carries (Line Name, cleaned, falling back to User Name) --
-// resolved against Schedule's own Name field when rows are joined in buildPhoneRaw_ below.
+// whichever name the call itself carries (Line Name, cleaned, falling back to User Name),
+// normalized the same way Schedule's Name is in buildPhoneRaw_ below so a dropped middle initial
+// on either side still joins correctly.
 function computeConnectedCalls_(alowareRows) {
-  var out = {}; // 'name|date' -> count
+  var out = {}; // 'normalizedName|date' -> count
   alowareRows.forEach(function (r) {
     if (r.seconds < CONNECTED_CALL_MIN_SECONDS) return;
-    if (r.lineName) out[r.lineName + '|' + r.date] = (out[r.lineName + '|' + r.date] || 0) + 1;
-    else if (r.userName) out[r.userName + '|' + r.date] = (out[r.userName + '|' + r.date] || 0) + 1;
+    var key = r.lineName ? phoneNormalizeName_(r.lineName) : (r.userName ? phoneNormalizeName_(r.userName) : '');
+    if (!key) return;
+    var k = key + '|' + r.date;
+    out[k] = (out[k] || 0) + 1;
   });
   return out;
 }
@@ -199,10 +221,10 @@ function computeConnectedCalls_(alowareRows) {
 // per-person detail Team/Agent filtering actually needs.
 function buildPhoneRaw_(scheduleRows, connectedByNameDate) {
   return scheduleRows.map(function (r) {
-    // Connected Calls resolved by this exact Name -- Aloware's Line Name is cleaned (BF-suffix/
-    // _deleted_ stripped) before matching, same priority as the manual check this is based on,
-    // but since Schedule's Name is the join key here (not Aloware's), look up by it directly.
-    var connected = connectedByNameDate[r.name + '|' + r.date] || 0;
+    // Connected Calls resolved by Schedule's Name, normalized the same way Aloware's side was
+    // keyed above -- see phoneNormalizeName_'s comment for why this is needed. r.name itself (not
+    // normalized) is still what's written into the row -- only the lookup key is normalized.
+    var connected = connectedByNameDate[phoneNormalizeName_(r.name) + '|' + r.date] || 0;
     return [r.name, r.team, r.lob, r.date, r.clubs, r.pg1, r.upfrontRevenue, r.closedDeals, r.pg1Trial, r.pg1Upfront, connected];
   });
 }

@@ -195,8 +195,16 @@ function computeConnectedCallsForFile_(file) {
     var seconds = talkTimeToSeconds_(row[talkIdx]);
     if (seconds < CONNECTED_CALL_MIN_SECONDS) continue;
     var dateStr = String(started).trim().slice(0, 10); // "YYYY-MM-DD HH:MM:SS" -> date part
-    var rawName = lineIdx > -1 && row[lineIdx] ? cleanLineName_(row[lineIdx])
-      : (userIdx > -1 ? String(row[userIdx] || '').trim() : '');
+    // User Name first, Line Name only as a fallback -- confirmed 2026-10-31 by spot-checking
+    // Inbound's raw CSVs: a call routed through a queue (inbound/IVR, or a warm transfer) carries
+    // a generic Line Name like "IVR" or "Warm Transfer from ASR", not the agent, while User Name
+    // reliably holds whichever rep actually took the call. Line Name only directly names the agent
+    // on a straight outbound-dialer call, where it already agrees with User Name anyway. Preferring
+    // Line Name (the old order) silently keyed most of Inbound's real connected calls under "ivr",
+    // which never matches any Schedule rep, so they vanished from the join instead of just being
+    // misattributed -- this is why Inbound's Connected Calls looked near-zero.
+    var rawName = userIdx > -1 && row[userIdx] ? String(row[userIdx]).trim()
+      : (lineIdx > -1 ? cleanLineName_(row[lineIdx]) : '');
     if (!rawName) continue;
     var key = phoneNormalizeName_(rawName) + '|' + dateStr;
     out[key] = (out[key] || 0) + 1;
@@ -226,26 +234,37 @@ function listAlowareFiles_() {
 
 // ---- Persistent cross-run cache, one entry per Aloware FILE ----
 // Per user (2026-10-31): once a week's file is written it never changes again, so the right cache
-// key is the file, not the month it lives in -- no "current month" special case needed. Stored as
-// a small JSON file in the Aloware root (not Script Properties, whose 9KB/property and
-// 500KB/project caps are too small once many files' worth of per-name-per-day counts pile up).
-// Shape: { "files": { "<fileId>": {"status":"ok","agg":{"normalizedName|date":count,...}}
+// key is the file, not the month it lives in -- no "current month" special case needed (the
+// CURRENT week's file does sometimes get wholesale-replaced under a brand-new file ID mid-week --
+// its old ID's cache entry just goes unused once the old file is gone from Drive, and the new ID
+// is picked up as a new file like any other). Stored as a small JSON file in the Aloware root (not
+// Script Properties, whose 9KB/property and 500KB/project caps are too small once many files'
+// worth of per-name-per-day counts pile up).
+// Shape: { "version": ALOWARE_CACHE_VERSION,
+//          "files": { "<fileId>": {"status":"ok","agg":{"normalizedName|date":count,...}}
 //                                | {"status":"failed","error":"..."} } }.
+// ALOWARE_CACHE_VERSION: bump this whenever a change would make every past entry's `agg` wrong
+// (e.g. the name-extraction fix below) -- loadAlowareCache_() discards a cache written under an
+// older version instead of trusting stale aggregates, forcing a full, automatic reprocess.
+var ALOWARE_CACHE_VERSION = 2;
 function findOrCreateCacheFile_() {
   var root = DriveApp.getFolderById(ALOWARE_ROOT_FOLDER_ID);
   var existing = root.getFilesByName(ALOWARE_CACHE_FILENAME);
   if (existing.hasNext()) return existing.next();
-  return root.createFile(ALOWARE_CACHE_FILENAME, JSON.stringify({ files: {} }), MimeType.PLAIN_TEXT);
+  return root.createFile(ALOWARE_CACHE_FILENAME, JSON.stringify({ version: ALOWARE_CACHE_VERSION, files: {} }), MimeType.PLAIN_TEXT);
 }
 function loadAlowareCache_() {
   var file = findOrCreateCacheFile_();
   try {
     var parsed = JSON.parse(file.getBlob().getDataAsString());
-    if (parsed && parsed.files) return { file: file, data: parsed };
+    if (parsed && parsed.files && parsed.version === ALOWARE_CACHE_VERSION) return { file: file, data: parsed };
+    if (parsed && parsed.version !== ALOWARE_CACHE_VERSION) {
+      Logger.log('Aloware cache was written under version ' + parsed.version + ', now ' + ALOWARE_CACHE_VERSION + ' -- discarding and reprocessing from scratch.');
+    }
   } catch (e) {
     Logger.log('Aloware cache file unreadable/corrupt, starting fresh: ' + e);
   }
-  return { file: file, data: { files: {} } };
+  return { file: file, data: { version: ALOWARE_CACHE_VERSION, files: {} } };
 }
 function saveAlowareCache_(cacheFile, data) {
   cacheFile.setContent(JSON.stringify(data));

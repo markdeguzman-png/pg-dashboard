@@ -2397,6 +2397,9 @@ function renderPhoneTrend(cfg){
         <div id="chart-${idPrefix}-${m.id}-d"></div>
       </div>
     </div>`).join('')}
+    <div class="section-title">Period detail — last 30 days</div>
+    <div class="note">Static last 30 days, NOT affected by the Date Range filter above (same window and formulas as the Daily charts).</div>
+    <div class="table-section"><table><thead id="tbl-${idPrefix}-period-head"></thead><tbody id="tbl-${idPrefix}-period-body"></tbody></table></div>
   `;
   const chartMonthly = phoneChartMonthlyRows(lob).slice(-3);
   const chartWeekly = phoneChartWeeklyRows(lob).slice(-6);
@@ -2410,6 +2413,19 @@ function renderPhoneTrend(cfg){
     lineChart(`chart-${idPrefix}-${m.id}-w`, chartWeekly, series, weekLbl, {showValues:'all'});
     lineChart(`chart-${idPrefix}-${m.id}-d`, chartDaily, series, dayLbl, {showValues:'last'});
   });
+  const withAov = chartDaily.map(r=>({...r, aov: r.closedDeals ? r.upfrontRevenue/r.closedDeals : 0}));
+  if(!sortState['tbl-'+idPrefix+'-period']) sortState['tbl-'+idPrefix+'-period'] = {col:'date', dir:-1};
+  renderTable('tbl-'+idPrefix+'-period', withAov, [
+    {key:'date', label:'Date'},
+    {key:'upfrontRevenue', label:'Upfront Revenue', fmt:fmtMoney},
+    {key:'pg1', label:'PG1'},
+    {key:'pg1Trial', label:'PG1 Trial'},
+    {key:'pg1Upfront', label:'PG1 Upfront'},
+    {key:'clubs', label:'Clubs'},
+    {key:'aov', label:'AOV $', fmt:fmtMoney},
+    {key:'closedDeals', label:'Closed Deals'},
+    {key:'connectedCalls', label:'Connected Calls'},
+  ]);
 }
 
 // Mid-Ticket Metric and PG1 Metric stay placeholder tabs for now -- only the Trend View sub-tabs

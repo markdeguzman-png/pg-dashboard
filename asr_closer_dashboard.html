@@ -633,11 +633,11 @@ const TABS = [
 const CLOSER_LOBS = ['Closer', 'Closer - Outbound'];
 function isCloserLob(lob){ return CLOSER_LOBS.includes(lob); }
 // Org restructure (discovered 2026-10-29): the old undifferentiated "Closer" LOB population mostly
-// moved into two new LOBs, Mid-Ticket and PG1. Mid-Ticket, PG1, and Inbound Team main tabs exist
-// as placeholders for now (renderComingSoonTab) -- they'll be sourced from a separate Google Sheet
-// later, not from Sched/RAW_SCHED, so these LOBs stay IN SETTER_SETS_LOBS below (same as before
-// this restructure was discovered) rather than being carved out. These lists currently only drive
-// each placeholder tab's own LOB-dropdown narrowing (see MAIN_TABS' `lobs`).
+// moved into two new LOBs, Mid-Ticket and PG1. The Mid-Ticket/PG1/Inbound main tabs are now live,
+// sourced from PHONE_RAW (the "Phone Team Sales Report 2026" Schedule tab + Aloware call logs via
+// phoneScheduleRefresh.gs) -- not from Sched/RAW_SCHED, so these LOBs stay IN SETTER_SETS_LOBS
+// below (same as before this restructure was discovered) rather than being carved out. These lists
+// currently only drive each tab's own LOB-dropdown narrowing (see MAIN_TABS' `lobs`).
 const MIDTICKET_LOBS = ['Mid-Ticket'];
 const PG1_TAB_LOBS = ['PG1'];
 const INBOUND_LOBS = ['Inbound Team'];
@@ -2377,6 +2377,21 @@ function phoneCompanyTotals(lob, startStr, endStr){
   });
   return o;
 }
+// Per-(Team, Name) rows for the Metric tabs' Advisor detail table -- same role rawSchedAggForRange()
+// plays for Closers Metric's per-rep table: exact sums for state.start -> state.end, respecting the
+// current Team/Agent filters (narrows to one row when Agent is picked), with AOV/Close Rate derived
+// via phoneWithDerived() same as the Trend View's charts/table.
+function phoneRepRowsForRange(lob){
+  const byName = new Map();
+  phoneRowsForLob(lob).filter(r=>r[3]>=state.start && r[3]<=state.end).forEach(r=>{
+    const name = r[0];
+    if(!byName.has(name)) byName.set(name, {name, team:r[1], ...phoneBlankSums()});
+    const o = byName.get(name);
+    o.team = r[1]; // most recent row (in PHONE_RAW's own order) wins, same convention aggregateRawSched() uses
+    phoneAddRawRow(o, r);
+  });
+  return Array.from(byName.values()).map(phoneWithDerived);
+}
 // Team/Agent dropdown narrowing for the 3 Phone-sourced tabs -- Setter/Closer's own ALL_TEAMS /
 // agentOptionGroups() stay completely untouched; see currentTeamOptionGroups/
 // currentAgentOptionGroups below for where these plug into the shared filter-bar wiring.
@@ -2496,18 +2511,40 @@ function renderPhoneTrend(cfg){
   ]);
 }
 
-// Mid-Ticket Metric and PG1 Metric stay placeholder tabs for now -- only the Trend View sub-tabs
-// were asked for this round. These three will keep being sourced from a separate Google Sheet
-// (never Sched/RAW_SCHED).
-function renderComingSoonTab(panelId, tabLabel){
-  document.getElementById(panelId).innerHTML = `
-    <div class="scope-banner">${tabLabel} will be sourced from a separate Google Sheet — this tab is a placeholder for now, not yet wired to live data.</div>
+// Generic engine behind the Mid-Ticket/PG1/Inbound Metric tabs: same KPI cards as that LOB's Trend
+// View, then an Advisor detail table -- one row per (Team, Name) -- for the exact selected Date
+// Range, Team, and Agent (not a fixed 30-day window like the Trend View's Period detail table).
+// Mirrors renderCloserStyleMetric()'s KPI-tiles-then-per-rep-table shape.
+function renderPhoneMetric(cfg){
+  const {panelId, lob, idPrefix, tabLabel} = cfg;
+  const p = document.getElementById(panelId);
+  const {prevStart, prevEnd} = prevPeriodRange(state.start, state.end);
+  const rows = phoneRepRowsForRange(lob);
+  p.innerHTML = `
+    ${phoneKpiTilesHtml(lob)}
+    <div class="note">Tiles: exact sums for ${state.start} → ${state.end} vs the equivalent prior period (${prevStart} → ${prevEnd}), computed from the Phone Team Sales Report's Schedule tab (Current LOB = ${lob}) -- Team and Agent filters do apply. Connected Calls are from Aloware call logs, matched by rep name/date, counting calls with ≥90 seconds talk time. AOV = Upfront Revenue ÷ Closed Deals. Close Rate = Closed Deals ÷ Connected Calls.</div>
+    <div class="section-title">${tabLabel} Advisor detail</div>
+    <div class="note">Exact sums for ${state.start} → ${state.end} -- Team and Agent filters do apply (picking an Agent narrows this to their own row). Click a column header to sort.</div>
+    <div class="table-section"><table><thead id="tbl-${idPrefix}-metric-head"></thead><tbody id="tbl-${idPrefix}-metric-body"></tbody></table></div>
   `;
+  if(!sortState['tbl-'+idPrefix+'-metric']) sortState['tbl-'+idPrefix+'-metric'] = {col:'upfrontRevenue', dir:-1};
+  renderTable('tbl-'+idPrefix+'-metric', rows, [
+    {key:'team', label:'Team'}, {key:'name', label:'Name'},
+    {key:'upfrontRevenue', label:'Upfront Revenue', fmt:fmtMoney},
+    {key:'pg1', label:'PG1'},
+    {key:'pg1Trial', label:'PG1 Trial'},
+    {key:'pg1Upfront', label:'PG1 Upfront'},
+    {key:'clubs', label:'Clubs'},
+    {key:'aov', label:'AOV $', fmt:fmtMoney},
+    {key:'closedDeals', label:'Closed Deals'},
+    {key:'connectedCalls', label:'Connected Calls'},
+    {key:'closeRate', label:'Close Rate %', fmt:fmtPct},
+  ]);
 }
 function renderMidTicketTrend(){ renderPhoneTrend({panelId:'panel-7', lob:'Mid-Ticket', idPrefix:'midticket', tabLabel:'Mid-Ticket'}); }
-function renderMidTicketMetric(){ renderComingSoonTab('panel-8', 'Mid-Ticket Metric'); }
+function renderMidTicketMetric(){ renderPhoneMetric({panelId:'panel-8', lob:'Mid-Ticket', idPrefix:'midticket', tabLabel:'Mid-Ticket'}); }
 function renderPG1Trend(){ renderPhoneTrend({panelId:'panel-9', lob:'PG1', idPrefix:'pg1', tabLabel:'PG1'}); }
-function renderPG1Metric(){ renderComingSoonTab('panel-10', 'PG1 Metric'); }
+function renderPG1Metric(){ renderPhoneMetric({panelId:'panel-10', lob:'PG1', idPrefix:'pg1', tabLabel:'PG1'}); }
 
 // 5. Rep per Metric
 function renderRepPerMetric(){
@@ -2555,7 +2592,7 @@ function renderASRDailyMetric(){
 }
 
 function renderInboundSummary(){ renderPhoneTrend({panelId:'panel-11', lob:'Inbound', idPrefix:'inbound', tabLabel:'Inbound'}); }
-function renderInboundDaily(){ renderComingSoonTab('panel-12', 'Inbound Daily Metric'); }
+function renderInboundDaily(){ renderPhoneMetric({panelId:'panel-12', lob:'Inbound', idPrefix:'inbound', tabLabel:'Inbound'}); }
 
 // 7. BR % per Call Source
 // Local slicers for this table only (not part of the global Date/LOB/Team/Agent filter bar) --

@@ -599,7 +599,6 @@ const ALL_LOBS = Array.from(new Set(LIVE_ROSTER.map(r=>r.lob).filter(Boolean))).
 // "Phone Team Sales Report 2026" Schedule tab + Aloware call logs (phoneRefreshAndPublish.gs).
 // Row shape: [lob, date, clubs, pg1, upfrontRevenue, closedDeals, pg1Trial, pg1Upfront, connectedCalls].
 // Refreshed 2026-10-30T13:39:30.051Z. Never read by Setter/Closer code.
-const PHONE_LOB_DAILY = [["Inbound","2026-07-01",0,2,0,3,2,0,0],["Inbound","2026-07-02",1,2,149,6,2,0,0],["Inbound","2026-07-03",1,0,318,2,0,0,0],["Inbound","2026-07-05",1,1,134.1,2,1,0,0],["Inbound","2026-07-06",2,2,498,5,2,0,0],["Inbound","2026-07-07",0,1,0,3,1,0,0],["Inbound","2026-07-08",2,0,508,2,0,0,0],["Inbound","2026-07-09",0,1,0,2,1,0,0],["Inbound","2026-07-10",2,0,528,2,0,0,0],["Inbound","2026-07-13",3,0,697,3,0,0,0],["Inbound","2026-07-14",2,0,488,2,0,0,0],["Inbound","2026-07-15",3,0,758,3,0,0,0],["Inbound","2026-07-16",2,0,398,2,0,0,0],["Inbound","2026-07-17",1,0,249,1,0,0,0],["Inbound","2026-07-18",2,0,179,1,0,0,0],["Inbound","2026-07-20",3,0,957,3,0,0,0],["Inbound","2026-07-24",1,0,149,1,0,0,0],["Inbound","2026-07-31",2,0,428,2,0,0,0],["Inbound","2026-08-04",0,1,299,1,0,1,0],["Inbound","2026-08-10",1,0,199,1,0,0,0],["Inbound","2026-10-20",2,1,348,2,1,0,20],["Inbound","2026-10-21",0,1,0,1,1,0,4],["Inbound","2026-10-22",4,7,1365,10,5,2,40],["Inbound","2026-10-23",6,9,1653,14,8,1,91],["Inbound","2026-10-26",7,8,2284,16,7,1,139],["Inbound","2026-10-27",7,6,1906.8,14,6,0,75],["Inbound","2026-10-28",8,4,1686.93,10,4,0,46],["Inbound","2026-10-29",4,2,986.3,6,2,0,26],["Mid-Ticket","2026-07-01",47,27,10856.98,47,23,4,0],["Mid-Ticket","2026-07-02",27,26,6559.2,47,22,4,0],["Mid-Ticket","2026-07-03",49,14,10619.4,43,9,5,0],["Mid-Ticket","2026-07-05",9,6,1821,10,5,1,0],["Mid-Ticket","2026-07-06",52,29,11605.6,59,28,1,0],["Mid-Ticket","2026-07-07",35,43,8587.3,65,38,5,0],["Mid-Ticket","2026-07-08",26,29,8722.4,48,22,7,0],["Mid-Ticket","2026-07-09",30,25,7021.3,38,22,3,0],["Mid-Ticket","2026-07-10",29,26,8517.2,39,18,8,0],["Mid-Ticket","2026-07-11",3,8,1142,12,6,2,0],["Mid-Ticket","2026-07-12",3,2,648,5,2,0,0],["Mid-Ticket","2026-07-13",40,16,9335,29,11,5,0],["Mid-Ticket","2026-07-14",27,27,7917.2,39,19,8,0],["Mid-Ticket","2026-07-15",31,17,7836.5,35,15,2,0],["Mid-Ticket","2026-07-16",39,30,12404,48,16,14,0],["Mid-Ticket","2026-07-17",30,18,8190.35,31,13,5,0],["Mid-Ticket","2026-07-18",11,13,2638.3,18,11,2,0],["Mid-Ticket","2026-07-19",1,12,826,13,9,3,0],["Mid-Ticket","2026-07-20",38,16,10363.3,44,13,3,0],["Mid-Ticket","2026-07-21",34,24,9855.2,40,16,8,0],["Mid-Ticket","2026-07-22",48,32,12660.7,52,20,12,0],["Mid-Ticket","2026-07-23",43,29,14903.75,53,15,14,0],["Mid-Ticket","2026-07-24",40,32,13430.3,59,18,14,0],["Mid-Ticket","2026-07-25",35,2,8735,29,2,0,0],["Mid-Ticket","2026-07-26",15,5,3709.4,15,2,3,0],["Mid-Ticket","2026-07-27",63,42,18114.56,73,28,14,0],["Mid-Ticket","2026-07-28",69,36,19346.88,81,24,12,0],["Mid-Ticket","2026-07-29",69,28,17479.61,64,16,12,0],["Mid-Ticket","2026-07-30",62,34,16134.58,67,22,12,0],["Mid-Ticket","2026-07-31",44,26,13591.8,54,9,17,0],["Mid-Ticket","2026-08-01",11,6,3166.7,11,1,5,0],["Mid-Ticket","2026-08-02",9,1,2185.46,5,1,0,0],["Mid-Ticket","2026-08-03",54,26,16741.21,63,7,19,0],["Mid-Ticket","2026-08-04",58,26,16128.39,60,10,16,0],["Mid-Ticket","2026-08-05",69,26,19971.15,71,11,15,0],["Mid-Ticket","2026-08-06",51,29,15742.38,58,10,19,0],["Mid-Ticket","2026-08-07",25,16,8210,36,2,14,0],["Mid-Ticket","2026-08-08",20,16,5738.6,36,7,9,0],["Mid-Ticket","2026-08-09",10,9,2644.2,14,3,6,0],["Mid-Ticket","2026-08-10",38,23,11587.26,50,7,16,0],["Mid-Ticket","2026-08-11",50,31,18608.26,65,5,26,0],["Mid-Ticket","2026-08-12",42,16,12453.59,45,4,12,0],["Mid-Ticket","2026-08-13",54,30,18095.04,54,9,21,0],["Mid-Ticket","2026-08-14",38,24,13921.16,52,6,18,0],["Mid-Ticket","2026-08-15",22,6,6983.66,21,1,5,0],["Mid-Ticket","2026-08-16",20,6,5547.4,13,2,4,0],["Mid-Ticket","2026-08-17",65,19,19586.5,53,8,11,0],["Mid-Ticket","2026-08-18",79,34,23896.31,73,11,23,0],["Mid-Ticket","2026-08-19",58,15,19087.78,52,3,12,0],["Mid-Ticket","2026-08-20",58,10,14112.92,53,1,9,0],["Mid-Ticket","2026-08-21",53,15,16816.48,45,1,14,0],["Mid-Ticket","2026-08-22",45,12,12067.86,37,1,11,0],["Mid-Ticket","2026-08-23",18,3,4571.43,10,0,3,0],["Mid-Ticket","2026-08-24",67,12,18409.48,52,3,9,0],["Mid-Ticket","2026-08-25",45,22,14690.38,53,4,18,0],["Mid-Ticket","2026-08-26",36,16,10016.72,36,9,7,0],["Mid-Ticket","2026-08-27",56,19,14446.57,57,5,14,0],["Mid-Ticket","2026-08-28",46,20,12054.12,46,6,14,0],["Mid-Ticket","2026-08-29",21,4,5166.69,22,2,2,0],["Mid-Ticket","2026-08-30",29,8,8472.4,24,3,5,0],["Mid-Ticket","2026-08-31",76,17,20872.72,69,3,14,0],["Mid-Ticket","2026-09-01",77,19,21315.83,74,5,14,0],["Mid-Ticket","2026-09-02",58,12,15235.92,67,3,9,0],["Mid-Ticket","2026-09-03",81,21,20913.27,77,3,18,0],["Mid-Ticket","2026-09-04",72,12,17026.6,67,5,7,0],["Mid-Ticket","2026-09-05",38,10,9221.03,40,2,8,0],["Mid-Ticket","2026-09-06",10,5,3385,13,1,4,0],["Mid-Ticket","2026-09-07",45,10,14164.49,48,1,9,0],["Mid-Ticket","2026-09-08",68,16,17554.13,66,7,9,0],["Mid-Ticket","2026-09-09",39,10,12454.51,48,3,7,0],["Mid-Ticket","2026-09-10",61,17,16601.22,57,6,11,0],["Mid-Ticket","2026-09-11",60,8,17133.89,47,2,6,0],["Mid-Ticket","2026-09-12",27,10,9166.4,31,2,8,0],["Mid-Ticket","2026-09-13",21,7,6239.48,23,0,7,0],["Mid-Ticket","2026-09-14",57,12,16707.73,68,2,10,0],["Mid-Ticket","2026-09-15",82,21,25192.27,70,1,20,0],["Mid-Ticket","2026-09-16",89,18,23643.07,75,1,17,0],["Mid-Ticket","2026-09-17",103,15,26622.95,78,2,13,0],["Mid-Ticket","2026-09-18",67,8,16259.62,46,2,6,0],["Mid-Ticket","2026-09-19",49,12,14417.11,47,3,9,0],["Mid-Ticket","2026-09-20",25,2,5388.7,19,0,2,0],["Mid-Ticket","2026-09-21",80,10,18504.65,58,0,10,0],["Mid-Ticket","2026-09-22",62,12,16397.64,46,0,12,0],["Mid-Ticket","2026-09-23",58,8,15458.6,40,0,8,0],["Mid-Ticket","2026-09-24",53,16,15715.54,42,3,13,0],["Mid-Ticket","2026-09-25",66,10,18164.37,47,1,9,0],["Mid-Ticket","2026-09-26",31,6,9818.73,24,0,6,0],["Mid-Ticket","2026-09-27",9,0,1913.8,5,0,0,0],["Mid-Ticket","2026-09-28",79,11,22708.59,52,1,10,0],["Mid-Ticket","2026-09-29",66,11,18654.93,46,1,10,0],["Mid-Ticket","2026-09-30",77,10,19455.49,49,1,9,0],["Mid-Ticket","2026-10-01",65,16,18048.66,51,5,11,0],["Mid-Ticket","2026-10-02",62,21,19700.41,61,6,15,0],["Mid-Ticket","2026-10-03",25,4,5554.2,9,3,1,0],["Mid-Ticket","2026-10-04",6,2,1823,7,1,1,0],["Mid-Ticket","2026-10-05",73,17,21112.52,56,2,15,170],["Mid-Ticket","2026-10-06",67,24,24646.81,68,9,15,201],["Mid-Ticket","2026-10-07",43,21,15123.92,53,7,14,153],["Mid-Ticket","2026-10-08",43,21,13977.28,45,10,11,136],["Mid-Ticket","2026-10-09",46,11,14152.06,36,1,10,115],["Mid-Ticket","2026-10-10",30,5,10093.58,24,1,4,0],["Mid-Ticket","2026-10-11",11,3,4077.7,12,0,3,0],["Mid-Ticket","2026-10-12",87,16,25219.29,76,2,14,172],["Mid-Ticket","2026-10-13",38,16,12491.12,43,3,13,120],["Mid-Ticket","2026-10-14",53,15,16046.27,55,10,5,137],["Mid-Ticket","2026-10-15",46,26,16525.08,61,4,22,140],["Mid-Ticket","2026-10-16",39,16,12138.01,42,3,13,86],["Mid-Ticket","2026-10-17",24,9,7780.9,25,4,5,39],["Mid-Ticket","2026-10-18",13,0,3382.82,13,0,0,27],["Mid-Ticket","2026-10-19",58,13,16508.93,50,7,6,118],["Mid-Ticket","2026-10-20",44,11,11479.46,33,6,5,130],["Mid-Ticket","2026-10-21",39,10,11526.94,36,5,5,95],["Mid-Ticket","2026-10-22",32,12,8911.07,33,7,5,85],["Mid-Ticket","2026-10-23",32,14,8762.2,34,11,3,110],["Mid-Ticket","2026-10-24",36,8,7362.6,27,5,3,76],["Mid-Ticket","2026-10-25",20,4,3620.2,15,3,1,29],["Mid-Ticket","2026-10-26",60,31,12853.4,62,28,3,229],["Mid-Ticket","2026-10-27",49,22,10733.57,54,17,5,188],["Mid-Ticket","2026-10-28",58,24,15834.67,67,14,10,254],["Mid-Ticket","2026-10-29",54,35,14854.81,67,27,8,266],["PG1","2026-07-01",8,11,2628,19,10,1,0],["PG1","2026-07-02",20,20,4517,31,20,0,0],["PG1","2026-07-03",11,4,1975,11,3,1,0],["PG1","2026-07-05",4,4,737,6,4,0,0],["PG1","2026-07-06",23,22,5759.3,38,20,2,0],["PG1","2026-07-07",8,13,1702,20,12,1,0],["PG1","2026-07-08",18,18,3732,27,18,0,0],["PG1","2026-07-09",15,9,3338,20,9,0,0],["PG1","2026-07-10",10,8,2786.3,16,8,0,0],["PG1","2026-07-11",4,4,1525,8,3,1,0],["PG1","2026-07-12",3,1,1088,6,1,0,0],["PG1","2026-07-13",12,9,3450.2,17,7,2,0],["PG1","2026-07-14",8,7,2710.1,10,5,2,0],["PG1","2026-07-15",11,4,2760,10,4,0,0],["PG1","2026-07-16",10,7,3357.5,15,5,2,0],["PG1","2026-07-17",3,3,1003.4,7,2,1,0],["PG1","2026-07-18",6,3,1575.1,9,3,0,0],["PG1","2026-07-19",1,0,189,1,0,0,0],["PG1","2026-07-20",10,1,2800,9,1,0,0],["PG1","2026-07-21",4,4,925,7,3,1,0],["PG1","2026-07-22",9,7,2827.85,14,3,4,0],["PG1","2026-07-23",8,8,2436,17,7,1,0],["PG1","2026-07-24",13,10,3578.1,19,7,3,0],["PG1","2026-07-25",4,6,2019.7,10,3,3,0],["PG1","2026-07-26",2,1,597,3,0,1,0],["PG1","2026-07-27",22,9,5035.5,27,6,3,0],["PG1","2026-07-28",7,12,2249.1,13,9,3,0],["PG1","2026-07-29",6,11,2189.3,17,9,2,0],["PG1","2026-07-30",10,9,2808.85,21,8,1,0],["PG1","2026-07-31",10,8,3444.5,15,3,5,0],["PG1","2026-08-01",15,3,4790.6,14,3,0,0],["PG1","2026-08-02",6,1,1634.1,7,1,0,0],["PG1","2026-08-03",11,9,2847.1,18,5,4,0],["PG1","2026-08-04",14,11,4003.35,24,8,3,0],["PG1","2026-08-05",9,8,1452.1,17,7,1,0],["PG1","2026-08-06",13,9,3047.35,15,7,2,0],["PG1","2026-08-07",15,9,5285.8,19,5,4,0],["PG1","2026-08-08",2,5,1130,7,0,5,0],["PG1","2026-08-09",1,0,199,1,0,0,0],["PG1","2026-08-10",11,16,4631.4,26,6,10,0],["PG1","2026-08-11",14,12,4580.2,24,3,9,0],["PG1","2026-08-12",9,9,3323.8,14,3,6,0],["PG1","2026-08-13",14,9,4140.6,20,5,4,0],["PG1","2026-08-14",11,8,2770.37,19,6,2,0],["PG1","2026-08-15",8,6,2438.7,9,2,4,0],["PG1","2026-08-16",6,3,1592.9,4,1,2,0],["PG1","2026-08-17",11,9,3473.69,15,6,3,0],["PG1","2026-08-18",12,9,3936.56,20,5,4,0],["PG1","2026-08-19",16,5,4350.3,16,0,5,0],["PG1","2026-08-20",5,17,2059.2,21,13,4,0],["PG1","2026-08-21",17,15,4120.3,26,10,5,0],["PG1","2026-08-22",11,6,2882.09,9,2,4,0],["PG1","2026-08-23",5,4,1852.5,6,3,1,0],["PG1","2026-08-24",10,11,2814.75,19,8,3,0],["PG1","2026-08-25",10,13,2820.7,21,9,4,0],["PG1","2026-08-26",15,12,3617.25,17,8,4,0],["PG1","2026-08-27",13,14,3478.5,23,11,3,0],["PG1","2026-08-28",16,9,4610.14,19,4,5,0],["PG1","2026-08-29",6,2,1686.6,7,2,0,0],["PG1","2026-08-31",8,5,2172,9,2,3,0],["PG1","2026-09-01",16,9,3357.14,20,5,4,0],["PG1","2026-09-02",16,16,4159.37,25,11,5,0],["PG1","2026-09-03",12,13,4048.15,21,7,6,0],["PG1","2026-09-04",12,6,3233.64,9,3,3,0],["PG1","2026-09-05",5,4,1842,8,1,3,0],["PG1","2026-09-06",5,3,1418.5,4,2,1,0],["PG1","2026-09-07",4,7,1331.5,9,5,2,0],["PG1","2026-09-08",4,6,1184.2,9,5,1,0],["PG1","2026-09-09",3,7,1267.1,10,6,1,0],["PG1","2026-09-10",11,5,3129.85,8,2,3,0],["PG1","2026-09-11",7,2,1532.4,7,1,1,0],["PG1","2026-09-12",6,1,1267.2,2,0,1,0],["PG1","2026-09-14",12,8,3502.2,14,3,5,0],["PG1","2026-09-15",6,10,2285.2,13,7,3,0],["PG1","2026-09-16",8,3,1915,8,0,3,0],["PG1","2026-09-17",9,10,2801.4,15,8,2,0],["PG1","2026-09-18",21,8,3831.44,20,7,1,0],["PG1","2026-09-20",0,1,0,1,1,0,0],["PG1","2026-09-21",9,5,2491.02,13,3,2,0],["PG1","2026-09-22",16,3,3115.17,9,2,1,0],["PG1","2026-09-23",3,8,1467.3,8,6,2,0],["PG1","2026-09-24",4,0,767.3,2,0,0,0],["PG1","2026-09-25",1,3,248,4,2,1,0],["PG1","2026-09-26",3,4,1101.2,8,4,0,0],["PG1","2026-09-27",8,4,2180.6,9,3,1,0],["PG1","2026-09-28",1,2,348,3,1,1,0],["PG1","2026-09-29",3,5,1295.2,7,5,0,0],["PG1","2026-09-30",3,3,505.38,6,3,0,0],["PG1","2026-10-01",5,4,1552.6,7,1,3,0],["PG1","2026-10-02",2,0,685.17,3,0,0,0],["PG1","2026-10-03",7,2,2739.67,4,0,2,0],["PG1","2026-10-05",2,4,737.2,5,2,2,25],["PG1","2026-10-06",8,4,2236.4,9,2,2,31],["PG1","2026-10-07",0,4,199,4,3,1,24],["PG1","2026-10-08",0,1,0,1,1,0,5],["PG1","2026-10-09",3,3,1730.38,6,0,3,17],["PG1","2026-10-11",0,2,284,3,2,0,0],["PG1","2026-10-12",6,3,1676.7,8,1,2,23],["PG1","2026-10-13",4,2,1844,2,0,2,8],["PG1","2026-10-14",0,1,199,1,0,1,9],["PG1","2026-10-15",1,0,299,1,0,0,10],["PG1","2026-10-20",9,5,2355.8,13,5,0,72],["PG1","2026-10-21",6,3,1139.3,7,3,0,31],["PG1","2026-10-22",9,5,1696.4,11,4,1,61],["PG1","2026-10-23",4,11,879.3,13,11,0,28],["PG1","2026-10-24",1,0,149,1,0,0,4],["PG1","2026-10-26",3,5,827,7,4,1,45],["PG1","2026-10-27",8,9,1865.2,16,9,0,98],["PG1","2026-10-28",4,5,1093.7,9,5,0,62],["PG1","2026-10-29",2,5,428,6,5,0,49]];
 // Mid-Ticket/PG1/Inbound tabs ONLY -- one row per (Name, Date) from the
 // "Phone Team Sales Report 2026" Schedule tab + Aloware call logs (phoneRefreshAndPublish.gs).
 // Row shape: [name, team, lob, date, clubs, pg1, upfrontRevenue, closedDeals, pg1Trial, pg1Upfront, connectedCalls].
@@ -819,8 +818,22 @@ function agentOptionGroups(){
   if (others.length) groups.push({label:'Other (non-ASR/Closer)', options:others});
   return groups;
 }
+// Returns the Team/Agent dropdowns' option groups for whichever main tab is currently active.
+// Setter/Closer's own ALL_TEAMS / agentOptionGroups() (LIVE_ROSTER-based) are completely
+// untouched; the 3 Phone-sourced tabs (Mid-Ticket/PG1/Inbound) get their own PHONE_RAW-scoped
+// lists instead, so Team only ever offers teams that exist under that tab's Current LOB.
+function currentTeamOptionGroups(){
+  const activeLob = MAIN_TABS[activeMainTab].name;
+  if (PHONE_TAB_LOBS.includes(activeLob)) return [{label:null, options: phoneTeamsForLob(activeLob)}];
+  return [{label:null, options: ALL_TEAMS}];
+}
+function currentAgentOptionGroups(){
+  const activeLob = MAIN_TABS[activeMainTab].name;
+  if (PHONE_TAB_LOBS.includes(activeLob)) return phoneAgentOptionGroups(activeLob);
+  return agentOptionGroups();
+}
 function pruneAgentSelection(){
-  const validNames = new Set(agentOptionGroups().flatMap(g=>g.options));
+  const validNames = new Set(currentAgentOptionGroups().flatMap(g=>g.options));
   state.agent = state.agent.filter(n => validNames.has(n));
   refreshAgentFilterUI();
 }
@@ -838,7 +851,7 @@ function initFilters(){
 
   setupMultiSelect({
     wrapId:'teamFilterWrap', btnId:'teamFilterBtn', panelId:'teamFilterPanel', allLabel:'All Teams',
-    getOptionGroups: () => [{label:null, options: ALL_TEAMS}],
+    getOptionGroups: currentTeamOptionGroups,
     getSelected: () => state.team,
     setSelected: (arr) => {
       state.team = arr;
@@ -862,7 +875,7 @@ function initFilters(){
   });
   setupMultiSelect({
     wrapId:'agentFilterWrap', btnId:'agentFilterBtn', panelId:'agentFilterPanel', allLabel:'All Agents', search:true,
-    getOptionGroups: agentOptionGroups,
+    getOptionGroups: currentAgentOptionGroups,
     getSelected: () => state.agent,
     setSelected: (arr) => { state.agent = arr; renderAll(); },
   });
@@ -2301,55 +2314,70 @@ function renderClosersMetric(){
   renderCloserStyleMetric({panelId:'panel-6', lobMatcher:isCloserLob, tablePrefix:'closers', tabLabel:'Closer'});
 }
 
-// PG1/Mid-Ticket/Inbound-tab ONLY data layer, sourced from PHONE_LOB_DAILY (the "Phone Team Sales
+// PG1/Mid-Ticket/Inbound-tab ONLY data layer, sourced from PHONE_RAW (the "Phone Team Sales
 // Report 2026" Schedule tab + Aloware call logs, via phoneScheduleRefresh.gs) -- entirely separate
-// from RAW_SCHED/TREND_*, which stay Setter/Closer's own. PHONE_LOB_DAILY row shape: [lob, date,
-// clubs, pg1, upfrontRevenue, closedDeals, pg1Trial, pg1Upfront, connectedCalls].
+// from RAW_SCHED/TREND_*, which stay Setter/Closer's own. PHONE_RAW row shape: [name, team, lob,
+// date, clubs, pg1, upfrontRevenue, closedDeals, pg1Trial, pg1Upfront, connectedCalls] -- one row
+// per (Name, Date), same granularity RAW_SCHED uses for Setter/Closer, so Team/Agent/Date-Range
+// filtering all apply here the same way they do there.
+// The 3 Current LOB values sourced from PHONE_RAW -- matches MAIN_TABS[0..2].name exactly.
+const PHONE_TAB_LOBS = ['Mid-Ticket', 'PG1', 'Inbound'];
 function phoneBlankSums(){
   return {clubs:0, pg1:0, upfrontRevenue:0, closedDeals:0, pg1Trial:0, pg1Upfront:0, connectedCalls:0};
 }
-function phoneAddRow(o, r){
-  o.clubs+=r.clubs; o.pg1+=r.pg1; o.upfrontRevenue+=r.upfrontRevenue; o.closedDeals+=r.closedDeals;
-  o.pg1Trial+=r.pg1Trial; o.pg1Upfront+=r.pg1Upfront; o.connectedCalls+=r.connectedCalls;
+function phoneAddRawRow(o, r){
+  o.clubs+=r[4]; o.pg1+=r[5]; o.upfrontRevenue+=r[6]; o.closedDeals+=r[7];
+  o.pg1Trial+=r[8]; o.pg1Upfront+=r[9]; o.connectedCalls+=r[10];
+}
+// Every PHONE_RAW row matching this LOB plus the current Team/Agent filters -- NOT Date Range,
+// which each caller applies separately (same split as execChartRawAggBy() vs execCompanyTotals()).
+function phoneRowsForLob(lob){
+  return PHONE_RAW.filter(r=>r[2]===lob && matchesTeamFilter(r[1]) && matchesAgentFilter(r[0]));
+}
+function phoneChartRawAggBy(lob, keyFn){
+  const map = new Map();
+  phoneRowsForLob(lob).forEach(r=>{
+    const key = keyFn(r[3]);
+    if(!map.has(key)) map.set(key, phoneBlankSums());
+    phoneAddRawRow(map.get(key), r);
+  });
+  return map;
 }
 // Sched's Date column is the appointment's SCHEDULED date (see execChartDailyRows() above for the
 // full rationale) -- Schedule rows can carry the same kind of future dates, so this clamps to
 // ASOF before the caller's trailing window, same as every other "last N" source in this file.
-function phoneDailyRowsForLob(lob){
-  return PHONE_LOB_DAILY.filter(r=>r[0]===lob).map(r=>({
-    date:r[1], clubs:r[2], pg1:r[3], upfrontRevenue:r[4], closedDeals:r[5], pg1Trial:r[6], pg1Upfront:r[7], connectedCalls:r[8]
-  })).filter(r=>r.date<=ASOF).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
+function phoneChartDailyRows(lob){
+  return Array.from(phoneChartRawAggBy(lob, d=>d).entries()).map(([date,sums])=>({date, ...sums}))
+    .filter(r=>r.date<=ASOF).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
 }
 function phoneChartWeeklyRows(lob){
-  const map = new Map();
-  phoneDailyRowsForLob(lob).forEach(r=>{
-    const wb = weekBeginningOf(r.date);
-    if(!map.has(wb)) map.set(wb, phoneBlankSums());
-    phoneAddRow(map.get(wb), r);
-  });
-  return Array.from(map.entries()).map(([weekBeginning,sums])=>({weekBeginning, ...sums}))
-    .sort((a,b)=>a.weekBeginning<b.weekBeginning?-1:a.weekBeginning>b.weekBeginning?1:0);
+  return Array.from(phoneChartRawAggBy(lob, weekBeginningOf).entries()).map(([weekBeginning,sums])=>({weekBeginning, ...sums}))
+    .filter(r=>r.weekBeginning<=ASOF).sort((a,b)=>a.weekBeginning<b.weekBeginning?-1:a.weekBeginning>b.weekBeginning?1:0);
 }
 function phoneChartMonthlyRows(lob){
-  const map = new Map();
-  phoneDailyRowsForLob(lob).forEach(r=>{
-    const mo = r.date.slice(0,7);
-    if(!map.has(mo)) map.set(mo, phoneBlankSums());
-    phoneAddRow(map.get(mo), r);
-  });
-  return Array.from(map.entries()).map(([month,sums])=>({month, ...sums}))
-    .sort((a,b)=>a.month<b.month?-1:a.month>b.month?1:0);
+  return Array.from(phoneChartRawAggBy(lob, d=>d.slice(0,7)).entries()).map(([month,sums])=>({month, ...sums}))
+    .filter(r=>r.month<=ASOF.slice(0,7)).sort((a,b)=>a.month<b.month?-1:a.month>b.month?1:0);
 }
-// Company-wide (within this LOB) sums for an ARBITRARY date range -- powers the KPI tiles' current
-// vs prior-period comparison, same role as execCompanyTotals()/closerCompanyTotals() play for
-// Setter/Closer, but reading PHONE_LOB_DAILY instead of RAW_SCHED.
+// Company-wide (within this LOB + current Team/Agent filters) sums for an ARBITRARY date range --
+// powers the KPI tiles' current vs prior-period comparison, same role as execCompanyTotals() plays
+// for Setter/Closer.
 function phoneCompanyTotals(lob, startStr, endStr){
   const o = phoneBlankSums();
-  PHONE_LOB_DAILY.forEach(r=>{
-    if(r[0]!==lob || r[1]<startStr || r[1]>endStr) return;
-    phoneAddRow(o, {clubs:r[2], pg1:r[3], upfrontRevenue:r[4], closedDeals:r[5], pg1Trial:r[6], pg1Upfront:r[7], connectedCalls:r[8]});
+  phoneRowsForLob(lob).forEach(r=>{
+    if(r[3]<startStr || r[3]>endStr) return;
+    phoneAddRawRow(o, r);
   });
   return o;
+}
+// Team/Agent dropdown narrowing for the 3 Phone-sourced tabs -- Setter/Closer's own ALL_TEAMS /
+// agentOptionGroups() stay completely untouched; see currentTeamOptionGroups/
+// currentAgentOptionGroups below for where these plug into the shared filter-bar wiring.
+function phoneTeamsForLob(lob){
+  return Array.from(new Set(PHONE_RAW.filter(r=>r[2]===lob).map(r=>r[1]))).sort();
+}
+function phoneAgentOptionGroups(lob){
+  const rows = PHONE_RAW.filter(r=>r[2]===lob && matchesTeamFilter(r[1]));
+  return [{label:null, options: Array.from(new Set(rows.map(r=>r[0]))).sort()}];
 }
 function phoneKpiTilesHtml(lob){
   const cur = phoneCompanyTotals(lob, state.start, state.end);
@@ -2381,9 +2409,9 @@ function renderPhoneTrend(cfg){
   const {prevStart, prevEnd} = prevPeriodRange(state.start, state.end);
   p.innerHTML = `
     ${phoneKpiTilesHtml(lob)}
-    <div class="note">Tiles: exact sums for ${state.start} → ${state.end} vs the equivalent prior period (${prevStart} → ${prevEnd}), computed from the Phone Team Sales Report's Schedule tab (Current LOB = ${lob}). Connected Calls are from Aloware call logs, matched by rep name/date, counting calls with ≥90 seconds talk time. AOV = Upfront Revenue ÷ Closed Deals.</div>
+    <div class="note">Tiles: exact sums for ${state.start} → ${state.end} vs the equivalent prior period (${prevStart} → ${prevEnd}), computed from the Phone Team Sales Report's Schedule tab (Current LOB = ${lob}) -- Team and Agent filters do apply. Connected Calls are from Aloware call logs, matched by rep name/date, counting calls with ≥90 seconds talk time. AOV = Upfront Revenue ÷ Closed Deals.</div>
     <div class="section-title">Upfront Revenue, PG1, Clubs — Monthly / Weekly / Daily</div>
-    <div class="note">These 9 charts are NOT affected by the Date Range filter above -- they always show the latest 3 months / 6 weeks / 30 days.</div>
+    <div class="note">These 9 charts are NOT affected by the Date Range filter above -- they always show the latest 3 months / 6 weeks / 30 days. Team and Agent filters do apply.</div>
     ${PHONE_CHART_METRICS.map(m => `
     <div class="chart-row">
       <div class="chart-card">
@@ -2403,12 +2431,12 @@ function renderPhoneTrend(cfg){
       </div>
     </div>`).join('')}
     <div class="section-title">Period detail — last 30 days</div>
-    <div class="note">Static last 30 days, NOT affected by the Date Range filter above (same window and formulas as the Daily charts).</div>
+    <div class="note">Static last 30 days, NOT affected by the Date Range filter above (same window and formulas as the Daily charts) -- Team and Agent filters do apply.</div>
     <div class="table-section"><table><thead id="tbl-${idPrefix}-period-head"></thead><tbody id="tbl-${idPrefix}-period-body"></tbody></table></div>
   `;
   const chartMonthly = phoneChartMonthlyRows(lob).slice(-3);
   const chartWeekly = phoneChartWeeklyRows(lob).slice(-6);
-  const chartDaily = phoneDailyRowsForLob(lob).slice(-30);
+  const chartDaily = phoneChartDailyRows(lob).slice(-30);
   const monthLbl = r => fmtMonthLabel(r.month);
   const weekLbl = r => 'WB '+r.weekBeginning.slice(5);
   const dayLbl = r => r.date.slice(5);

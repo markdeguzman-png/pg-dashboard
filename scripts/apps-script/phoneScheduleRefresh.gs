@@ -42,13 +42,18 @@ var ALOWARE_ROOT_FOLDER_ID = '1nR7-OTb_MJ6jYf3xpEWLKtBco2a1ok85';
 // differently-dated folder (e.g. a "10-01-2025" left over from the prior year) without needing it
 // hand-excluded.
 var ALOWARE_MONTH_FOLDER_RE = /^(0[1-9]|1[0-2])-01-(\d{4})$/;
-// Once a past (non-current) month's folder has been fully aggregated, its result is cached
-// permanently in this Drive file (JSON, stored in the Aloware root) so it's never re-downloaded --
-// only the current month is re-read every run, since it's the only one still gaining files.
+// Per user (2026-10-31): a given week's export file is written once and doesn't change again --
+// new data only ever shows up as a brand-new file (weekly, on Mondays, covering the prior week).
+// So caching is per FILE ID, not per month: once a file has been aggregated, it's cached
+// permanently and never re-downloaded, with no "current month is special" exception needed --
+// whatever file is newest just hasn't been cached yet, and gets picked up the same way backlog
+// does. Stored in this Drive file (JSON) in the Aloware root.
 var ALOWARE_CACHE_FILENAME = 'phoneConnectedCallsCache.json';
-// How many not-yet-cached past months to backfill in a single run. Kept low to stay well inside
-// the execution time limit; raise it once Executions shows how long one month actually takes.
-var ALOWARE_BACKFILL_MONTHS_PER_RUN = 1;
+// How many not-yet-cached files to process in a single run, newest-created first (so a fresh
+// Monday export gets priority over older backlog, keeping the live dashboard's most recent weeks
+// current while history fills in behind it). Kept low to stay well inside the execution time
+// limit -- raise it once Executions shows how long one file actually takes.
+var ALOWARE_NEW_FILES_PER_RUN = 2;
 
 // Current LOB values (Schedule tab's own "Current LOB" column) that feed each of the 3 new tabs.
 // NOTE: this is "Inbound" here, not "Inbound Team" -- that's the label this specific source uses;
@@ -167,124 +172,116 @@ function talkTimeToSeconds_(hms) {
   return h * 3600 + m * 60 + s;
 }
 
-// Reads every CSV in ONE Aloware month-folder and returns its Connected Calls aggregate directly
-// ('normalizedName|date' -> count) -- folded into a single pass (no intermediate raw-row array)
-// so a 100MB+ single-file month doesn't also need its own parsed copy held in memory afterward.
-// A file that fails to load or parse (oversized blob, unexpected format, ...) is logged and
-// skipped rather than failing the whole run -- the largest months here (Jan-May, ~105-131MB each)
-// are close to Apps Script's practical blob-size ceiling, so this needs to degrade gracefully.
-function computeConnectedCallsForFolder_(folderId) {
+// Reads ONE Aloware CSV file and returns its Connected Calls aggregate ('normalizedName|date' ->
+// count). A file that fails to load or parse (oversized blob, unexpected format, ...) throws, so
+// the caller can record it as a cached failure instead of retrying it forever -- the largest
+// single-month files (Jan-May, ~105-131MB each) are close to Apps Script's practical blob-size
+// ceiling, so this needs to degrade predictably rather than silently.
+function computeConnectedCallsForFile_(file) {
   var out = {};
-  var files = DriveApp.getFolderById(folderId).getFiles();
-  while (files.hasNext()) {
-    var file = files.next();
-    try {
-      var csvText = file.getBlob().getDataAsString();
-      var rows = Utilities.parseCsv(csvText);
-      if (!rows.length) continue;
-      var headers = rows[0];
-      var startedIdx = headers.indexOf('Started At');
-      var lineIdx = headers.indexOf('Line Name');
-      var userIdx = headers.indexOf('User Name');
-      var talkIdx = headers.indexOf('Talk Time');
-      if (startedIdx === -1 || talkIdx === -1) continue; // unexpected format; skip this file
-      for (var i = 1; i < rows.length; i++) {
-        var row = rows[i];
-        var started = row[startedIdx];
-        if (!started) continue;
-        var seconds = talkTimeToSeconds_(row[talkIdx]);
-        if (seconds < CONNECTED_CALL_MIN_SECONDS) continue;
-        var dateStr = String(started).trim().slice(0, 10); // "YYYY-MM-DD HH:MM:SS" -> date part
-        var rawName = lineIdx > -1 && row[lineIdx] ? cleanLineName_(row[lineIdx])
-          : (userIdx > -1 ? String(row[userIdx] || '').trim() : '');
-        if (!rawName) continue;
-        var key = phoneNormalizeName_(rawName) + '|' + dateStr;
-        out[key] = (out[key] || 0) + 1;
-      }
-    } catch (e) {
-      Logger.log('Skipping Aloware file "' + file.getName() + '" (folder ' + folderId + '): ' + e);
-    }
+  var csvText = file.getBlob().getDataAsString();
+  var rows = Utilities.parseCsv(csvText);
+  if (!rows.length) return out;
+  var headers = rows[0];
+  var startedIdx = headers.indexOf('Started At');
+  var lineIdx = headers.indexOf('Line Name');
+  var userIdx = headers.indexOf('User Name');
+  var talkIdx = headers.indexOf('Talk Time');
+  if (startedIdx === -1 || talkIdx === -1) return out; // unexpected format
+  for (var i = 1; i < rows.length; i++) {
+    var row = rows[i];
+    var started = row[startedIdx];
+    if (!started) continue;
+    var seconds = talkTimeToSeconds_(row[talkIdx]);
+    if (seconds < CONNECTED_CALL_MIN_SECONDS) continue;
+    var dateStr = String(started).trim().slice(0, 10); // "YYYY-MM-DD HH:MM:SS" -> date part
+    var rawName = lineIdx > -1 && row[lineIdx] ? cleanLineName_(row[lineIdx])
+      : (userIdx > -1 ? String(row[userIdx] || '').trim() : '');
+    if (!rawName) continue;
+    var key = phoneNormalizeName_(rawName) + '|' + dateStr;
+    out[key] = (out[key] || 0) + 1;
   }
   return out;
 }
 
-// All real "MM-01-YYYY" month subfolders under the Aloware root, sorted chronologically --
-// ALOWARE_MONTH_FOLDER_RE excludes anything that doesn't match that exact pattern (e.g. a stray
-// differently-dated folder) without needing it hand-listed.
-function listAlowareMonthFolders_() {
+// Every Aloware CSV across every "MM-01-YYYY" month subfolder under the root (ALOWARE_MONTH_FOLDER_RE
+// excludes anything that doesn't match that exact pattern, e.g. a stray differently-dated folder,
+// without needing it hand-listed), sorted newest-created first -- a fresh Monday export should be
+// picked up before older backlog, not after it.
+function listAlowareFiles_() {
   var out = [];
   var folders = DriveApp.getFolderById(ALOWARE_ROOT_FOLDER_ID).getFolders();
   while (folders.hasNext()) {
-    var f = folders.next();
-    var m = ALOWARE_MONTH_FOLDER_RE.exec(f.getName());
-    if (!m) continue;
-    out.push({ id: f.getId(), name: f.getName(), monthNum: parseInt(m[1], 10), year: parseInt(m[2], 10) });
+    var folder = folders.next();
+    if (!ALOWARE_MONTH_FOLDER_RE.test(folder.getName())) continue;
+    var files = folder.getFiles();
+    while (files.hasNext()) {
+      var f = files.next();
+      out.push({ id: f.getId(), name: f.getName(), file: f, created: f.getDateCreated().getTime() });
+    }
   }
-  out.sort(function (a, b) { return (a.year - b.year) || (a.monthNum - b.monthNum); });
+  out.sort(function (a, b) { return b.created - a.created; });
   return out;
 }
 
-// ---- Persistent cross-run cache for already-fully-processed (non-current) months ----
-// Stored as a small JSON file in the Aloware root itself, not Script Properties (whose 9KB/property
-// and 500KB/project caps are too small once several months' worth of per-name-per-day counts pile
-// up). Shape: { "months": { "MM-01-YYYY": { "normalizedName|date": count, ... }, ... } }.
+// ---- Persistent cross-run cache, one entry per Aloware FILE ----
+// Per user (2026-10-31): once a week's file is written it never changes again, so the right cache
+// key is the file, not the month it lives in -- no "current month" special case needed. Stored as
+// a small JSON file in the Aloware root (not Script Properties, whose 9KB/property and
+// 500KB/project caps are too small once many files' worth of per-name-per-day counts pile up).
+// Shape: { "files": { "<fileId>": {"status":"ok","agg":{"normalizedName|date":count,...}}
+//                                | {"status":"failed","error":"..."} } }.
 function findOrCreateCacheFile_() {
   var root = DriveApp.getFolderById(ALOWARE_ROOT_FOLDER_ID);
   var existing = root.getFilesByName(ALOWARE_CACHE_FILENAME);
   if (existing.hasNext()) return existing.next();
-  return root.createFile(ALOWARE_CACHE_FILENAME, JSON.stringify({ months: {} }), MimeType.PLAIN_TEXT);
+  return root.createFile(ALOWARE_CACHE_FILENAME, JSON.stringify({ files: {} }), MimeType.PLAIN_TEXT);
 }
 function loadAlowareCache_() {
   var file = findOrCreateCacheFile_();
   try {
     var parsed = JSON.parse(file.getBlob().getDataAsString());
-    if (parsed && parsed.months) return { file: file, data: parsed };
+    if (parsed && parsed.files) return { file: file, data: parsed };
   } catch (e) {
     Logger.log('Aloware cache file unreadable/corrupt, starting fresh: ' + e);
   }
-  return { file: file, data: { months: {} } };
+  return { file: file, data: { files: {} } };
 }
 function saveAlowareCache_(cacheFile, data) {
   cacheFile.setContent(JSON.stringify(data));
 }
 
-// Orchestrates the full Connected Calls aggregate across every Aloware month: reuses whatever
-// past months are already cached, always recomputes the CURRENT month fresh (its files are still
-// being added weekly), and backfills at most ALOWARE_BACKFILL_MONTHS_PER_RUN not-yet-cached past
-// months per run -- oldest first -- so working through the ~1.1GB January-onward backlog happens
-// gradually across several scheduled runs instead of risking a single run timing out. Once every
-// past month is cached, steady state is just: current month + a cache read, every run.
+// Orchestrates the full Connected Calls aggregate: every Aloware file already cached (success or
+// failure) is reused/skipped without re-downloading; up to ALOWARE_NEW_FILES_PER_RUN not-yet-seen
+// files are processed this run, newest-created first, then cached permanently -- so a fresh Monday
+// export is current within one run, while the ~1.1GB January-onward backlog fills in gradually,
+// newest-to-oldest, across subsequent scheduled runs without risking a single run timing out.
 function buildConnectedByNameDate_() {
-  var monthFolders = listAlowareMonthFolders_();
-  if (!monthFolders.length) { Logger.log('No Aloware month folders found under root ' + ALOWARE_ROOT_FOLDER_ID + '.'); return {}; }
-
-  var now = new Date();
-  var currentMonthName = Utilities.formatDate(now, Session.getScriptTimeZone(), 'MM-01-yyyy');
+  var files = listAlowareFiles_();
+  if (!files.length) { Logger.log('No Aloware files found under root ' + ALOWARE_ROOT_FOLDER_ID + '.'); return {}; }
 
   var cache = loadAlowareCache_();
   var cacheDirty = false;
-  var backfilled = 0;
+  var processed = 0;
   var combined = {};
 
-  monthFolders.forEach(function (mf) {
-    var isCurrent = mf.name === currentMonthName;
-    var monthAgg;
-    if (isCurrent) {
-      monthAgg = computeConnectedCallsForFolder_(mf.id);
-      // Never cache the current month -- it's incomplete until the month ends.
-    } else if (cache.data.months[mf.name]) {
-      monthAgg = cache.data.months[mf.name];
-    } else if (backfilled < ALOWARE_BACKFILL_MONTHS_PER_RUN) {
-      Logger.log('Backfilling Aloware month ' + mf.name + '...');
-      monthAgg = computeConnectedCallsForFolder_(mf.id);
-      cache.data.months[mf.name] = monthAgg;
+  files.forEach(function (f) {
+    var entry = cache.data.files[f.id];
+    if (!entry) {
+      if (processed >= ALOWARE_NEW_FILES_PER_RUN) return; // not cached yet, no slot left this run -- next run picks it up
+      Logger.log('Processing new Aloware file "' + f.name + '"...');
+      try {
+        entry = { status: 'ok', agg: computeConnectedCallsForFile_(f.file) };
+      } catch (e) {
+        entry = { status: 'failed', error: String(e) };
+        Logger.log('Skipping Aloware file "' + f.name + '" (failed to process): ' + e);
+      }
+      cache.data.files[f.id] = entry;
       cacheDirty = true;
-      backfilled++;
-    } else {
-      monthAgg = null; // not cached yet, not this run's backfill slot -- picked up on a future run
+      processed++;
     }
-    if (monthAgg) {
-      for (var key in monthAgg) combined[key] = (combined[key] || 0) + monthAgg[key];
+    if (entry.status === 'ok') {
+      for (var key in entry.agg) combined[key] = (combined[key] || 0) + entry.agg[key];
     }
   });
 
@@ -443,30 +440,33 @@ function publishPhoneToGitHub_(newContent, rawRows) {
 //    how big a single run is / how often Aloware adds new weekly files).
 // 6. Test it: select phoneRefreshAndPublish from the function dropdown, click Run. Authorize the
 //    new scopes it asks for (Spreadsheets, Drive, UrlFetch to github.com) when prompted. This
-//    first run reads ALL ~15,685 Schedule rows, the CURRENT month's Aloware CSVs, and backfills
-//    ALOWARE_BACKFILL_MONTHS_PER_RUN (default 1) of the still-uncached past months -- watch
-//    Executions (the play-button-with-a-clock icon) for how long it actually takes and whether it
-//    completes within the execution time limit; if it times out, lower
-//    ALOWARE_BACKFILL_MONTHS_PER_RUN (or tell Claude) so each run's chunk is smaller.
+//    first run reads ALL ~15,685 Schedule rows and processes ALOWARE_NEW_FILES_PER_RUN (default 2)
+//    Aloware files, newest-created first -- watch Executions (the play-button-with-a-clock icon)
+//    for how long it actually takes and whether it completes within the execution time limit; if
+//    it times out, lower ALOWARE_NEW_FILES_PER_RUN (or tell Claude) so each run's chunk is smaller.
 // 7. Check https://github.com/markdeguzman-png/pg-dashboard for a new commit adding a
 //    PHONE_RAW const to asr_closer_dashboard.html. Vercel auto-deploys from that push.
 //
 // ---- Aloware backfill: how it works ----
 // Aloware call logs live one subfolder per month under ALOWARE_ROOT_FOLDER_ID
 // ("01-01-2026", "02-01-2026", ... "10-01-2026", ~1.1GB total across Jan-Oct) -- far too much to
-// re-download every run. Each scheduled run: (a) always re-reads the CURRENT month fresh, since
-// it's still gaining files, (b) reuses every PAST month already cached in the
-// "phoneConnectedCallsCache.json" file this script maintains in the Aloware root folder, and
-// (c) backfills at most ALOWARE_BACKFILL_MONTHS_PER_RUN not-yet-cached past months, oldest first,
-// then caches them permanently. With the default of 1/run and an hourly trigger, the full
-// Jan-Oct backlog finishes backfilling within about a day of the updated script going live, with
-// no manual action needed beyond pasting it in. Check Executions' logs for "Backfilling Aloware
-// month ..." lines to watch progress, or raise ALOWARE_BACKFILL_MONTHS_PER_RUN if a run's
-// Execution time shows headroom to go faster. If a file is too large for this script to load (the
-// largest single months, Jan-May, are ~105-131MB each), it's logged and skipped rather than
-// failing the whole run -- check Executions for "Skipping Aloware file ..." lines; if that happens,
-// that month may need to be re-exported from Aloware as smaller weekly files instead of one big
-// monthly file (matching how June onward is already split).
+// re-download every run. A given file, once written, never changes again (a new week's data only
+// ever shows up as a brand-new file, on Mondays) -- so caching is per FILE, not per month. Each
+// scheduled run: reuses every file already cached in the "phoneConnectedCallsCache.json" file this
+// script maintains in the Aloware root folder, and processes at most ALOWARE_NEW_FILES_PER_RUN
+// not-yet-cached files, newest-created first, then caches them permanently (success or failure).
+// That ordering means a fresh Monday export is picked up on the very next run regardless of how
+// much older backlog is still unprocessed, while the ~1.1GB January-onward backlog fills in behind
+// it, newest-to-oldest, across subsequent runs. With the default of 2/run and an hourly trigger,
+// the full backlog finishes within about a day of the updated script going live, with no manual
+// action needed beyond pasting it in. Check Executions' logs for "Processing new Aloware file ..."
+// lines to watch progress, or raise ALOWARE_NEW_FILES_PER_RUN if a run's Execution time shows
+// headroom to go faster. If a file is too large for this script to load (the largest single-month
+// files, Jan-May, are ~105-131MB each), it's cached as a failure and never retried -- check
+// Executions for "Skipping Aloware file ... (failed to process)" lines; if that happens, that
+// month may need to be re-exported from Aloware as smaller weekly files instead of one big monthly
+// file (matching how June onward is already split), after which deleting that one entry from
+// phoneConnectedCallsCache.json (in the Aloware root folder) lets it be retried.
 //
 // This pipeline is intentionally independent of claudeRefreshAndPublish.gs -- different
 // spreadsheet, different Drive source, different const in the dashboard (PHONE_RAW vs

@@ -98,6 +98,48 @@ function domoRefreshAndPublish() {
   domoPublishContributionProfitRollup_(authHeader, datasetId, rootFolder, allMonths, currentMonth);
 }
 
+// One-off: upgrades already-finalized PAST months' archival CSVs to carry the per-row
+// Contribution Profit column (domoAppendContributionProfitColumn_ above). Those files were written
+// before that column existed, and under domoRefreshAndPublish's normal "finalized, never
+// re-queried" rule they'd never get it -- current-month files already pick it up automatically on
+// every refresh, so this only ever has work to do on past months. Run manually (function dropdown
+// -> domoForceRewriteArchiveWithContributionProfit_ -> Run) as many times as it takes to clear the
+// backlog: it processes up to DOMO_BACKFILL_MONTHS_PER_RUN not-yet-upgraded months per call (same
+// cap domoRefreshAndPublish's own backfill uses, to stay inside the execution time limit) and is
+// safe to re-run -- it checks each file's own header first and skips any month that already has the
+// column, so it can't double-append or accidentally touch a month twice. Once every past month is
+// upgraded it logs that and does nothing further; domoRefreshAndPublish's regular behavior is
+// completely unaffected by this function either way.
+function domoForceRewriteArchiveWithContributionProfit_() {
+  var authHeader = domoAuthHeader_();
+  var datasetId = domoFindDatasetId_(authHeader);
+  var rootFolder = domoGetOrCreateFolder_(DriveApp.getRootFolder(), DRIVE_ROOT_FOLDER_NAME);
+  var currentMonth = Utilities.formatDate(new Date(), 'America/New_York', 'yyyy-MM');
+  var pastMonths = domoListMonthsBetween_(EXTRACT_START_MONTH, currentMonth)
+    .filter(function (m) { return m !== currentMonth; });
+
+  var upgraded = 0;
+  pastMonths.forEach(function (monthStr) {
+    if (upgraded >= DOMO_BACKFILL_MONTHS_PER_RUN) return;
+    var monthFolder = domoGetOrCreateFolder_(rootFolder, monthStr);
+    var fileName = 'PGZ Multi POS Transactions - ' + monthStr + '.csv';
+    var existingIt = monthFolder.getFilesByName(fileName);
+    if (existingIt.hasNext()) {
+      var text = existingIt.next().getBlob().getDataAsString();
+      var headerEnd = text.indexOf('\n');
+      var header = headerEnd > -1 ? text.slice(0, headerEnd) : text;
+      if (header.indexOf('Contribution Profit') !== -1) return; // already upgraded, skip
+    }
+    Logger.log('Domo: force-rewriting ' + monthStr + ' to add the Contribution Profit column...');
+    var result = domoQueryMonth_(authHeader, datasetId, monthStr);
+    domoAppendContributionProfitColumn_(result);
+    domoWriteCsv_(monthFolder, fileName, result);
+    Logger.log('Domo: force-rewrote ' + monthStr + ' -- ' + result.rows.length + ' rows.');
+    upgraded++;
+  });
+  if (!upgraded) Logger.log('Domo: every past month already has the Contribution Profit column -- nothing left to do, this function can be ignored/deleted now.');
+}
+
 // Appends a per-ROW 'Contribution Profit' column to the archival export, mutating result in place
 // -- same formula as the dashboard rollup below (Gross - Total COGS - Merchant Fees (Gross), net of
 // Refunded/Chargedback and their own merchant-fee reversals), just applied per-transaction instead

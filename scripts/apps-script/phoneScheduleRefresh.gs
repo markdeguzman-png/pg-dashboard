@@ -520,16 +520,31 @@ function hubstaffFetchCostByNameDate_(orgId, members) {
 
   var out = {};
   var payments = hubstaffPaginatedFetch_('/v2/organizations/' + orgId + '/team_payments', userIdsParam);
+  var detailCount = 0, matchedUserCount = 0, minDetailDate = null, maxDetailDate = null;
   payments.forEach(function (payment) {
     (payment.details || []).forEach(function (d) {
+      detailCount++;
+      if (d.date) {
+        var dateStr = String(d.date).slice(0, 10);
+        if (!minDetailDate || dateStr < minDetailDate) minDetailDate = dateStr;
+        if (!maxDetailDate || dateStr > maxDetailDate) maxDetailDate = dateStr;
+      }
       var name = idToName[d.user_id];
       if (!name || !d.date) return;
+      matchedUserCount++;
       var base = parseFloat(d.amount) || 0;
       var overtime = (d.overtime_details || []).reduce(function (s, o) { return s + (parseFloat(o.amount) || 0); }, 0);
-      var key = phoneNormalizeName_(name) + '|' + String(d.date).slice(0, 10);
+      var key = phoneNormalizeName_(name) + '|' + dateStr;
       out[key] = (out[key] || 0) + base + overtime;
     });
   });
+  // Diagnostic while this is still being verified: tells us whether an empty result means "no
+  // payment records at all for this roster" (payments.length === 0), "records exist but their
+  // detail lines don't carry a recognized user_id" (detailCount > 0, matchedUserCount === 0), or
+  // "records exist for these users but on dates outside Schedule's own range" (check
+  // minDetailDate/maxDetailDate against the window hubstaffFetchTrackedHoursByNameDate_ logs).
+  Logger.log('Hubstaff: ' + payments.length + ' team_payments records, ' + detailCount + ' detail lines, '
+    + matchedUserCount + ' matched to our roster, detail dates ' + minDetailDate + ' to ' + maxDetailDate + '.');
   return out;
 }
 

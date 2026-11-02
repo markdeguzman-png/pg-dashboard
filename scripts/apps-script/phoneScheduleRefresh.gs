@@ -64,7 +64,8 @@ var TARGET_LOBS = ['Mid-Ticket', 'PG1', 'Inbound'];
 var CONNECTED_CALL_MIN_SECONDS = 90;
 
 function phoneRefreshAndPublish() {
-  var scheduleValues = SpreadsheetApp.openById(PHONE_SHEET_ID).getSheetByName(SCHEDULE_TAB_NAME).getDataRange().getValues();
+  var ss = SpreadsheetApp.openById(PHONE_SHEET_ID);
+  var scheduleValues = ss.getSheetByName(SCHEDULE_TAB_NAME).getDataRange().getValues();
   var scheduleRows = extractScheduleRows_(scheduleValues);
   if (!scheduleRows.length) { Logger.log('No active Schedule rows extracted; aborting.'); return; }
 
@@ -131,13 +132,15 @@ function phoneRefreshAndPublish() {
   // Drive folder domoMultiPosExport.gs writes to doesn't exist yet (or anything else goes wrong
   // reading it), the 4 Contribution Profit columns just stay 0 rather than breaking the publish.
   var contribProfitByNameDateGroup = {};
+  var domoAliasKeysByName = {};
   try {
     contribProfitByNameDateGroup = domoReadContributionProfitByNameDateGroup_();
+    domoAliasKeysByName = buildDomoAliasKeysByName_(ss);
   } catch (e) {
     Logger.log('Domo Contribution Profit read failed (non-fatal, those columns stay 0 this run): ' + e);
   }
 
-  var rawRows = buildPhoneRaw_(scheduleRows, connectedByNameDate, trackedHoursByNameDate, contribProfitByNameDateGroup);
+  var rawRows = buildPhoneRaw_(scheduleRows, connectedByNameDate, trackedHoursByNameDate, contribProfitByNameDateGroup, domoAliasKeysByName);
   if (!rawRows.length) { Logger.log('No rows produced; aborting.'); return; }
 
   var nowIso = new Date().toISOString();
@@ -207,16 +210,6 @@ function extractScheduleRows_(values) {
   // the exceptions (found via the "Hubstaff: unmatched/no-activity roster names" log line) is more
   // reliable than guessing at another normalization rule blind.
   var hubstaffNameIdx = phoneOptionalColIdx_(headers, 'Hubstaff Name');
-  // Optional alias: if a "Domo Name" column exists and a row has a value in it, that value is
-  // ADDED as a second name Domo's Contribution Profit gets matched against -- UNION with the Name
-  // column, not a replacement like Hubstaff Name above, because Domo's own sourceTitle data has
-  // been observed to use BOTH the Schedule name AND a different nickname/alias for the same person
-  // within the same month (confirmed 2026-11-03 via direct cross-reference against 5 months of
-  // real Domo data: "Belle Diaz" vs "Jobelle Diaz" -- $3,588 under the exact Schedule-name spelling
-  // vs $174,769 under the alias, same real person; also "Andrea Isabel Balon"/"Ayie Balon" and
-  // "Romalyn Magallon"/"Roma Magallon"). Filling this in only for confirmed real aliases (not
-  // guessed) avoids merging two different people's money together.
-  var domoNameIdx = phoneOptionalColIdx_(headers, 'Domo Name');
   var rows = [];
   for (var r = 1; r < values.length; r++) {
     var row = values[r];
@@ -239,13 +232,11 @@ function extractScheduleRows_(values) {
     if (!clubs && !pg1 && !upfrontRevenue && !closedDeals && !pg1Trial && !pg1Upfront && !scheduledHrs) continue;
     var trimmedName = String(name).trim();
     var hubstaffOverride = hubstaffNameIdx > -1 ? String(row[hubstaffNameIdx] || '').trim() : '';
-    var domoAlias = domoNameIdx > -1 ? String(row[domoNameIdx] || '').trim() : '';
     rows.push({
       name: trimmedName, date: dateStr, lob: lob, team: String(team).trim(),
       clubs: clubs, pg1: pg1, upfrontRevenue: phoneRound2_(upfrontRevenue), closedDeals: closedDeals,
       pg1Trial: pg1Trial, pg1Upfront: pg1Upfront, scheduledHrs: scheduledHrs,
-      hubstaffKey: phoneNormalizeName_(hubstaffOverride || trimmedName),
-      domoAliasKey: domoAlias ? phoneNormalizeName_(domoAlias) : ''
+      hubstaffKey: phoneNormalizeName_(hubstaffOverride || trimmedName)
     });
   }
   return rows;
@@ -572,7 +563,7 @@ function hubstaffFetchTrackedHoursByNameDate_(orgId, members, minDate, maxDate) 
 // dashboard's existing matchesTeamFilter()/matchesAgentFilter() pattern (and arbitrary
 // Date-Range sums) work on this data exactly the same way, instead of pre-aggregating away the
 // per-person detail Team/Agent filtering actually needs.
-function buildPhoneRaw_(scheduleRows, connectedByNameDate, trackedHoursByNameDate, contribProfitByNameDateGroup) {
+function buildPhoneRaw_(scheduleRows, connectedByNameDate, trackedHoursByNameDate, contribProfitByNameDateGroup, domoAliasKeysByName) {
   return scheduleRows.map(function (r) {
     // Connected Calls (Aloware) is keyed off Schedule's own Name, normalized -- unaffected by a
     // "Hubstaff Name" override, which only exists to steer Hubstaff matching specifically. Tracked
@@ -582,20 +573,21 @@ function buildPhoneRaw_(scheduleRows, connectedByNameDate, trackedHoursByNameDat
     var connected = connectedByNameDate[phoneNormalizeName_(r.name) + '|' + r.date] || 0;
     var hubstaffNormKey = r.hubstaffKey + '|' + r.date;
     var trackedHrs = trackedHoursByNameDate ? phoneRound2_(trackedHoursByNameDate[hubstaffNormKey] || 0) : 0;
-    // Contribution Profit (Domo) is keyed off the same normalized Name as Aloware -- sourceTitle in
-    // Domo's POS data is "who sold it", the same identity Aloware's call logs and Schedule's own
-    // Name column already share -- not r.hubstaffKey, which only steers Hubstaff's own matching.
-    // When r.domoAliasKey is set (and differs from the primary key), its amounts are ADDED on top
-    // rather than replacing the primary lookup -- see the "Domo Name" column comment in
-    // extractScheduleRows_ above for why this has to be additive, not a swap.
+    // Contribution Profit (Domo) sums across EVERY normalized alias the "names_lookup" tab lists
+    // for this exact Schedule Name (see buildDomoAliasKeysByName_ below) -- not a single swap like
+    // Hubstaff's override, because Domo's own sourceTitle data has been seen using more than one
+    // spelling for the same real person within the same month (confirmed 2026-11-03: Belle Diaz
+    // $3,588 vs Jobelle Diaz $174,769, same person). The Name column's own normalized form is
+    // always included even if the lookup tab has no row for this person (or that tab is missing),
+    // so Contribution Profit never silently drops to 0 for someone not yet in the lookup tab.
     var cp = contribProfitByNameDateGroup || {};
-    var cpPrimaryBase = phoneNormalizeName_(r.name) + '|' + r.date + '|';
-    var cpAliasBase = (r.domoAliasKey && r.domoAliasKey !== phoneNormalizeName_(r.name))
-      ? (r.domoAliasKey + '|' + r.date + '|') : null;
+    var primaryNorm = phoneNormalizeName_(r.name);
+    var aliasKeys = (domoAliasKeysByName && domoAliasKeysByName[r.name]) ? domoAliasKeysByName[r.name].slice() : [];
+    if (aliasKeys.indexOf(primaryNorm) === -1) aliasKeys.push(primaryNorm);
     var cpSum = function (group) {
-      var v = cp[cpPrimaryBase + group] || 0;
-      if (cpAliasBase) v += cp[cpAliasBase + group] || 0;
-      return v;
+      var total = 0;
+      aliasKeys.forEach(function (key) { total += cp[key + '|' + r.date + '|' + group] || 0; });
+      return total;
     };
     var cpPG1 = phoneRound2_(cpSum('pg1'));
     var cpPhysical = phoneRound2_(cpSum('physical'));
@@ -654,6 +646,46 @@ function domoReadContributionProfitByNameDateGroup_() {
   }
   Logger.log('Domo Contribution Profit: read ' + rowCount + ' (rep, date, group) rows from ' + fileCount + ' rollup file(s).');
   return out;
+}
+
+// ---- Domo name aliases (user-maintained "names_lookup" tab in the same spreadsheet) ----
+// Added 2026-11-03 after confirming, via direct cross-reference against real Domo data, that
+// Domo's sourceTitle sometimes uses a different spelling/nickname than the Schedule tab's own Name
+// column for the same real person -- and sometimes BOTH spellings carry real money within the same
+// month (e.g. Belle Diaz $3,588 vs Jobelle Diaz $174,769), so a single Hubstaff-Name-style
+// swap/override isn't enough here; every accepted spelling needs to be summed.
+// This tab is USER-MAINTAINED, not Claude-guessed: two columns, "Sched_name" and "Domo_name", one
+// row per accepted Domo spelling for that Schedule Name -- a person can have multiple rows (their
+// own exact name as one row, plus one row per alias). Missing entirely, or missing a given person,
+// is fine -- buildPhoneRaw_ always falls back to the Name column's own normalized form regardless,
+// so Contribution Profit never silently drops to 0 just because someone isn't in this tab yet.
+var NAMES_LOOKUP_TAB_NAME = 'names_lookup';
+function buildDomoAliasKeysByName_(ss) {
+  var sheet = ss.getSheetByName(NAMES_LOOKUP_TAB_NAME);
+  if (!sheet) {
+    Logger.log('Domo Contribution Profit: "' + NAMES_LOOKUP_TAB_NAME + '" tab not found -- alias matching skipped, falls back to Name-column-only.');
+    return {};
+  }
+  var values = sheet.getDataRange().getValues();
+  if (values.length < 2) return {};
+  var headers = values[0];
+  var schedIdx = headers.indexOf('Sched_name'), domoIdx = headers.indexOf('Domo_name');
+  if (schedIdx === -1 || domoIdx === -1) {
+    Logger.log('Domo Contribution Profit: "' + NAMES_LOOKUP_TAB_NAME + '" tab missing expected "Sched_name"/"Domo_name" headers -- alias matching skipped.');
+    return {};
+  }
+  var map = {}; // exact Schedule Name string -> [normalizedDomoAlias, ...]
+  var rowCount = 0;
+  for (var i = 1; i < values.length; i++) {
+    var schedName = String(values[i][schedIdx] || '').trim();
+    var domoName = String(values[i][domoIdx] || '').trim();
+    if (!schedName || !domoName) continue;
+    var key = phoneNormalizeName_(domoName);
+    if (!map[schedName]) map[schedName] = [];
+    if (map[schedName].indexOf(key) === -1) { map[schedName].push(key); rowCount++; }
+  }
+  Logger.log('Domo Contribution Profit: loaded ' + rowCount + ' alias row(s) for ' + Object.keys(map).length + ' Schedule name(s) from "' + NAMES_LOOKUP_TAB_NAME + '".');
+  return map;
 }
 
 // ---- Splice PHONE_RAW into the dashboard HTML (own const, never touches RAW_SCHED/TREND_*) ----
@@ -844,18 +876,12 @@ function publishPhoneToGitHub_(newContent, rawRows) {
 // Optional/additive like Hubstaff: if that folder doesn't exist yet (domoMultiPosExport.gs hasn't
 // run), those 4 columns just stay 0 rather than breaking this publish.
 //
-// Fixing reps whose Contribution Profit looks too low: add a "Domo Name" column to the Schedule
-// tab (any column named exactly "Domo Name" -- the script looks it up by header, works whichever
-// position it's in) and put that rep's alternate Domo sourceTitle spelling in it, on any row(s) for
-// them. UNLIKE "Hubstaff Name" above, this does NOT replace the Name-column lookup -- it ADDS the
-// alias's amounts on top, because Domo's own data has been seen using both spellings for the same
-// person within the same month. Confirmed 2026-11-03 by cross-referencing 5 months of real Domo
-// data against the Schedule roster; as of that date these 3 rows need a "Domo Name" value:
-//   Belle Diaz             -> Jobelle Diaz
-//   Andrea Isabel Balon    -> Ayie Balon
-//   Romalyn Magallon       -> Roma Magallon
-// Two other candidates (Aileen Mendez / "Makkie Mendez", King Ycaro / "Maria Ycaro") were checked
-// and confirmed to be DIFFERENT people who just share a last name -- deliberately left unmapped.
-// If another rep's Contribution Profit still looks off after this, check the Contribution Profit
-// Rollup CSVs in Drive for a same-last-name sourceTitle variant before assuming it's a bug.
+// Fixing reps whose Contribution Profit looks too low: maintained via a "names_lookup" tab in this
+// SAME spreadsheet (added by the user 2026-11-03, not generated by this script) -- two columns,
+// "Sched_name" and "Domo_name", one row per accepted Domo sourceTitle spelling for that Schedule
+// Name (a person can have more than one row: their own exact name plus one row per alias). This
+// tab is user-maintained going forward -- add a row there for any rep whose Contribution Profit
+// looks too low, no code change needed. See buildDomoAliasKeysByName_ above for exactly how it's
+// read; missing the tab entirely, or missing a given person, is fine -- Contribution Profit always
+// still sums under that person's plain Name-column spelling regardless.
 // ============================================================================

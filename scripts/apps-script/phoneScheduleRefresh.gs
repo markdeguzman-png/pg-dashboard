@@ -272,7 +272,7 @@ function listAlowareFiles_() {
 // ALOWARE_CACHE_VERSION: bump this whenever a change would make every past entry's `agg` wrong
 // (e.g. the name-extraction fix below) -- loadAlowareCache_() discards a cache written under an
 // older version instead of trusting stale aggregates, forcing a full, automatic reprocess.
-var ALOWARE_CACHE_VERSION = 2;
+var ALOWARE_CACHE_VERSION = 3;
 function findOrCreateCacheFile_() {
   var root = DriveApp.getFolderById(ALOWARE_ROOT_FOLDER_ID);
   var existing = root.getFilesByName(ALOWARE_CACHE_FILENAME);
@@ -334,23 +334,22 @@ function buildConnectedByNameDate_() {
   return combined;
 }
 
-// Schedule's Name column sometimes carries a middle initial Aloware's Line Name/User Name doesn't
-// (e.g. Schedule "Amie B. Montederamos" vs Aloware "Amie Montederamos", "Kim Paolo B. Planas" vs
-// "Kim Paolo Planas") -- confirmed 2026-10-31 by spot-checking Aloware's raw CSVs: those reps had
-// real >=90s calls under the shorter name every day, but the exact-string join silently matched
-// zero of them, flooring Connected Calls (and therefore Close Rate) at 0 all month. Dropping a
-// single-letter middle token (an initial, with or without a trailing period) before joining fixes
-// this without needing a hand-maintained alias list, and is a no-op for every name that doesn't
-// have one. First and last tokens are never dropped, so a genuinely single-letter first/last name
-// survives untouched.
+// Schedule's Name column sometimes carries a middle name/initial that Aloware's Line Name/User
+// Name drops entirely -- and inconsistently so, not just abbreviated to an initial: Schedule "Amie
+// B. Montederamos" vs Aloware "Amie Montederamos" (initial dropped), "Kim Paolo B. Planas" vs
+// "Kim Paolo Planas" (just the initial dropped, "Paolo" kept), but also Schedule "Alice Cher
+// Valmonte" vs Aloware "Alice Valmonte" (the whole middle name "Cher" dropped, not abbreviated) --
+// confirmed by spot-checking Aloware's raw CSVs (2026-10-31, 2026-11-02). Whether Aloware keeps,
+// abbreviates, or drops a middle name isn't predictable from Schedule's side, so rather than
+// guessing at which pattern applies, this matches on first + last token only, discarding
+// everything in between -- verified against the live ~48-person Mid-Ticket/PG1/Inbound roster to
+// have zero (first, last) collisions, so this can't silently merge two different real reps. If the
+// roster ever grows to include two different people sharing a first and last name, this would need
+// to fall back to also keying on team/LOB to disambiguate.
 function phoneNormalizeName_(name) {
-  var tokens = String(name || '').trim().split(/\s+/);
+  var tokens = String(name || '').trim().split(/\s+/).filter(Boolean);
   if (tokens.length <= 2) return tokens.join(' ').toLowerCase();
-  var kept = tokens.filter(function (tok, i) {
-    if (i === 0 || i === tokens.length - 1) return true;
-    return !/^[A-Za-z]\.?$/.test(tok);
-  });
-  return kept.join(' ').toLowerCase();
+  return (tokens[0] + ' ' + tokens[tokens.length - 1]).toLowerCase();
 }
 
 // ---- Hubstaff: Scheduled vs Tracked hours (Mid-Ticket/PG1/Inbound reps only) ----

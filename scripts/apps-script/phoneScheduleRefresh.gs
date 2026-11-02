@@ -392,6 +392,13 @@ function hubstaffPaginatedFetch_(path, extraQuery) {
     var url = HUBSTAFF_API_BASE + path + (path.indexOf('?') === -1 ? '?' : '&') + 'page_limit=' + limit
       + (startId ? '&page_start_id=' + startId : '') + (extraQuery || '');
     var resp = UrlFetchApp.fetch(url, { headers: hubstaffAuthHeaders_(), muteHttpExceptions: true });
+    if (resp.getResponseCode() === 429) {
+      var rlHeaders = resp.getHeaders();
+      var retryAfterSec = parseInt(rlHeaders['Retry-After'] || rlHeaders['retry-after'] || '5', 10) || 5;
+      Logger.log('Hubstaff ' + path + ': rate-limited (429), waiting ' + retryAfterSec + 's and retrying once.');
+      Utilities.sleep(Math.min(retryAfterSec, 60) * 1000);
+      resp = UrlFetchApp.fetch(url, { headers: hubstaffAuthHeaders_(), muteHttpExceptions: true });
+    }
     if (resp.getResponseCode() !== 200) throw new Error('Hubstaff ' + path + ' failed (' + resp.getResponseCode() + '): ' + resp.getContentText());
     var page = hubstaffFirstArray_(JSON.parse(resp.getContentText()));
     out = out.concat(page);
@@ -516,14 +523,24 @@ function hubstaffFetchCostByNameDate_(orgId, members) {
   var idToName = {};
   members.forEach(function (m) { idToName[m.id] = m.name; });
   if (!members.length) return {};
-  var userIdsParam = members.map(function (m) { return '&user_ids[]=' + m.id; }).join('');
 
+  // NOT filtering by user_ids[] here, unlike the Hours fetch -- the previous run sent that filter
+  // and got back "0 team_payments records" outright, even though an earlier unfiltered sample call
+  // (before this function existed) DID return real payment data for this org. That's suspicious
+  // enough (team_payments' own docs list user_ids[] as supported, but this API has already had two
+  // confirmed surprises this session on the Members endpoint) that it's worth testing directly:
+  // fetch everything and filter client-side via idToName, same as every other lookup in this file
+  // already does. If idsSeenSample below shows real Hubstaff user_ids that still don't overlap our
+  // roster's ids at all, that points to these reps genuinely having no Hubstaff payroll records
+  // (plausible if they're paid through a different process) rather than a filter bug.
   var out = {};
-  var payments = hubstaffPaginatedFetch_('/v2/organizations/' + orgId + '/team_payments', userIdsParam);
+  var payments = hubstaffPaginatedFetch_('/v2/organizations/' + orgId + '/team_payments', '');
   var detailCount = 0, matchedUserCount = 0, minDetailDate = null, maxDetailDate = null;
+  var idsSeenSample = [];
   payments.forEach(function (payment) {
     (payment.details || []).forEach(function (d) {
       detailCount++;
+      if (idsSeenSample.length < 15 && idsSeenSample.indexOf(d.user_id) === -1) idsSeenSample.push(d.user_id);
       if (d.date) {
         var dateStr = String(d.date).slice(0, 10);
         if (!minDetailDate || dateStr < minDetailDate) minDetailDate = dateStr;
@@ -539,12 +556,15 @@ function hubstaffFetchCostByNameDate_(orgId, members) {
     });
   });
   // Diagnostic while this is still being verified: tells us whether an empty result means "no
-  // payment records at all for this roster" (payments.length === 0), "records exist but their
-  // detail lines don't carry a recognized user_id" (detailCount > 0, matchedUserCount === 0), or
-  // "records exist for these users but on dates outside Schedule's own range" (check
-  // minDetailDate/maxDetailDate against the window hubstaffFetchTrackedHoursByNameDate_ logs).
-  Logger.log('Hubstaff: ' + payments.length + ' team_payments records, ' + detailCount + ' detail lines, '
-    + matchedUserCount + ' matched to our roster, detail dates ' + minDetailDate + ' to ' + maxDetailDate + '.');
+  // payment records at all" (payments.length === 0), "records exist but none of their detail
+  // lines' user_ids are in our roster" (detailCount > 0, matchedUserCount === 0 -- compare
+  // idsSeenSample against our roster's own ids, logged separately by the caller), or "records exist
+  // for these users but on dates outside Schedule's own range" (check minDetailDate/maxDetailDate
+  // against the window hubstaffFetchTrackedHoursByNameDate_ logs).
+  Logger.log('Hubstaff: ' + payments.length + ' team_payments records (unfiltered), ' + detailCount + ' detail lines, '
+    + matchedUserCount + ' matched to our roster, detail dates ' + minDetailDate + ' to ' + maxDetailDate
+    + ', sample user_ids seen in details: ' + JSON.stringify(idsSeenSample));
+  Logger.log('Hubstaff: our roster\'s own user_ids (for comparing against the sample above): ' + JSON.stringify(members.map(function(m){return m.id;})));
   return out;
 }
 

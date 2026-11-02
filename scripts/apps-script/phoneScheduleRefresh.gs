@@ -81,8 +81,12 @@ function phoneRefreshAndPublish() {
   try {
     if (PropertiesService.getScriptProperties().getProperty('HUBSTAFF_TOKEN')) {
       var orgId = hubstaffFetchOrgId_();
+      // Keyed by hubstaffKey (the optional "Hubstaff Name" override when a Schedule row has one,
+      // else the normalized Name column -- see extractScheduleRows_) so a manually-entered override
+      // actually changes which Hubstaff member this roster matches to, not just cosmetic Schedule
+      // display text.
       var scheduleNames = {};
-      scheduleRows.forEach(function (r) { scheduleNames[phoneNormalizeName_(r.name)] = true; });
+      scheduleRows.forEach(function (r) { scheduleNames[r.hubstaffKey] = true; });
       var allMembers = hubstaffFetchMembers_(orgId);
       var ourMembers = allMembers.filter(function (m) { return scheduleNames[phoneNormalizeName_(m.name)]; });
       // Diagnostic logging while this integration is still being verified -- cheap (a handful of
@@ -97,6 +101,25 @@ function phoneRefreshAndPublish() {
       var maxDate = scheduleRows.reduce(function (m, r) { return r.date > m ? r.date : m; }, scheduleRows[0].date);
       trackedHoursByNameDate = hubstaffFetchTrackedHoursByNameDate_(orgId, ourMembers, minDate, maxDate);
       Logger.log('Hubstaff: tracked-hours lookup has ' + Object.keys(trackedHoursByNameDate).length + ' (name, date) entries for window ' + minDate + ' to ' + maxDate + '.');
+
+      // Per-rep diagnostic: who's still coming up empty, and why. "Never matched" means no
+      // Hubstaff member's name (normalized) equals this rep's hubstaffKey at all -- fixable by
+      // filling in a "Hubstaff Name" column value for them in Schedule. "Matched but zero
+      // activity" means a Hubstaff member WAS found, but Hubstaff has no tracked time for them in
+      // this whole window -- that's not a naming problem, likely means they don't use Hubstaff
+      // time tracking (or use it under a project/account this token can't see).
+      var ourMemberKeys = {};
+      ourMembers.forEach(function (m) { ourMemberKeys[phoneNormalizeName_(m.name)] = true; });
+      var keyToDisplayName = {};
+      scheduleRows.forEach(function (r) { if (!keyToDisplayName[r.hubstaffKey]) keyToDisplayName[r.hubstaffKey] = r.name; });
+      var trackedKeys = Object.keys(trackedHoursByNameDate).map(function (k) { return k.split('|')[0]; });
+      var neverMatched = [], matchedNoActivity = [];
+      Object.keys(keyToDisplayName).forEach(function (key) {
+        if (!ourMemberKeys[key]) { neverMatched.push(keyToDisplayName[key]); return; }
+        if (trackedKeys.indexOf(key) === -1) matchedNoActivity.push(keyToDisplayName[key]);
+      });
+      Logger.log('Hubstaff: ' + neverMatched.length + ' Schedule reps never matched a Hubstaff member (add a "Hubstaff Name" column value for these to fix): ' + JSON.stringify(neverMatched));
+      Logger.log('Hubstaff: ' + matchedNoActivity.length + ' reps matched a Hubstaff member but have zero tracked time in this window (likely don\'t use Hubstaff tracking, not a naming issue): ' + JSON.stringify(matchedNoActivity));
     } else {
       Logger.log('HUBSTAFF_TOKEN not set -- skipping Tracked Hours this run (Scheduled_Hrs still publishes).');
     }
@@ -124,6 +147,11 @@ function phoneColIdx_(headers, name) {
   var i = headers.indexOf(name);
   if (i === -1) throw new Error('Missing expected Schedule column: ' + name);
   return i;
+}
+// Like phoneColIdx_ but doesn't throw when the column is missing -- for columns that are allowed
+// to not exist yet, like the optional "Hubstaff Name" override below.
+function phoneOptionalColIdx_(headers, name) {
+  return headers.indexOf(name);
 }
 
 function phoneToNum_(v) {
@@ -162,6 +190,13 @@ function extractScheduleRows_(values) {
   ['Name', 'Date', 'Current LOB', 'Current Team', 'Clubs', 'PG1', 'Upfront_Revenue', 'closed_deals', 'PG1 Trial', 'PG1 Upfront', 'Scheduled_Hrs'].forEach(function (h) {
     idx[h] = phoneColIdx_(headers, h);
   });
+  // Optional override: if a "Hubstaff Name" column exists and a row has a value in it, that value
+  // (not the Name column) is what gets matched against Hubstaff -- added 2026-11-03 after automatic
+  // first+last matching missed some real reps (e.g. "Belle Diaz") with no obvious naming pattern to
+  // generalize from, the way the earlier Amie/Kim Paolo/Alice cases did. Filling this in for just
+  // the exceptions (found via the "Hubstaff: unmatched/no-activity roster names" log line) is more
+  // reliable than guessing at another normalization rule blind.
+  var hubstaffNameIdx = phoneOptionalColIdx_(headers, 'Hubstaff Name');
   var rows = [];
   for (var r = 1; r < values.length; r++) {
     var row = values[r];
@@ -182,10 +217,13 @@ function extractScheduleRows_(values) {
     // A shift with scheduled hours but zero sales activity still has to be kept -- Scheduled_Hrs
     // is itself a real sum now (Hubstaff integration), not just a tiebreaker for the sales metrics.
     if (!clubs && !pg1 && !upfrontRevenue && !closedDeals && !pg1Trial && !pg1Upfront && !scheduledHrs) continue;
+    var trimmedName = String(name).trim();
+    var hubstaffOverride = hubstaffNameIdx > -1 ? String(row[hubstaffNameIdx] || '').trim() : '';
     rows.push({
-      name: String(name).trim(), date: dateStr, lob: lob, team: String(team).trim(),
+      name: trimmedName, date: dateStr, lob: lob, team: String(team).trim(),
       clubs: clubs, pg1: pg1, upfrontRevenue: phoneRound2_(upfrontRevenue), closedDeals: closedDeals,
-      pg1Trial: pg1Trial, pg1Upfront: pg1Upfront, scheduledHrs: scheduledHrs
+      pg1Trial: pg1Trial, pg1Upfront: pg1Upfront, scheduledHrs: scheduledHrs,
+      hubstaffKey: phoneNormalizeName_(hubstaffOverride || trimmedName)
     });
   }
   return rows;
@@ -514,13 +552,14 @@ function hubstaffFetchTrackedHoursByNameDate_(orgId, members, minDate, maxDate) 
 // per-person detail Team/Agent filtering actually needs.
 function buildPhoneRaw_(scheduleRows, connectedByNameDate, trackedHoursByNameDate) {
   return scheduleRows.map(function (r) {
-    // Connected Calls / Tracked Hours both resolved by Schedule's Name, normalized the same way
-    // each lookup's own keys were built -- see phoneNormalizeName_'s comment for why this is
-    // needed. r.name itself (not normalized) is still what's written into the row -- only the
-    // lookup key is normalized.
-    var normKey = phoneNormalizeName_(r.name) + '|' + r.date;
-    var connected = connectedByNameDate[normKey] || 0;
-    var trackedHrs = trackedHoursByNameDate ? phoneRound2_(trackedHoursByNameDate[normKey] || 0) : 0;
+    // Connected Calls (Aloware) is keyed off Schedule's own Name, normalized -- unaffected by a
+    // "Hubstaff Name" override, which only exists to steer Hubstaff matching specifically. Tracked
+    // Hours (Hubstaff) uses r.hubstaffKey instead -- the override when present, else the same
+    // normalized Name -- so filling in an override actually changes which Hubstaff data joins in.
+    // r.name itself (not normalized) is still what's written into the row either way.
+    var connected = connectedByNameDate[phoneNormalizeName_(r.name) + '|' + r.date] || 0;
+    var hubstaffNormKey = r.hubstaffKey + '|' + r.date;
+    var trackedHrs = trackedHoursByNameDate ? phoneRound2_(trackedHoursByNameDate[hubstaffNormKey] || 0) : 0;
     return [r.name, r.team, r.lob, r.date, r.clubs, r.pg1, r.upfrontRevenue, r.closedDeals, r.pg1Trial, r.pg1Upfront, connected, r.scheduledHrs, trackedHrs];
   });
 }
@@ -664,6 +703,15 @@ function publishPhoneToGitHub_(newContent, rawRows) {
 //    Executions for "Hubstaff: X org members fetched, Y matched the Schedule roster." -- if Y is 0,
 //    share the "Hubstaff raw member sample ..." log line with Claude so the name-field mapping can
 //    be corrected for your account's response shape.
+// 6b. Fixing individual reps whose Tracked Hours stays 0: every run logs "Hubstaff: N Schedule
+//     reps never matched a Hubstaff member" with the list of names. For each of those, add a
+//     "Hubstaff Name" column to the Schedule tab (any column name exactly "Hubstaff Name" -- the
+//     script looks it up by header, works whichever position it's in) and put that rep's actual
+//     Hubstaff display name in it, on any row(s) for them -- the script reads whichever value it
+//     finds, doesn't need every row filled in. That value is what gets matched to Hubstaff instead
+//     of the Name column, for that rep only. A SEPARATE log line, "Hubstaff: N reps matched a
+//     Hubstaff member but have zero tracked time in this window", is a different situation -- an
+//     override won't help there; it means that rep genuinely isn't tracking time in Hubstaff.
 // 7. Check https://github.com/markdeguzman-png/pg-dashboard for a new commit adding a
 //    PHONE_RAW const to asr_closer_dashboard.html. Vercel auto-deploys from that push.
 //

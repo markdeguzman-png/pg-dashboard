@@ -2736,22 +2736,22 @@ function renderExecutiveTrend(){
       <div class="chart-card">
         <h3>${m.label} — Monthly <span style="color:var(--gray); font-weight:400; text-transform:none; letter-spacing:0">(last 3 months)</span></h3>
         <div class="legend">${legend}</div>
-        <div id="chart-exec-${m.id}-m"></div>
+        <div id="chart-execall-${m.id}-m"></div>
       </div>
       <div class="chart-card">
         <h3>${m.label} — Weekly <span style="color:var(--gray); font-weight:400; text-transform:none; letter-spacing:0">(last 6 weeks)</span></h3>
         <div class="legend">${legend}</div>
-        <div id="chart-exec-${m.id}-w"></div>
+        <div id="chart-execall-${m.id}-w"></div>
       </div>
       <div class="chart-card">
         <h3>${m.label} — Daily <span style="color:var(--gray); font-weight:400; text-transform:none; letter-spacing:0">(last 30 days)</span></h3>
         <div class="legend">${legend}</div>
-        <div id="chart-exec-${m.id}-d"></div>
+        <div id="chart-execall-${m.id}-d"></div>
       </div>
     </div>`; }).join('')}
     <div class="section-title">Period detail — last 30 days</div>
     <div class="note">Static last 30 days, NOT affected by the Date Range filter above -- Team and Agent filters do apply.</div>
-    <div class="table-section"><table><thead id="tbl-exec-period-head"></thead><tbody id="tbl-exec-period-body"></tbody></table></div>
+    <div class="table-section"><table><thead id="tbl-execall-period-head"></thead><tbody id="tbl-execall-period-body"></tbody></table></div>
   `;
   const chartMonthly = executiveChartMonthlyRows(lobs).slice(-3);
   const chartWeekly = executiveChartWeeklyRows(lobs).slice(-6);
@@ -2761,12 +2761,12 @@ function renderExecutiveTrend(){
   const dayLbl = r => r.date.slice(5);
   EXECUTIVE_CHART_METRICS.forEach(m => {
     const series = executiveMetricSeries(m.key, m.fmt, lobs);
-    groupedColumnChart(`chart-exec-${m.id}-m`, chartMonthly, series, monthLbl, {showValues:true});
-    lineChart(`chart-exec-${m.id}-w`, chartWeekly, series, weekLbl, {showValues:'all'});
-    lineChart(`chart-exec-${m.id}-d`, chartDaily, series, dayLbl, {showValues:'last'});
+    groupedColumnChart(`chart-execall-${m.id}-m`, chartMonthly, series, monthLbl, {showValues:true});
+    lineChart(`chart-execall-${m.id}-w`, chartWeekly, series, weekLbl, {showValues:'all'});
+    lineChart(`chart-execall-${m.id}-d`, chartDaily, series, dayLbl, {showValues:'last'});
   });
-  if(!sortState['tbl-exec-period']) sortState['tbl-exec-period'] = {col:'date', dir:-1};
-  renderTable('tbl-exec-period', chartDaily, [
+  if(!sortState['tbl-execall-period']) sortState['tbl-execall-period'] = {col:'date', dir:-1};
+  renderTable('tbl-execall-period', chartDaily, [
     {key:'date', label:'Date'},
     {key:'upfrontRevenue', label:'Upfront Revenue', fmt:fmtMoney},
     {key:'pg1', label:'PG1'},
@@ -2804,10 +2804,10 @@ function renderExecutiveMetric(){
     <div class="section-title">Executive Advisor detail</div>
     <div class="scope-banner">Showing Team: <b>${state.team.length ? state.team.join(', ') : 'All Teams'}</b> · Division: <b>${state.lob || 'Mid-Ticket + PG1 + Inbound'}</b>${state.agent.length ? ` · Agent: <b>${agentLabel()}</b>` : ''}</div>
     <div class="note">Exact sums for ${state.start} → ${state.end} -- Team, Division (LOB), and Agent filters all apply (picking an Agent narrows this to their own row(s) -- more than one if they show up under multiple Divisions). One row per (Division, Name). Scheduled Hrs/Tracked Hrs/Hrs Variance are from Hubstaff. Contribution Profit is Domo POS data (High Ticket intentionally excluded). Click a column header to sort.</div>
-    <div class="table-section"><table><thead id="tbl-exec-metric-head"></thead><tbody id="tbl-exec-metric-body"></tbody></table></div>
+    <div class="table-section"><table><thead id="tbl-execall-metric-head"></thead><tbody id="tbl-execall-metric-body"></tbody></table></div>
   `;
-  if(!sortState['tbl-exec-metric']) sortState['tbl-exec-metric'] = {col:'upfrontRevenue', dir:-1};
-  renderTable('tbl-exec-metric', rows, [
+  if(!sortState['tbl-execall-metric']) sortState['tbl-execall-metric'] = {col:'upfrontRevenue', dir:-1};
+  renderTable('tbl-execall-metric', rows, [
     {key:'lob', label:'Division'}, {key:'team', label:'Team'}, {key:'name', label:'Name'},
     {key:'upfrontRevenue', label:'Upfront Revenue', fmt:fmtMoney},
     {key:'pg1', label:'PG1'},

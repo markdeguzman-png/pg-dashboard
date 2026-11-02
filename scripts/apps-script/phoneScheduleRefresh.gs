@@ -396,10 +396,12 @@ function hubstaffPaginatedFetch_(path, extraQuery) {
     var page = hubstaffFirstArray_(JSON.parse(resp.getContentText()));
     out = out.concat(page);
     if (page.length < limit) break;
-    // Not every list endpoint's records necessarily carry a usable top-level "id" (aggregated
-    // daily-activity rows in particular might not) -- if the cursor can't actually advance, stop
-    // here rather than silently re-requesting the same page or sending page_start_id=undefined.
-    var nextId = page[page.length - 1].id;
+    // Not every list endpoint's records necessarily carry a usable top-level "id" -- members use
+    // "user_id" instead (confirmed 2026-11-02), and aggregated daily-activity rows might have
+    // neither. If the cursor can't actually advance, stop here rather than silently re-requesting
+    // the same page or sending page_start_id=undefined.
+    var last = page[page.length - 1];
+    var nextId = last.id || last.user_id;
     if (!nextId || nextId === startId) {
       Logger.log('Hubstaff ' + path + ': pagination cursor did not advance past id ' + nextId + ' -- stopping (results from this call may be incomplete).');
       break;
@@ -413,22 +415,22 @@ function hubstaffFetchOrgId_() {
   if (!orgs.length) throw new Error('No Hubstaff organizations found for this token.');
   return orgs[0].id;
 }
-// {id, name} per member -- "name" prefers first_name+last_name (the non-deprecated fields) over
-// the deprecated top-level "name" field. Confirmed 2026-11-02: every member came back with an
-// empty name under the flat top-level fields (118 fetched, 0 matched, every sampled name ""),
-// despite the token being assigned to an owner -- the docs note that "profile" data ("Only
-// organization owners and managers may see this information") may be its own nested object rather
-// than flat fields on the member record, so this checks both locations. If names are STILL empty
-// after this, the raw first-member JSON this also logs will show exactly where the real fields are.
+// {id, name} per member. Two bugs confirmed 2026-11-02 from a live raw-member-sample log:
+// (1) a member record's identity field is "user_id", not "id" -- "id" doesn't exist on it at all,
+//     so every downstream user_ids[]/idToName lookup built off ".id" was silently working with
+//     "undefined". (2) name fields (first_name/last_name/name/profile) are completely absent from
+//     the default response -- Members' own query parameters include "include_profile" ("Include
+//     member profile information"), which was never being passed, so the profile object (and
+//     whatever name fields live in it) was never returned in the first place. Both fixed here.
 function hubstaffFetchMembers_(orgId) {
-  var members = hubstaffPaginatedFetch_('/v2/organizations/' + orgId + '/members', '');
+  var members = hubstaffPaginatedFetch_('/v2/organizations/' + orgId + '/members', '&include_profile=true');
   if (members.length) Logger.log('Hubstaff raw member sample (for confirming where name fields actually live): ' + JSON.stringify(members.slice(0, 2)));
   return members.map(function (m) {
     var p = m.profile || {};
     var first = m.first_name || p.first_name || '';
     var last = m.last_name || p.last_name || '';
     var name = (first || last) ? (first + ' ' + last).trim() : String(m.name || p.name || '').trim();
-    return { id: m.id, name: name };
+    return { id: m.user_id, name: name };
   });
 }
 // Daily tracked time (seconds -> hours) for just the Hubstaff members whose normalized name

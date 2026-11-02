@@ -1,6 +1,6 @@
 // ============================================================================
 // Mid-Ticket / PG1 / Inbound tabs data pipeline: "Phone Team Sales Report 2026" Schedule tab +
-// Aloware call-log CSVs -> asr_closer_dashboard.html on GitHub -> Vercel auto-deploy.
+// Aloware call-log CSVs -> pg_dashboard.html on GitHub -> Vercel auto-deploy.
 // Mirrors claudeRefreshAndPublish.gs's publish mechanism (same repo, same Git Data API push), but
 // reads from a DIFFERENT spreadsheet and a Drive folder of CSVs instead of the Sched tab, and
 // writes a NEW const (PHONE_RAW) into the dashboard -- it does not touch RAW_SCHED/TREND_*,
@@ -22,7 +22,7 @@
 var PHONE_GITHUB_OWNER = 'markdeguzman-png';
 var PHONE_GITHUB_REPO = 'pg-dashboard';
 var PHONE_GITHUB_BRANCH = 'main';
-var PHONE_DASHBOARD_PATH = 'asr_closer_dashboard.html';
+var PHONE_DASHBOARD_PATH = 'pg_dashboard.html'; // renamed 2026-11-03 from asr_closer_dashboard.html
 var PHONE_RAW_URL = 'https://raw.githubusercontent.com/' + PHONE_GITHUB_OWNER + '/' +
   PHONE_GITHUB_REPO + '/' + PHONE_GITHUB_BRANCH + '/' + PHONE_DASHBOARD_PATH;
 
@@ -786,7 +786,7 @@ function publishPhoneToGitHub_(newContent, rawRows) {
 //     Hubstaff member but have zero tracked time in this window", is a different situation -- an
 //     override won't help there; it means that rep genuinely isn't tracking time in Hubstaff.
 // 7. Check https://github.com/markdeguzman-png/pg-dashboard for a new commit adding a
-//    PHONE_RAW const to asr_closer_dashboard.html. Vercel auto-deploys from that push.
+//    PHONE_RAW const to pg_dashboard.html. Vercel auto-deploys from that push.
 //
 // ---- Aloware backfill: how it works ----
 // Aloware call logs live one subfolder per month under ALOWARE_ROOT_FOLDER_ID

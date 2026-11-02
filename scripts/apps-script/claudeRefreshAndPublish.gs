@@ -1,5 +1,5 @@
 // ============================================================================
-// Fully automatic pipeline: Sched tab -> asr_closer_dashboard.html on GitHub -> Vercel auto-deploy.
+// Fully automatic pipeline: Sched tab -> pg_dashboard.html on GitHub -> Vercel auto-deploy.
 // Runs entirely inside the "ASR - No Show" Apps Script project (same place the existing
 // claudeExportSchedSnapshot function lives) -- no Claude session, no scheduled task, no human
 // approval needed once set up. This REPLACES the need for Claude to pull/rebuild/push by hand.
@@ -20,7 +20,7 @@
 var GITHUB_OWNER = 'markdeguzman-png';
 var GITHUB_REPO = 'pg-dashboard';
 var GITHUB_BRANCH = 'main';
-var DASHBOARD_PATH = 'asr_closer_dashboard.html';
+var DASHBOARD_PATH = 'pg_dashboard.html'; // renamed 2026-11-03 from asr_closer_dashboard.html
 var RAW_URL = 'https://raw.githubusercontent.com/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/' +
   GITHUB_BRANCH + '/' + DASHBOARD_PATH;
 

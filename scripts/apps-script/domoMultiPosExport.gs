@@ -176,7 +176,7 @@ function domoAppendContributionProfitColumn_(result) {
 
 // ============================================================================
 // Contribution Profit Rollup: PG1 / Physical / Digital - Other / Supplements, per rep per day.
-// Feeds asr_closer_dashboard.html's Mid-Ticket/PG1/Inbound Metric tabs via phoneScheduleRefresh.gs,
+// Feeds pg_dashboard.html's Mid-Ticket/PG1/Inbound Metric tabs via phoneScheduleRefresh.gs,
 // which reads these small CSVs from Drive and joins them onto the Schedule roster by name -- same
 // split as the Aloware integration (this script owns Domo auth/querying; phoneScheduleRefresh.gs
 // owns the roster join), decided 2026-11-03 so Domo credentials only need to live in ONE Apps

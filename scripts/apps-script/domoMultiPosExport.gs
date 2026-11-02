@@ -31,8 +31,10 @@
 //      entirely (see domoFindDatasetId_ below).
 //   5. Check your Google Drive (My Drive root) for a new "PGZ Multi POS
 //      Transactions" folder with month subfolders (2026-06, 2026-07, ...)
-//      each containing one CSV, plus a "Contribution Profit Rollup" subfolder
-//      with its own small per-month CSVs (date, sourceTitle, group,
+//      each containing one CSV (now with a per-row "Contribution Profit"
+//      column appended -- see domoAppendContributionProfitColumn_'s scope
+//      caveat below before summing it), plus a "Contribution Profit Rollup"
+//      subfolder with its own small per-month CSVs (date, sourceTitle, group,
 //      contributionProfit) -- that second folder is what
 //      phoneScheduleRefresh.gs reads to populate the dashboard.
 //   6. Clock icon (Triggers) -> Add Trigger: function domoRefreshAndPublish,
@@ -80,6 +82,7 @@ function domoRefreshAndPublish() {
     if (monthFolder.getFilesByName(fileName).hasNext()) return; // already finalized, never re-queried
     Logger.log('Domo: backfilling ' + monthStr + '...');
     var result = domoQueryMonth_(authHeader, datasetId, monthStr);
+    domoAppendContributionProfitColumn_(result);
     domoWriteCsv_(monthFolder, fileName, result);
     Logger.log('Domo: backfilled ' + monthStr + ' -- ' + result.rows.length + ' rows.');
     backfilled++;
@@ -88,10 +91,45 @@ function domoRefreshAndPublish() {
   var currentFolder = domoGetOrCreateFolder_(rootFolder, currentMonth);
   var currentFileName = 'PGZ Multi POS Transactions - ' + currentMonth + '.csv';
   var currentResult = domoQueryMonth_(authHeader, datasetId, currentMonth);
+  domoAppendContributionProfitColumn_(currentResult);
   domoWriteCsv_(currentFolder, currentFileName, currentResult);
   Logger.log('Domo: refreshed current month ' + currentMonth + ' -- ' + currentResult.rows.length + ' rows.');
 
   domoPublishContributionProfitRollup_(authHeader, datasetId, rootFolder, allMonths, currentMonth);
+}
+
+// Appends a per-ROW 'Contribution Profit' column to the archival export, mutating result in place
+// -- same formula as the dashboard rollup below (Gross - Total COGS - Merchant Fees (Gross), net of
+// Refunded/Chargedback and their own merchant-fee reversals), just applied per-transaction instead
+// of pre-aggregated by rep/day/group. Added 2026-11-03 per explicit request ("add a column based
+// just like the gross profit"), alongside the rollup rather than instead of it.
+//
+// IMPORTANT SCOPE CAVEAT: this column reflects the archival export's OWN query scope --
+// domoQueryMonth_'s WHERE clause excludes shipping/VIP Experience ProductNames and restricts to
+// orderType=NEW_SALE OR billingCycleNumber=2 (first sale or first renewal only, the convention this
+// export was originally built with) -- so SUMMING this column across many rows will UNDERSTATE true
+// total profit (it misses 3rd+ renewal cycles and VIP Experience sales that the dashboard's own
+// Contribution Profit rollup deliberately does/doesn't include differently -- see
+// domoPublishContributionProfitRollup_ below, which uses a separately-scoped query for exactly this
+// reason). Fine for spot-checking an individual transaction's profit in this file; not a substitute
+// for the dashboard's numbers if you're ever cross-totaling.
+function domoAppendContributionProfitColumn_(result) {
+  var idx = {};
+  result.columns.forEach(function (c, i) { idx[c] = i; });
+  var need = ['Gross', 'Total COGS', 'Merchant Fees (Gross)', 'Refunded', 'Merchant Fees (Refunds)', 'Chargedback', 'Merchant Fees (Chargebacks)'];
+  var missing = need.filter(function (c) { return !(c in idx); });
+  if (missing.length) {
+    Logger.log('Domo: skipping per-row Contribution Profit column -- missing expected column(s): ' + missing.join(', '));
+    return;
+  }
+  var num = function (row, c) { var v = row[idx[c]]; return (v === '' || v === null || v === undefined) ? 0 : (Number(v) || 0); };
+  result.rows.forEach(function (row) {
+    var profit = num(row, 'Gross') - num(row, 'Total COGS') - num(row, 'Merchant Fees (Gross)')
+      - num(row, 'Refunded') - num(row, 'Merchant Fees (Refunds)')
+      - num(row, 'Chargedback') - num(row, 'Merchant Fees (Chargebacks)');
+    row.push(Math.round(profit * 100) / 100);
+  });
+  result.columns.push('Contribution Profit');
 }
 
 // ============================================================================

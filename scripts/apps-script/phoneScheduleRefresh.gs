@@ -82,9 +82,18 @@ function phoneRefreshAndPublish() {
       scheduleRows.forEach(function (r) { scheduleNames[phoneNormalizeName_(r.name)] = true; });
       var allMembers = hubstaffFetchMembers_(orgId);
       var ourMembers = allMembers.filter(function (m) { return scheduleNames[phoneNormalizeName_(m.name)]; });
+      // Diagnostic logging while this integration is still being verified -- cheap (a handful of
+      // Logger.log calls), and tells us immediately whether a 0-everywhere Tracked Hours result is
+      // a name-matching miss (ourMembers.length === 0) or something downstream.
+      Logger.log('Hubstaff: ' + allMembers.length + ' org members fetched, ' + ourMembers.length + ' matched the Schedule roster.');
+      if (allMembers.length && !ourMembers.length) {
+        Logger.log('Hubstaff member names (sample, for comparing against Schedule): ' + JSON.stringify(allMembers.slice(0, 10).map(function(m){return m.name;})));
+        Logger.log('Schedule names (sample): ' + JSON.stringify(Object.keys(scheduleNames).slice(0, 10)));
+      }
       var minDate = scheduleRows.reduce(function (m, r) { return r.date < m ? r.date : m; }, scheduleRows[0].date);
       var maxDate = scheduleRows.reduce(function (m, r) { return r.date > m ? r.date : m; }, scheduleRows[0].date);
       trackedHoursByNameDate = hubstaffFetchTrackedHoursByNameDate_(orgId, ourMembers, minDate, maxDate);
+      Logger.log('Hubstaff: tracked-hours lookup has ' + Object.keys(trackedHoursByNameDate).length + ' (name, date) entries for window ' + minDate + ' to ' + maxDate + '.');
       hubstaffLogSampleTeamPayments_(orgId);
     } else {
       Logger.log('HUBSTAFF_TOKEN not set -- skipping Tracked Hours/Cost this run (Scheduled_Hrs still publishes).');
@@ -432,6 +441,11 @@ function hubstaffFetchTrackedHoursByNameDate_(orgId, members, minDate, maxDate) 
     var stopStr = Utilities.formatDate(windowEnd, 'UTC', 'yyyy-MM-dd');
     var rows = hubstaffPaginatedFetch_('/v2/organizations/' + orgId + '/activities/daily',
       '&date[start]=' + startStr + '&date[stop]=' + stopStr + userIdsParam);
+    if (rows.length) {
+      Logger.log('Hubstaff activities/daily ' + startStr + '..' + stopStr + ': ' + rows.length + ' rows, sample: ' + JSON.stringify(rows.slice(0, 2)));
+    } else {
+      Logger.log('Hubstaff activities/daily ' + startStr + '..' + stopStr + ': 0 rows returned.');
+    }
     rows.forEach(function (r) {
       var name = idToName[r.user_id];
       if (!name || !r.date) return;

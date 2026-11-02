@@ -415,23 +415,52 @@ function hubstaffFetchOrgId_() {
   if (!orgs.length) throw new Error('No Hubstaff organizations found for this token.');
   return orgs[0].id;
 }
-// {id, name} per member. Two bugs confirmed 2026-11-02 from a live raw-member-sample log:
-// (1) a member record's identity field is "user_id", not "id" -- "id" doesn't exist on it at all,
-//     so every downstream user_ids[]/idToName lookup built off ".id" was silently working with
-//     "undefined". (2) name fields (first_name/last_name/name/profile) are completely absent from
-//     the default response -- Members' own query parameters include "include_profile" ("Include
-//     member profile information"), which was never being passed, so the profile object (and
-//     whatever name fields live in it) was never returned in the first place. Both fixed here.
+// {id, name} per member. Confirmed 2026-11-02 the Members endpoint itself never returns a name --
+// not under top-level first_name/last_name/name, not under a nested "profile" object even with
+// &include_profile=true (two separate live-log-confirmed attempts, both empty). A member record's
+// identity field is "user_id" (it has no "id" at all), and GET /v2/users/{user_id} -- a dedicated
+// endpoint, not gated by the Members list's own quirks -- confirmed via the docs to return plain
+// top-level name/first_name/last_name fields. So this resolves each member's name with one
+// GET /v2/users/{user_id} call per member rather than fighting the Members endpoint further.
+// ~100-150 sequential small calls adds some time but stays well inside the execution budget
+// (Schedule's 15k-row read and the Aloware file processing already dominate a run's time).
+// Docs: 120 requests/minute by default, "heavier endpoints... have lower limits" -- a 429 is
+// retried once after sleeping Retry-After seconds (capped at 60s so one bad response can't hang
+// the run). A fixed 500ms between calls keeps this loop's own rate at <=120/min, leaving headroom
+// in the same rolling window for this run's handful of other Hubstaff calls (organizations,
+// members, activities/daily, team_payments); the 429 handling is the real backstop if the account's
+// actual limit turns out lower than documented.
+function hubstaffFetchUserName_(userId) {
+  var url = HUBSTAFF_API_BASE + '/v2/users/' + userId;
+  var resp = UrlFetchApp.fetch(url, { headers: hubstaffAuthHeaders_(), muteHttpExceptions: true });
+  if (resp.getResponseCode() === 429) {
+    var headers = resp.getHeaders();
+    var retryAfter = parseInt(headers['Retry-After'] || headers['retry-after'] || '5', 10) || 5;
+    Utilities.sleep(Math.min(retryAfter, 60) * 1000);
+    resp = UrlFetchApp.fetch(url, { headers: hubstaffAuthHeaders_(), muteHttpExceptions: true });
+  }
+  Utilities.sleep(500);
+  if (resp.getResponseCode() !== 200) return '';
+  var body = JSON.parse(resp.getContentText());
+  var u = body.user || body; // unwrap a {"user": {...}} envelope if present, else assume the body IS the user
+  var first = u.first_name || '';
+  var last = u.last_name || '';
+  return (first || last) ? (first + ' ' + last).trim() : String(u.name || '').trim();
+}
 function hubstaffFetchMembers_(orgId) {
-  var members = hubstaffPaginatedFetch_('/v2/organizations/' + orgId + '/members', '&include_profile=true');
-  if (members.length) Logger.log('Hubstaff raw member sample (for confirming where name fields actually live): ' + JSON.stringify(members.slice(0, 2)));
-  return members.map(function (m) {
-    var p = m.profile || {};
-    var first = m.first_name || p.first_name || '';
-    var last = m.last_name || p.last_name || '';
-    var name = (first || last) ? (first + ' ' + last).trim() : String(m.name || p.name || '').trim();
-    return { id: m.user_id, name: name };
+  var members = hubstaffPaginatedFetch_('/v2/organizations/' + orgId + '/members', '');
+  var out = [];
+  var loggedSample = false;
+  members.forEach(function (m) {
+    try {
+      var name = hubstaffFetchUserName_(m.user_id);
+      if (!loggedSample) { Logger.log('Hubstaff: first users/{id} lookup -- user_id ' + m.user_id + ' -> name "' + name + '".'); loggedSample = true; }
+      out.push({ id: m.user_id, name: name });
+    } catch (e) {
+      Logger.log('Hubstaff: users/' + m.user_id + ' lookup failed, skipping that member: ' + e);
+    }
   });
+  return out;
 }
 // Daily tracked time (seconds -> hours) for just the Hubstaff members whose normalized name
 // matches someone in our own Mid-Ticket/PG1/Inbound Schedule roster -- not the whole org -- keyed

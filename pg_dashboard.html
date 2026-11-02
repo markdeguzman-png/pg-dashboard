@@ -606,7 +606,8 @@ const TABS = [
   "Executive Summary Trend","ASR Trend View","Rep per Metric","ASR Daily Metric","BR % per Call Source",
   "CLOSER Trend View","Closers Metric",
   "Mid-Ticket Trend View","Mid-Ticket Metric","PG1 Trend View","PG1 Metric",
-  "Inbound Trend View","Inbound Daily Metric"
+  "Inbound Trend View","Inbound Daily Metric",
+  "Executive Trend View","Executive Metric"
 ];
 // Two top-level groups -- SETTER-side tabs vs CLOSER-side tabs -- selected above the date filter,
 // with the existing sub-tab bar scoped to whichever group is active.
@@ -629,6 +630,13 @@ function isCloserLob(lob){ return CLOSER_LOBS.includes(lob); }
 const MIDTICKET_LOBS = ['Mid-Ticket'];
 const PG1_TAB_LOBS = ['PG1'];
 const INBOUND_LOBS = ['Inbound Team'];
+// The 3 real Current LOB values as PHONE_RAW itself carries them (NOT the same string as
+// INBOUND_LOBS above -- 'Inbound Team' is a different, Sched/RAW_SCHED-side label unrelated to
+// PHONE_RAW's own 'Inbound'). Used by the Executive main tab (added 2026-11-03, combines all 3)
+// and by phoneTeamsForLob/phoneAgentOptionGroups/isPhoneMainTab below. Moved up here (rather than
+// declared next to phoneBlankSums() further down) because MAIN_TABS' Executive entry needs it
+// immediately below, and a later `const` isn't visible yet at this point in the script.
+const PHONE_TAB_LOBS = ['Mid-Ticket', 'PG1', 'Inbound'];
 // Every non-Closer LOB that has EVER recorded a nonzero Sets value, computed straight from
 // RAW_SCHED instead of a hand-maintained list -- so a LOB that starts (or stops) contributing
 // Sets doesn't need another manual edit here (see the isCloserLob() comment above for why a
@@ -644,6 +652,10 @@ const SETTER_SETS_LOBS = (() => {
   return Array.from(setsByLob.entries()).filter(([,sets]) => sets > 0).map(([lob]) => lob).sort();
 })();
 const MAIN_TABS = [
+  // Leftmost/default tab (2026-11-03): combines Mid-Ticket + PG1 + Inbound. Its own `lobs` is
+  // PHONE_TAB_LOBS (all 3) rather than a single-value array like the 3 tabs below -- that's what
+  // lets its LOB dropdown actually narrow to one division instead of being a locked no-op.
+  { name: 'Executive', tabIndices: [13,14], lobs: PHONE_TAB_LOBS },
   { name: 'Mid-Ticket', tabIndices: [7,8], lobs: MIDTICKET_LOBS },
   { name: 'PG1', tabIndices: [9,10], lobs: PG1_TAB_LOBS },
   { name: 'Inbound', tabIndices: [11,12], lobs: INBOUND_LOBS },
@@ -820,14 +832,22 @@ function agentOptionGroups(){
 // Setter/Closer's own ALL_TEAMS / agentOptionGroups() (LIVE_ROSTER-based) are completely
 // untouched; the 3 Phone-sourced tabs (Mid-Ticket/PG1/Inbound) get their own PHONE_RAW-scoped
 // lists instead, so Team only ever offers teams that exist under that tab's Current LOB.
+// True for the 3 individual Phone-sourced tabs AND Executive (which spans all 3 of them).
+function isPhoneMainTab(name){ return PHONE_TAB_LOBS.includes(name) || name === 'Executive'; }
 function currentTeamOptionGroups(){
-  const activeLob = MAIN_TABS[activeMainTab].name;
-  if (PHONE_TAB_LOBS.includes(activeLob)) return [{label:null, options: phoneTeamsForLob(activeLob)}];
+  const activeName = MAIN_TABS[activeMainTab].name;
+  if (isPhoneMainTab(activeName)) {
+    const lobs = state.lob ? [state.lob] : MAIN_TABS[activeMainTab].lobs;
+    return [{label:null, options: phoneTeamsForLob(lobs)}];
+  }
   return [{label:null, options: ALL_TEAMS}];
 }
 function currentAgentOptionGroups(){
-  const activeLob = MAIN_TABS[activeMainTab].name;
-  if (PHONE_TAB_LOBS.includes(activeLob)) return phoneAgentOptionGroups(activeLob);
+  const activeName = MAIN_TABS[activeMainTab].name;
+  if (isPhoneMainTab(activeName)) {
+    const lobs = state.lob ? [state.lob] : MAIN_TABS[activeMainTab].lobs;
+    return phoneAgentOptionGroups(lobs);
+  }
   return agentOptionGroups();
 }
 function pruneAgentSelection(){
@@ -943,7 +963,14 @@ function rebuildLobOptions(){
   const prev = state.lob;
   const allowed = MAIN_TABS[activeMainTab].lobs;
   sel.innerHTML = '<option value="">All LOBs</option>';
-  ALL_LOBS.filter(l => allowed.includes(l)).forEach(l => { const o=document.createElement('option'); o.value=l; o.textContent=l; sel.appendChild(o); });
+  // Phone-sourced tabs' `allowed` values (Mid-Ticket/PG1/Inbound) come from PHONE_RAW, a
+  // completely different source than ALL_LOBS (derived from RAW_SCHED/LIVE_ROSTER) -- intersecting
+  // with ALL_LOBS would silently empty this dropdown for them (harmless for the 3 individual tabs,
+  // which never read state.lob anyway, but Executive's breakdown-by-LOB views genuinely need it).
+  // SETTER/CLOSER keep intersecting with ALL_LOBS, unchanged, since their `lobs` arrays are already
+  // sourced from that same RAW_SCHED data.
+  const options = isPhoneMainTab(MAIN_TABS[activeMainTab].name) ? allowed : ALL_LOBS.filter(l => allowed.includes(l));
+  options.forEach(l => { const o=document.createElement('option'); o.value=l; o.textContent=l; sel.appendChild(o); });
   const stillValid = [...sel.options].some(o=>o.value===prev);
   sel.value = stillValid ? prev : '';
   state.lob = sel.value;
@@ -1935,6 +1962,8 @@ function renderAll(){
   renderPG1Metric();
   renderInboundSummary();
   renderInboundDaily();
+  renderExecutiveTrend();
+  renderExecutiveMetric();
 }
 
 // full 23-metric column set, shared by Executive Summary Trend & ASR Trend View team tables
@@ -2333,8 +2362,6 @@ function renderClosersMetric(){
 // Profit here is computed from raw components instead: Gross - Total COGS - Merchant Fees (Gross),
 // net of Refunded/Chargedback and their own merchant-fee reversal amounts. See
 // domoMultiPosExport.gs for the exact query/classification/formula.
-// The 3 Current LOB values sourced from PHONE_RAW -- matches MAIN_TABS[0..2].name exactly.
-const PHONE_TAB_LOBS = ['Mid-Ticket', 'PG1', 'Inbound'];
 function phoneBlankSums(){
   return {clubs:0, pg1:0, upfrontRevenue:0, closedDeals:0, pg1Trial:0, pg1Upfront:0, connectedCalls:0, scheduledHrs:0, trackedHrs:0,
     cpPG1:0, cpPhysical:0, cpDigitalOther:0, cpSupplements:0};
@@ -2403,14 +2430,18 @@ function phoneRepRowsForRange(lob){
   });
   return Array.from(byName.values()).map(phoneWithDerived);
 }
-// Team/Agent dropdown narrowing for the 3 Phone-sourced tabs -- Setter/Closer's own ALL_TEAMS /
-// agentOptionGroups() stay completely untouched; see currentTeamOptionGroups/
-// currentAgentOptionGroups below for where these plug into the shared filter-bar wiring.
-function phoneTeamsForLob(lob){
-  return Array.from(new Set(PHONE_RAW.filter(r=>r[2]===lob).map(r=>r[1]))).sort();
+// Team/Agent dropdown narrowing for the Phone-sourced tabs (Mid-Ticket/PG1/Inbound, and Executive
+// which spans all 3) -- Setter/Closer's own ALL_TEAMS / agentOptionGroups() stay completely
+// untouched; see currentTeamOptionGroups/currentAgentOptionGroups below for where these plug into
+// the shared filter-bar wiring. `lobOrLobs` accepts either a single LOB string (the 3 individual
+// tabs) or an array of them (Executive, spanning multiple) -- normalized to an array internally.
+function phoneTeamsForLob(lobOrLobs){
+  const lobs = Array.isArray(lobOrLobs) ? lobOrLobs : [lobOrLobs];
+  return Array.from(new Set(PHONE_RAW.filter(r=>lobs.includes(r[2])).map(r=>r[1]))).sort();
 }
-function phoneAgentOptionGroups(lob){
-  const rows = PHONE_RAW.filter(r=>r[2]===lob && matchesTeamFilter(r[1]));
+function phoneAgentOptionGroups(lobOrLobs){
+  const lobs = Array.isArray(lobOrLobs) ? lobOrLobs : [lobOrLobs];
+  const rows = PHONE_RAW.filter(r=>lobs.includes(r[2]) && matchesTeamFilter(r[1]));
   return [{label:null, options: Array.from(new Set(rows.map(r=>r[0]))).sort()}];
 }
 function phoneKpiTilesHtml(lob){
@@ -2566,6 +2597,238 @@ function renderPhoneMetric(cfg){
     {key:'cpTotal', label:'Contrib. Profit — Total', fmt:fmtMoney},
   ]);
 }
+
+// ============================================================================
+// Executive main tab (2026-11-03): Mid-Ticket + PG1 + Inbound combined, with a per-division (LOB)
+// breakdown everywhere a Phone-sourced tab shows a single number -- KPI tiles, charts, and the
+// Advisor detail table. Reuses PHONE_RAW and the same phoneBlankSums/phoneAddRawRow/phoneWithDerived
+// building blocks as the 3 individual tabs; nothing here changes how those compute their own
+// single-LOB numbers.
+// ============================================================================
+const EXEC_LOB_SUFFIX = {'Mid-Ticket':'MidTicket', 'PG1':'PG1', 'Inbound':'Inbound'};
+// Raw CSS custom-property names (not wrapped in var()) -- getVar() below needs the bare name,
+// while inline legend styles wrap it in var(...) themselves at the call site.
+const EXEC_LOB_COLOR = {'Mid-Ticket':'--s-blue', 'PG1':'--s-aqua', 'Inbound':'--s-yellow'};
+// The LOB filter narrows Executive to one division when set; "All LOBs" (state.lob==='') means
+// all 3 combined, which is the default/primary view the breakdown KPI tiles and charts are built
+// for. Narrowed to one, the "breakdown" is just that one division repeating the total -- not
+// wrong, just less useful; nothing stops a user picking a single LOB here if they want to.
+function executiveLobsInScope(){
+  return state.lob ? [state.lob] : PHONE_TAB_LOBS;
+}
+// Company-wide totals AND a per-LOB breakdown, same (start,end) exact-sum semantics as
+// phoneCompanyTotals -- the one extra thing this does is also bucket each row into perLob[r[2]].
+function executiveCompanyTotals(startStr, endStr, lobs){
+  const total = phoneBlankSums();
+  const perLob = {}; lobs.forEach(l => perLob[l] = phoneBlankSums());
+  PHONE_RAW.forEach(r=>{
+    if(!lobs.includes(r[2]) || !matchesTeamFilter(r[1]) || !matchesAgentFilter(r[0])) return;
+    if(r[3]<startStr || r[3]>endStr) return;
+    phoneAddRawRow(total, r);
+    phoneAddRawRow(perLob[r[2]], r);
+  });
+  return {total, perLob};
+}
+// KPI tiles with a per-division breakdown sub-line instead of the individual tabs' PG1-Trial/
+// Contribution-Profit-group breakdowns -- Executive's whole point is the LOB split, so every tile
+// uses that same breakdown shape for consistency rather than mixing breakdown dimensions per tile.
+function executiveKpiTilesHtml(){
+  const lobs = executiveLobsInScope();
+  const {total:cur, perLob:curByLob} = executiveCompanyTotals(state.start, state.end, lobs);
+  const {prevStart, prevEnd} = prevPeriodRange(state.start, state.end);
+  const {total:prev} = executiveCompanyTotals(prevStart, prevEnd, lobs);
+  const ratio = (s, num, den) => s[den] ? s[num]/s[den] : 0;
+  const curAov = ratio(cur, 'upfrontRevenue', 'closedDeals');
+  const prevAov = ratio(prev, 'upfrontRevenue', 'closedDeals');
+  const curCloseRate = ratio(cur, 'closedDeals', 'connectedCalls') * 100;
+  const prevCloseRate = ratio(prev, 'closedDeals', 'connectedCalls') * 100;
+  const cpOf = s => s.cpPG1 + s.cpPhysical + s.cpDigitalOther + s.cpSupplements;
+  const curCp = cpOf(cur), prevCp = cpOf(prev);
+  const breakdown = (fn, fmt=fmtInt) => lobs.map(l => `${l} ${fmt(fn(curByLob[l]))}`).join(' · ');
+  return `
+    <div class="metrics-container">
+      ${kpiTile('Upfront Revenue', fmtMoney(cur.upfrontRevenue), `${breakdown(s=>s.upfrontRevenue, fmtMoney)}<br>${deltaSub(cur.upfrontRevenue, prev.upfrontRevenue, fmtMoney)}`)}
+      ${kpiTile('PG1', fmtInt(cur.pg1), `${breakdown(s=>s.pg1)}<br>${deltaSub(cur.pg1, prev.pg1)}`)}
+      ${kpiTile('Clubs', fmtInt(cur.clubs), `${breakdown(s=>s.clubs)}<br>${deltaSub(cur.clubs, prev.clubs)}`)}
+      ${kpiTile('AOV $', fmtMoney(curAov), `${breakdown(s=>ratio(s,'upfrontRevenue','closedDeals'), fmtMoney)}<br>${deltaSub(curAov, prevAov, fmtMoney)}`)}
+      ${kpiTile('Closed Deals', fmtInt(cur.closedDeals), `${breakdown(s=>s.closedDeals)}<br>${deltaSub(cur.closedDeals, prev.closedDeals)}`)}
+      ${kpiTile('Connected Calls', fmtInt(cur.connectedCalls), `${breakdown(s=>s.connectedCalls)}<br>${deltaSub(cur.connectedCalls, prev.connectedCalls)}`)}
+      ${kpiTile('Close Rate %', fmtPct(curCloseRate), `${breakdown(s=>ratio(s,'closedDeals','connectedCalls')*100, fmtPct)}<br>${deltaSub(curCloseRate, prevCloseRate, fmtPct)}`)}
+      ${kpiTile('Contribution Profit', fmtMoney(curCp), `${breakdown(cpOf, fmtMoney)}<br>${deltaSub(curCp, prevCp, fmtMoney)}`)}
+    </div>
+  `;
+}
+// Buckets PHONE_RAW rows by date (via keyFn) AND by LOB simultaneously, so each bucket carries
+// both a combined total and each division's own sums -- the source a chart's Total+breakdown
+// series are built from.
+function executiveChartRawAggBy(keyFn, lobs){
+  const map = new Map();
+  PHONE_RAW.forEach(r=>{
+    if(!lobs.includes(r[2]) || !matchesTeamFilter(r[1]) || !matchesAgentFilter(r[0])) return;
+    const bucketKey = keyFn(r[3]);
+    if(!map.has(bucketKey)){
+      const entry = {total: phoneBlankSums()};
+      lobs.forEach(l => entry[l] = phoneBlankSums());
+      map.set(bucketKey, entry);
+    }
+    const entry = map.get(bucketKey);
+    phoneAddRawRow(entry.total, r);
+    phoneAddRawRow(entry[r[2]], r);
+  });
+  return map;
+}
+// Flattens one bucket into a single row object a chart `series` list can read directly -- Total
+// fields keep their plain names (upfrontRevenue, closeRate, ...) exactly like the 3 individual
+// tabs' chart rows; each division's own fields get a '_<suffix>' (e.g. upfrontRevenue_PG1) so both
+// live on the same row without colliding.
+function executiveFlattenBucket(bucketKeyField, bucketKeyVal, entry, lobs){
+  const row = {[bucketKeyField]: bucketKeyVal, ...phoneWithDerived(entry.total)};
+  lobs.forEach(l=>{
+    const derived = phoneWithDerived(entry[l]);
+    const suffix = EXEC_LOB_SUFFIX[l];
+    Object.keys(derived).forEach(k => { row[k+'_'+suffix] = derived[k]; });
+  });
+  return row;
+}
+function executiveChartDailyRows(lobs){
+  const map = executiveChartRawAggBy(d=>d, lobs);
+  return Array.from(map.entries()).map(([date,entry])=>executiveFlattenBucket('date', date, entry, lobs))
+    .filter(r=>r.date<=ASOF).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
+}
+function executiveChartWeeklyRows(lobs){
+  const map = executiveChartRawAggBy(weekBeginningOf, lobs);
+  return Array.from(map.entries()).map(([wb,entry])=>executiveFlattenBucket('weekBeginning', wb, entry, lobs))
+    .filter(r=>r.weekBeginning<=ASOF).sort((a,b)=>a.weekBeginning<b.weekBeginning?-1:a.weekBeginning>b.weekBeginning?1:0);
+}
+function executiveChartMonthlyRows(lobs){
+  const map = executiveChartRawAggBy(d=>d.slice(0,7), lobs);
+  return Array.from(map.entries()).map(([month,entry])=>executiveFlattenBucket('month', month, entry, lobs))
+    .filter(r=>r.month<=ASOF.slice(0,7)).sort((a,b)=>a.month<b.month?-1:a.month>b.month?1:0);
+}
+// Total + one series per division in scope -- `baseKey` must be a flat field name that
+// executiveFlattenBucket() produces (e.g. 'upfrontRevenue', 'cpTotal'); the per-division series
+// read the matching '<baseKey>_<suffix>' field it also produces.
+function executiveMetricSeries(baseKey, fmt, lobs){
+  const series = [{key:baseKey, name:'Total', color:getVar('--s-orange'), fmt}];
+  lobs.forEach(l => series.push({key: baseKey+'_'+EXEC_LOB_SUFFIX[l], name:l, color:getVar(EXEC_LOB_COLOR[l]), fmt}));
+  return series;
+}
+const EXECUTIVE_CHART_METRICS = [
+  {id:'revenue', key:'upfrontRevenue', label:'Upfront Revenue', fmt:fmtMoney},
+  {id:'pg1', key:'pg1', label:'PG1', fmt:fmtInt},
+  {id:'clubs', key:'clubs', label:'Clubs', fmt:fmtInt},
+  {id:'closerate', key:'closeRate', label:'Close Rate %', fmt:fmtPct},
+  {id:'cp', key:'cpTotal', label:'Contribution Profit', fmt:fmtMoney},
+];
+function renderExecutiveTrend(){
+  const p = document.getElementById('panel-13');
+  const lobs = executiveLobsInScope();
+  const {prevStart, prevEnd} = prevPeriodRange(state.start, state.end);
+  p.innerHTML = `
+    ${executiveKpiTilesHtml()}
+    <div class="note">Tiles: exact sums for ${state.start} → ${state.end} vs the equivalent prior period (${prevStart} → ${prevEnd}), combined across Mid-Ticket + PG1 + Inbound${state.lob ? ` (narrowed to ${state.lob} via the LOB filter)` : ''} -- Team and Agent filters do apply. Connected Calls are from Aloware call logs, matched by rep name/date, counting calls with ≥90 seconds talk time. AOV = Upfront Revenue ÷ Closed Deals. Close Rate = Closed Deals ÷ Connected Calls. Contribution Profit is Domo POS data (PG1/Physical/Digital/Supplements combined; High Ticket is intentionally excluded).</div>
+    <div class="section-title">Upfront Revenue, PG1, Clubs, Close Rate %, Contribution Profit — Total + Division Breakdown — Monthly / Weekly / Daily</div>
+    <div class="note">These charts are NOT affected by the Date Range filter above -- they always show the latest 3 months / 6 weeks / 30 days. Team and Agent filters do apply.</div>
+    ${EXECUTIVE_CHART_METRICS.map(m => {
+      const legend = `<span><i style="background:var(--s-orange)"></i>Total</span>` + lobs.map(l=>`<span><i style="background:var(${EXEC_LOB_COLOR[l]})"></i>${l}</span>`).join('');
+      return `
+    <div class="chart-row">
+      <div class="chart-card">
+        <h3>${m.label} — Monthly <span style="color:var(--gray); font-weight:400; text-transform:none; letter-spacing:0">(last 3 months)</span></h3>
+        <div class="legend">${legend}</div>
+        <div id="chart-exec-${m.id}-m"></div>
+      </div>
+      <div class="chart-card">
+        <h3>${m.label} — Weekly <span style="color:var(--gray); font-weight:400; text-transform:none; letter-spacing:0">(last 6 weeks)</span></h3>
+        <div class="legend">${legend}</div>
+        <div id="chart-exec-${m.id}-w"></div>
+      </div>
+      <div class="chart-card">
+        <h3>${m.label} — Daily <span style="color:var(--gray); font-weight:400; text-transform:none; letter-spacing:0">(last 30 days)</span></h3>
+        <div class="legend">${legend}</div>
+        <div id="chart-exec-${m.id}-d"></div>
+      </div>
+    </div>`; }).join('')}
+    <div class="section-title">Period detail — last 30 days</div>
+    <div class="note">Static last 30 days, NOT affected by the Date Range filter above -- Team and Agent filters do apply.</div>
+    <div class="table-section"><table><thead id="tbl-exec-period-head"></thead><tbody id="tbl-exec-period-body"></tbody></table></div>
+  `;
+  const chartMonthly = executiveChartMonthlyRows(lobs).slice(-3);
+  const chartWeekly = executiveChartWeeklyRows(lobs).slice(-6);
+  const chartDaily = executiveChartDailyRows(lobs).slice(-30);
+  const monthLbl = r => fmtMonthLabel(r.month);
+  const weekLbl = r => 'WB '+r.weekBeginning.slice(5);
+  const dayLbl = r => r.date.slice(5);
+  EXECUTIVE_CHART_METRICS.forEach(m => {
+    const series = executiveMetricSeries(m.key, m.fmt, lobs);
+    groupedColumnChart(`chart-exec-${m.id}-m`, chartMonthly, series, monthLbl, {showValues:true});
+    lineChart(`chart-exec-${m.id}-w`, chartWeekly, series, weekLbl, {showValues:'all'});
+    lineChart(`chart-exec-${m.id}-d`, chartDaily, series, dayLbl, {showValues:'last'});
+  });
+  if(!sortState['tbl-exec-period']) sortState['tbl-exec-period'] = {col:'date', dir:-1};
+  renderTable('tbl-exec-period', chartDaily, [
+    {key:'date', label:'Date'},
+    {key:'upfrontRevenue', label:'Upfront Revenue', fmt:fmtMoney},
+    {key:'pg1', label:'PG1'},
+    {key:'clubs', label:'Clubs'},
+    {key:'closedDeals', label:'Closed Deals'},
+    {key:'connectedCalls', label:'Connected Calls'},
+    {key:'closeRate', label:'Close Rate %', fmt:fmtPct},
+    {key:'cpTotal', label:'Contribution Profit', fmt:fmtMoney},
+  ]);
+}
+// One row per (Division, Name) -- the extra Division dimension (vs the 3 individual tabs' plain
+// per-Name rows) is the whole reason this isn't just phoneRepRowsForRange() called 3 times: a rep
+// could in principle show up under more than one LOB across the selected range, and collapsing
+// those into one row would silently merge two different jobs' numbers together.
+function executiveRepRowsForRange(lobs){
+  const byKey = new Map();
+  PHONE_RAW.filter(r=>lobs.includes(r[2]) && matchesTeamFilter(r[1]) && matchesAgentFilter(r[0]) && r[3]>=state.start && r[3]<=state.end)
+    .forEach(r=>{
+      const key = r[2]+'|'+r[0];
+      if(!byKey.has(key)) byKey.set(key, {lob:r[2], name:r[0], team:r[1], _teamMaxDate:r[3], ...phoneBlankSums()});
+      const o = byKey.get(key);
+      if(r[3] >= o._teamMaxDate){ o.team = r[1]; o._teamMaxDate = r[3]; }
+      phoneAddRawRow(o, r);
+    });
+  return Array.from(byKey.values()).map(phoneWithDerived);
+}
+function renderExecutiveMetric(){
+  const p = document.getElementById('panel-14');
+  const lobs = executiveLobsInScope();
+  const {prevStart, prevEnd} = prevPeriodRange(state.start, state.end);
+  const rows = executiveRepRowsForRange(lobs);
+  p.innerHTML = `
+    ${executiveKpiTilesHtml()}
+    <div class="note">Tiles: exact sums for ${state.start} → ${state.end} vs the equivalent prior period (${prevStart} → ${prevEnd}), combined across Mid-Ticket + PG1 + Inbound${state.lob ? ` (narrowed to ${state.lob} via the LOB filter)` : ''} -- Team and Agent filters do apply.</div>
+    <div class="section-title">Executive Advisor detail</div>
+    <div class="scope-banner">Showing Team: <b>${state.team.length ? state.team.join(', ') : 'All Teams'}</b> · Division: <b>${state.lob || 'Mid-Ticket + PG1 + Inbound'}</b>${state.agent.length ? ` · Agent: <b>${agentLabel()}</b>` : ''}</div>
+    <div class="note">Exact sums for ${state.start} → ${state.end} -- Team, Division (LOB), and Agent filters all apply (picking an Agent narrows this to their own row(s) -- more than one if they show up under multiple Divisions). One row per (Division, Name). Scheduled Hrs/Tracked Hrs/Hrs Variance are from Hubstaff. Contribution Profit is Domo POS data (High Ticket intentionally excluded). Click a column header to sort.</div>
+    <div class="table-section"><table><thead id="tbl-exec-metric-head"></thead><tbody id="tbl-exec-metric-body"></tbody></table></div>
+  `;
+  if(!sortState['tbl-exec-metric']) sortState['tbl-exec-metric'] = {col:'upfrontRevenue', dir:-1};
+  renderTable('tbl-exec-metric', rows, [
+    {key:'lob', label:'Division'}, {key:'team', label:'Team'}, {key:'name', label:'Name'},
+    {key:'upfrontRevenue', label:'Upfront Revenue', fmt:fmtMoney},
+    {key:'pg1', label:'PG1'},
+    {key:'pg1Trial', label:'PG1 Trial'},
+    {key:'pg1Upfront', label:'PG1 Upfront'},
+    {key:'clubs', label:'Clubs'},
+    {key:'aov', label:'AOV $', fmt:fmtMoney},
+    {key:'closedDeals', label:'Closed Deals'},
+    {key:'connectedCalls', label:'Connected Calls'},
+    {key:'closeRate', label:'Close Rate %', fmt:fmtPct},
+    {key:'scheduledHrs', label:'Scheduled Hrs', fmt:fmtHours},
+    {key:'trackedHrs', label:'Tracked Hrs', fmt:fmtHours},
+    {key:'hoursVariance', label:'Hrs Variance', fmt:fmtHoursSigned},
+    {key:'cpPG1', label:'Contrib. Profit — PG1', fmt:fmtMoney},
+    {key:'cpPhysical', label:'Contrib. Profit — Physical', fmt:fmtMoney},
+    {key:'cpDigitalOther', label:'Contrib. Profit — Digital', fmt:fmtMoney},
+    {key:'cpSupplements', label:'Contrib. Profit — Supplements', fmt:fmtMoney},
+    {key:'cpTotal', label:'Contrib. Profit — Total', fmt:fmtMoney},
+  ]);
+}
+
 function renderMidTicketTrend(){ renderPhoneTrend({panelId:'panel-7', lob:'Mid-Ticket', idPrefix:'midticket', tabLabel:'Mid-Ticket'}); }
 function renderMidTicketMetric(){ renderPhoneMetric({panelId:'panel-8', lob:'Mid-Ticket', idPrefix:'midticket', tabLabel:'Mid-Ticket'}); }
 function renderPG1Trend(){ renderPhoneTrend({panelId:'panel-9', lob:'PG1', idPrefix:'pg1', tabLabel:'PG1'}); }

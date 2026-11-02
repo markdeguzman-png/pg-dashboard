@@ -72,9 +72,10 @@ function phoneRefreshAndPublish() {
 
   // Hubstaff is optional and additive -- if HUBSTAFF_TOKEN isn't set yet, or the API call fails for
   // any reason, Scheduled_Hrs still gets published (it comes straight from Schedule) and Tracked
-  // Hours just comes back empty (0 everywhere) rather than breaking the whole Schedule/Aloware
+  // Hours/Cost just come back empty (0 everywhere) rather than breaking the whole Schedule/Aloware
   // publish that already works today.
   var trackedHoursByNameDate = {};
+  var costByNameDate = {};
   try {
     if (PropertiesService.getScriptProperties().getProperty('HUBSTAFF_TOKEN')) {
       var orgId = hubstaffFetchOrgId_();
@@ -83,8 +84,8 @@ function phoneRefreshAndPublish() {
       var allMembers = hubstaffFetchMembers_(orgId);
       var ourMembers = allMembers.filter(function (m) { return scheduleNames[phoneNormalizeName_(m.name)]; });
       // Diagnostic logging while this integration is still being verified -- cheap (a handful of
-      // Logger.log calls), and tells us immediately whether a 0-everywhere Tracked Hours result is
-      // a name-matching miss (ourMembers.length === 0) or something downstream.
+      // Logger.log calls), and tells us immediately whether a 0-everywhere result is a
+      // name-matching miss (ourMembers.length === 0) or something downstream.
       Logger.log('Hubstaff: ' + allMembers.length + ' org members fetched, ' + ourMembers.length + ' matched the Schedule roster.');
       if (allMembers.length && !ourMembers.length) {
         Logger.log('Hubstaff member names (sample, for comparing against Schedule): ' + JSON.stringify(allMembers.slice(0, 10).map(function(m){return m.name;})));
@@ -94,15 +95,16 @@ function phoneRefreshAndPublish() {
       var maxDate = scheduleRows.reduce(function (m, r) { return r.date > m ? r.date : m; }, scheduleRows[0].date);
       trackedHoursByNameDate = hubstaffFetchTrackedHoursByNameDate_(orgId, ourMembers, minDate, maxDate);
       Logger.log('Hubstaff: tracked-hours lookup has ' + Object.keys(trackedHoursByNameDate).length + ' (name, date) entries for window ' + minDate + ' to ' + maxDate + '.');
-      hubstaffLogSampleTeamPayments_(orgId);
+      costByNameDate = hubstaffFetchCostByNameDate_(orgId, ourMembers);
+      Logger.log('Hubstaff: cost lookup has ' + Object.keys(costByNameDate).length + ' (name, date) entries.');
     } else {
       Logger.log('HUBSTAFF_TOKEN not set -- skipping Tracked Hours/Cost this run (Scheduled_Hrs still publishes).');
     }
   } catch (e) {
-    Logger.log('Hubstaff fetch failed (non-fatal, Tracked Hours stays 0 this run): ' + e);
+    Logger.log('Hubstaff fetch failed (non-fatal, Tracked Hours/Cost stay 0 this run): ' + e);
   }
 
-  var rawRows = buildPhoneRaw_(scheduleRows, connectedByNameDate, trackedHoursByNameDate);
+  var rawRows = buildPhoneRaw_(scheduleRows, connectedByNameDate, trackedHoursByNameDate, costByNameDate);
   if (!rawRows.length) { Logger.log('No rows produced; aborting.'); return; }
 
   var nowIso = new Date().toISOString();
@@ -412,10 +414,20 @@ function hubstaffFetchOrgId_() {
   return orgs[0].id;
 }
 // {id, name} per member -- "name" prefers first_name+last_name (the non-deprecated fields) over
-// the deprecated top-level "name" field, matching Hubstaff's own current guidance.
+// the deprecated top-level "name" field. Confirmed 2026-11-02: every member came back with an
+// empty name under the flat top-level fields (118 fetched, 0 matched, every sampled name ""),
+// despite the token being assigned to an owner -- the docs note that "profile" data ("Only
+// organization owners and managers may see this information") may be its own nested object rather
+// than flat fields on the member record, so this checks both locations. If names are STILL empty
+// after this, the raw first-member JSON this also logs will show exactly where the real fields are.
 function hubstaffFetchMembers_(orgId) {
-  return hubstaffPaginatedFetch_('/v2/organizations/' + orgId + '/members', '').map(function (m) {
-    var name = (m.first_name || m.last_name) ? ((m.first_name || '') + ' ' + (m.last_name || '')).trim() : String(m.name || '').trim();
+  var members = hubstaffPaginatedFetch_('/v2/organizations/' + orgId + '/members', '');
+  if (members.length) Logger.log('Hubstaff raw member sample (for confirming where name fields actually live): ' + JSON.stringify(members.slice(0, 2)));
+  return members.map(function (m) {
+    var p = m.profile || {};
+    var first = m.first_name || p.first_name || '';
+    var last = m.last_name || p.last_name || '';
+    var name = (first || last) ? (first + ' ' + last).trim() : String(m.name || p.name || '').trim();
     return { id: m.id, name: name };
   });
 }
@@ -458,33 +470,53 @@ function hubstaffFetchTrackedHoursByNameDate_(orgId, members, minDate, maxDate) 
   }
   return out;
 }
-// Cost-per-rep isn't wired into the dashboard yet -- team_payments' exact field names (period
-// boundaries, and whether "amount" already includes overtime or is base-only) can't be confirmed
-// without a live API response, and this is payroll data, not worth guessing at. This just logs a
-// couple of real records so the mapping can be confirmed and Cost added in a follow-up.
-function hubstaffLogSampleTeamPayments_(orgId) {
-  try {
-    var sample = hubstaffPaginatedFetch_('/v2/organizations/' + orgId + '/team_payments', '').slice(0, 2);
-    Logger.log('Hubstaff team_payments sample (for confirming field names before Cost is wired in): ' + JSON.stringify(sample));
-  } catch (e) {
-    Logger.log('Hubstaff team_payments sample fetch failed (non-fatal, Cost just stays unwired): ' + e);
-  }
+// Cost (dollars) per 'normalizedName|date', from team_payments, for just the Hubstaff members
+// matching our own Mid-Ticket/PG1/Inbound Schedule roster -- same scope and same {id, name} input
+// shape as hubstaffFetchTrackedHoursByNameDate_. Confirmed 2026-11-02 from live sample data: a
+// team_payment record is one payroll disbursement covering a pay period (start_date/stop_date),
+// with a "details" array of per-(user_id, date) line items already at daily granularity -- no need
+// to split a period total across its days ourselves. Each detail's own "amount" (a string, e.g.
+// "82.95") is the base paid amount for that day; per the account's own Oct 23 changelog note
+// ("Each overtime_details entry now has an amount ... use amount to get the paid amount"),
+// overtime is itemized separately in overtime_details[], so a day's true cost is
+// amount + sum(overtime_details[].amount). Not filtered by payment_source/paid_via_payroll --
+// every payment record found counts as real cost regardless of how it was disbursed.
+function hubstaffFetchCostByNameDate_(orgId, members) {
+  var idToName = {};
+  members.forEach(function (m) { idToName[m.id] = m.name; });
+  if (!members.length) return {};
+  var userIdsParam = members.map(function (m) { return '&user_ids[]=' + m.id; }).join('');
+
+  var out = {};
+  var payments = hubstaffPaginatedFetch_('/v2/organizations/' + orgId + '/team_payments', userIdsParam);
+  payments.forEach(function (payment) {
+    (payment.details || []).forEach(function (d) {
+      var name = idToName[d.user_id];
+      if (!name || !d.date) return;
+      var base = parseFloat(d.amount) || 0;
+      var overtime = (d.overtime_details || []).reduce(function (s, o) { return s + (parseFloat(o.amount) || 0); }, 0);
+      var key = phoneNormalizeName_(name) + '|' + String(d.date).slice(0, 10);
+      out[key] = (out[key] || 0) + base + overtime;
+    });
+  });
+  return out;
 }
 
 // One row per (Name, Date) -- the same granularity RAW_SCHED uses for Setter/Closer, so the
 // dashboard's existing matchesTeamFilter()/matchesAgentFilter() pattern (and arbitrary
 // Date-Range sums) work on this data exactly the same way, instead of pre-aggregating away the
 // per-person detail Team/Agent filtering actually needs.
-function buildPhoneRaw_(scheduleRows, connectedByNameDate, trackedHoursByNameDate) {
+function buildPhoneRaw_(scheduleRows, connectedByNameDate, trackedHoursByNameDate, costByNameDate) {
   return scheduleRows.map(function (r) {
-    // Connected Calls / Tracked Hours both resolved by Schedule's Name, normalized the same way
-    // each lookup's own keys were built -- see phoneNormalizeName_'s comment for why this is
+    // Connected Calls / Tracked Hours / Cost all resolved by Schedule's Name, normalized the same
+    // way each lookup's own keys were built -- see phoneNormalizeName_'s comment for why this is
     // needed. r.name itself (not normalized) is still what's written into the row -- only the
     // lookup key is normalized.
     var normKey = phoneNormalizeName_(r.name) + '|' + r.date;
     var connected = connectedByNameDate[normKey] || 0;
     var trackedHrs = trackedHoursByNameDate ? phoneRound2_(trackedHoursByNameDate[normKey] || 0) : 0;
-    return [r.name, r.team, r.lob, r.date, r.clubs, r.pg1, r.upfrontRevenue, r.closedDeals, r.pg1Trial, r.pg1Upfront, connected, r.scheduledHrs, trackedHrs];
+    var cost = costByNameDate ? phoneRound2_(costByNameDate[normKey] || 0) : 0;
+    return [r.name, r.team, r.lob, r.date, r.clubs, r.pg1, r.upfrontRevenue, r.closedDeals, r.pg1Trial, r.pg1Upfront, connected, r.scheduledHrs, trackedHrs, cost];
   });
 }
 
@@ -511,12 +543,12 @@ function splicePhoneHtml_(html, rawRows, nowIso) {
   if (PropertiesService.getScriptProperties().getProperty('PHONE_LAST_DATA_DIGEST') === digest) return null;
 
   // PHONE_RAW row shape: [name, team, lob, date, clubs, pg1, upfrontRevenue, closedDeals,
-  // pg1Trial, pg1Upfront, connectedCalls, scheduledHrs, trackedHrs]. One row per (Name, Date) --
-  // same granularity as RAW_SCHED, so Team/Agent/Date-Range filtering work the same way -- feeds
-  // the Mid-Ticket/PG1/Inbound tabs ONLY (Setter/Closer must never read this).
+  // pg1Trial, pg1Upfront, connectedCalls, scheduledHrs, trackedHrs, cost]. One row per (Name,
+  // Date) -- same granularity as RAW_SCHED, so Team/Agent/Date-Range filtering work the same way
+  // -- feeds the Mid-Ticket/PG1/Inbound tabs ONLY (Setter/Closer must never read this).
   var constDecl = '// Mid-Ticket/PG1/Inbound tabs ONLY -- one row per (Name, Date) from the\n' +
     '// "Phone Team Sales Report 2026" Schedule tab + Aloware call logs + Hubstaff (phoneRefreshAndPublish.gs).\n' +
-    '// Row shape: [name, team, lob, date, clubs, pg1, upfrontRevenue, closedDeals, pg1Trial, pg1Upfront, connectedCalls, scheduledHrs, trackedHrs].\n' +
+    '// Row shape: [name, team, lob, date, clubs, pg1, upfrontRevenue, closedDeals, pg1Trial, pg1Upfront, connectedCalls, scheduledHrs, trackedHrs, cost].\n' +
     '// Refreshed ' + nowIso + '. Never read by Setter/Closer code.\n' +
     'const PHONE_RAW = ' + rawJs + ';';
 
@@ -624,8 +656,9 @@ function publishPhoneToGitHub_(newContent, rawRows) {
 //    Executions (the play-button-with-a-clock icon) for how long it actually takes and whether it
 //    completes within the execution time limit; if it times out, lower ALOWARE_NEW_FILES_PER_RUN
 //    (or tell Claude) so each run's chunk is smaller. If HUBSTAFF_TOKEN is set, also check
-//    Executions for a "Hubstaff team_payments sample ..." log line and share it with Claude --
-//    that's what's needed to confirm the exact field names before Cost can be added to the table.
+//    Executions for "Hubstaff: X org members fetched, Y matched the Schedule roster." -- if Y is 0,
+//    share the "Hubstaff raw member sample ..." log line with Claude so the name-field mapping can
+//    be corrected for your account's response shape.
 // 7. Check https://github.com/markdeguzman-png/pg-dashboard for a new commit adding a
 //    PHONE_RAW const to asr_closer_dashboard.html. Vercel auto-deploys from that push.
 //

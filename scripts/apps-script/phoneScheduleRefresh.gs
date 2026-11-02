@@ -207,6 +207,16 @@ function extractScheduleRows_(values) {
   // the exceptions (found via the "Hubstaff: unmatched/no-activity roster names" log line) is more
   // reliable than guessing at another normalization rule blind.
   var hubstaffNameIdx = phoneOptionalColIdx_(headers, 'Hubstaff Name');
+  // Optional alias: if a "Domo Name" column exists and a row has a value in it, that value is
+  // ADDED as a second name Domo's Contribution Profit gets matched against -- UNION with the Name
+  // column, not a replacement like Hubstaff Name above, because Domo's own sourceTitle data has
+  // been observed to use BOTH the Schedule name AND a different nickname/alias for the same person
+  // within the same month (confirmed 2026-11-03 via direct cross-reference against 5 months of
+  // real Domo data: "Belle Diaz" vs "Jobelle Diaz" -- $3,588 under the exact Schedule-name spelling
+  // vs $174,769 under the alias, same real person; also "Andrea Isabel Balon"/"Ayie Balon" and
+  // "Romalyn Magallon"/"Roma Magallon"). Filling this in only for confirmed real aliases (not
+  // guessed) avoids merging two different people's money together.
+  var domoNameIdx = phoneOptionalColIdx_(headers, 'Domo Name');
   var rows = [];
   for (var r = 1; r < values.length; r++) {
     var row = values[r];
@@ -229,11 +239,13 @@ function extractScheduleRows_(values) {
     if (!clubs && !pg1 && !upfrontRevenue && !closedDeals && !pg1Trial && !pg1Upfront && !scheduledHrs) continue;
     var trimmedName = String(name).trim();
     var hubstaffOverride = hubstaffNameIdx > -1 ? String(row[hubstaffNameIdx] || '').trim() : '';
+    var domoAlias = domoNameIdx > -1 ? String(row[domoNameIdx] || '').trim() : '';
     rows.push({
       name: trimmedName, date: dateStr, lob: lob, team: String(team).trim(),
       clubs: clubs, pg1: pg1, upfrontRevenue: phoneRound2_(upfrontRevenue), closedDeals: closedDeals,
       pg1Trial: pg1Trial, pg1Upfront: pg1Upfront, scheduledHrs: scheduledHrs,
-      hubstaffKey: phoneNormalizeName_(hubstaffOverride || trimmedName)
+      hubstaffKey: phoneNormalizeName_(hubstaffOverride || trimmedName),
+      domoAliasKey: domoAlias ? phoneNormalizeName_(domoAlias) : ''
     });
   }
   return rows;
@@ -573,12 +585,22 @@ function buildPhoneRaw_(scheduleRows, connectedByNameDate, trackedHoursByNameDat
     // Contribution Profit (Domo) is keyed off the same normalized Name as Aloware -- sourceTitle in
     // Domo's POS data is "who sold it", the same identity Aloware's call logs and Schedule's own
     // Name column already share -- not r.hubstaffKey, which only steers Hubstaff's own matching.
-    var cpKeyBase = phoneNormalizeName_(r.name) + '|' + r.date + '|';
+    // When r.domoAliasKey is set (and differs from the primary key), its amounts are ADDED on top
+    // rather than replacing the primary lookup -- see the "Domo Name" column comment in
+    // extractScheduleRows_ above for why this has to be additive, not a swap.
     var cp = contribProfitByNameDateGroup || {};
-    var cpPG1 = phoneRound2_(cp[cpKeyBase + 'pg1'] || 0);
-    var cpPhysical = phoneRound2_(cp[cpKeyBase + 'physical'] || 0);
-    var cpDigitalOther = phoneRound2_(cp[cpKeyBase + 'digitalOther'] || 0);
-    var cpSupplements = phoneRound2_(cp[cpKeyBase + 'supplements'] || 0);
+    var cpPrimaryBase = phoneNormalizeName_(r.name) + '|' + r.date + '|';
+    var cpAliasBase = (r.domoAliasKey && r.domoAliasKey !== phoneNormalizeName_(r.name))
+      ? (r.domoAliasKey + '|' + r.date + '|') : null;
+    var cpSum = function (group) {
+      var v = cp[cpPrimaryBase + group] || 0;
+      if (cpAliasBase) v += cp[cpAliasBase + group] || 0;
+      return v;
+    };
+    var cpPG1 = phoneRound2_(cpSum('pg1'));
+    var cpPhysical = phoneRound2_(cpSum('physical'));
+    var cpDigitalOther = phoneRound2_(cpSum('digitalOther'));
+    var cpSupplements = phoneRound2_(cpSum('supplements'));
     return [r.name, r.team, r.lob, r.date, r.clubs, r.pg1, r.upfrontRevenue, r.closedDeals, r.pg1Trial, r.pg1Upfront, connected, r.scheduledHrs, trackedHrs, cpPG1, cpPhysical, cpDigitalOther, cpSupplements];
   });
 }
@@ -821,4 +843,19 @@ function publishPhoneToGitHub_(newContent, rawRows) {
 // property or permission setup needed here beyond the Drive scope already granted for Aloware.
 // Optional/additive like Hubstaff: if that folder doesn't exist yet (domoMultiPosExport.gs hasn't
 // run), those 4 columns just stay 0 rather than breaking this publish.
+//
+// Fixing reps whose Contribution Profit looks too low: add a "Domo Name" column to the Schedule
+// tab (any column named exactly "Domo Name" -- the script looks it up by header, works whichever
+// position it's in) and put that rep's alternate Domo sourceTitle spelling in it, on any row(s) for
+// them. UNLIKE "Hubstaff Name" above, this does NOT replace the Name-column lookup -- it ADDS the
+// alias's amounts on top, because Domo's own data has been seen using both spellings for the same
+// person within the same month. Confirmed 2026-11-03 by cross-referencing 5 months of real Domo
+// data against the Schedule roster; as of that date these 3 rows need a "Domo Name" value:
+//   Belle Diaz             -> Jobelle Diaz
+//   Andrea Isabel Balon    -> Ayie Balon
+//   Romalyn Magallon       -> Roma Magallon
+// Two other candidates (Aileen Mendez / "Makkie Mendez", King Ycaro / "Maria Ycaro") were checked
+// and confirmed to be DIFFERENT people who just share a last name -- deliberately left unmapped.
+// If another rep's Contribution Profit still looks off after this, check the Contribution Profit
+// Rollup CSVs in Drive for a same-last-name sourceTitle variant before assuming it's a bug.
 // ============================================================================

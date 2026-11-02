@@ -103,14 +103,14 @@ function domoRefreshAndPublish() {
 // before that column existed, and under domoRefreshAndPublish's normal "finalized, never
 // re-queried" rule they'd never get it -- current-month files already pick it up automatically on
 // every refresh, so this only ever has work to do on past months. Run manually (function dropdown
-// -> domoForceRewriteArchiveWithContributionProfit_ -> Run) as many times as it takes to clear the
+// -> domoForceRewriteArchiveWithContributionProfit -> Run) as many times as it takes to clear the
 // backlog: it processes up to DOMO_BACKFILL_MONTHS_PER_RUN not-yet-upgraded months per call (same
 // cap domoRefreshAndPublish's own backfill uses, to stay inside the execution time limit) and is
 // safe to re-run -- it checks each file's own header first and skips any month that already has the
 // column, so it can't double-append or accidentally touch a month twice. Once every past month is
 // upgraded it logs that and does nothing further; domoRefreshAndPublish's regular behavior is
 // completely unaffected by this function either way.
-function domoForceRewriteArchiveWithContributionProfit_() {
+function domoForceRewriteArchiveWithContributionProfit() {
   var authHeader = domoAuthHeader_();
   var datasetId = domoFindDatasetId_(authHeader);
   var rootFolder = domoGetOrCreateFolder_(DriveApp.getRootFolder(), DRIVE_ROOT_FOLDER_NAME);

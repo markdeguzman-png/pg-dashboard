@@ -70,7 +70,30 @@ function phoneRefreshAndPublish() {
 
   var connectedByNameDate = buildConnectedByNameDate_();
 
-  var rawRows = buildPhoneRaw_(scheduleRows, connectedByNameDate);
+  // Hubstaff is optional and additive -- if HUBSTAFF_TOKEN isn't set yet, or the API call fails for
+  // any reason, Scheduled_Hrs still gets published (it comes straight from Schedule) and Tracked
+  // Hours just comes back empty (0 everywhere) rather than breaking the whole Schedule/Aloware
+  // publish that already works today.
+  var trackedHoursByNameDate = {};
+  try {
+    if (PropertiesService.getScriptProperties().getProperty('HUBSTAFF_TOKEN')) {
+      var orgId = hubstaffFetchOrgId_();
+      var scheduleNames = {};
+      scheduleRows.forEach(function (r) { scheduleNames[phoneNormalizeName_(r.name)] = true; });
+      var allMembers = hubstaffFetchMembers_(orgId);
+      var ourMembers = allMembers.filter(function (m) { return scheduleNames[phoneNormalizeName_(m.name)]; });
+      var minDate = scheduleRows.reduce(function (m, r) { return r.date < m ? r.date : m; }, scheduleRows[0].date);
+      var maxDate = scheduleRows.reduce(function (m, r) { return r.date > m ? r.date : m; }, scheduleRows[0].date);
+      trackedHoursByNameDate = hubstaffFetchTrackedHoursByNameDate_(orgId, ourMembers, minDate, maxDate);
+      hubstaffLogSampleTeamPayments_(orgId);
+    } else {
+      Logger.log('HUBSTAFF_TOKEN not set -- skipping Tracked Hours/Cost this run (Scheduled_Hrs still publishes).');
+    }
+  } catch (e) {
+    Logger.log('Hubstaff fetch failed (non-fatal, Tracked Hours stays 0 this run): ' + e);
+  }
+
+  var rawRows = buildPhoneRaw_(scheduleRows, connectedByNameDate, trackedHoursByNameDate);
   if (!rawRows.length) { Logger.log('No rows produced; aborting.'); return; }
 
   var nowIso = new Date().toISOString();
@@ -125,7 +148,7 @@ function phoneIsoDate_(v) {
 function extractScheduleRows_(values) {
   var headers = values[0];
   var idx = {};
-  ['Name', 'Date', 'Current LOB', 'Current Team', 'Clubs', 'PG1', 'Upfront_Revenue', 'closed_deals', 'PG1 Trial', 'PG1 Upfront'].forEach(function (h) {
+  ['Name', 'Date', 'Current LOB', 'Current Team', 'Clubs', 'PG1', 'Upfront_Revenue', 'closed_deals', 'PG1 Trial', 'PG1 Upfront', 'Scheduled_Hrs'].forEach(function (h) {
     idx[h] = phoneColIdx_(headers, h);
   });
   var rows = [];
@@ -144,11 +167,14 @@ function extractScheduleRows_(values) {
     var closedDeals = phoneToNum_(row[idx['closed_deals']]);
     var pg1Trial = phoneToNum_(row[idx['PG1 Trial']]);
     var pg1Upfront = phoneToNum_(row[idx['PG1 Upfront']]);
-    if (!clubs && !pg1 && !upfrontRevenue && !closedDeals && !pg1Trial && !pg1Upfront) continue;
+    var scheduledHrs = phoneToNum_(row[idx['Scheduled_Hrs']]);
+    // A shift with scheduled hours but zero sales activity still has to be kept -- Scheduled_Hrs
+    // is itself a real sum now (Hubstaff integration), not just a tiebreaker for the sales metrics.
+    if (!clubs && !pg1 && !upfrontRevenue && !closedDeals && !pg1Trial && !pg1Upfront && !scheduledHrs) continue;
     rows.push({
       name: String(name).trim(), date: dateStr, lob: lob, team: String(team).trim(),
       clubs: clubs, pg1: pg1, upfrontRevenue: phoneRound2_(upfrontRevenue), closedDeals: closedDeals,
-      pg1Trial: pg1Trial, pg1Upfront: pg1Upfront
+      pg1Trial: pg1Trial, pg1Upfront: pg1Upfront, scheduledHrs: scheduledHrs
     });
   }
   return rows;
@@ -327,17 +353,125 @@ function phoneNormalizeName_(name) {
   return kept.join(' ').toLowerCase();
 }
 
+// ---- Hubstaff: Scheduled vs Tracked hours (Mid-Ticket/PG1/Inbound reps only) ----
+// Org access token (hsoat_...) created in the Hubstaff web app under Settings -> Organization ->
+// API tokens; sent directly as a bearer, no token exchange or refresh needed (unlike a Personal
+// Access Token). Stored as a script property, same pattern as GITHUB_PAT.
+var HUBSTAFF_API_BASE = 'https://api.hubstaff.com';
+function hubstaffAuthHeaders_() {
+  var token = PropertiesService.getScriptProperties().getProperty('HUBSTAFF_TOKEN');
+  if (!token) throw new Error('HUBSTAFF_TOKEN script property not set -- see setup instructions at the bottom of this file.');
+  return { Authorization: 'Bearer ' + token };
+}
+// Hubstaff's exact response envelope key (e.g. "members" vs "daily_activities") isn't something
+// this script can verify without live API access, so instead of hardcoding a guessed key, this
+// just takes whichever top-level property IS an array -- works regardless of the wrapper name, as
+// long as the response has exactly one array in it (true for every list endpoint used here).
+function hubstaffFirstArray_(obj) {
+  for (var k in obj) { if (Object.prototype.hasOwnProperty.call(obj, k) && Array.isArray(obj[k])) return obj[k]; }
+  return [];
+}
+// Generic page_start_id/page_limit pager: re-requests with the last record's own "id" as the next
+// page_start_id, stops once a page comes back shorter than the requested limit. Schema-agnostic --
+// doesn't depend on knowing the exact pagination envelope Hubstaff wraps around page_limit results.
+function hubstaffPaginatedFetch_(path, extraQuery) {
+  var out = [];
+  var startId = null;
+  var limit = 200;
+  for (var guard = 0; guard < 200; guard++) { // hard safety cap on page count, not expected to ever bind
+    var url = HUBSTAFF_API_BASE + path + (path.indexOf('?') === -1 ? '?' : '&') + 'page_limit=' + limit
+      + (startId ? '&page_start_id=' + startId : '') + (extraQuery || '');
+    var resp = UrlFetchApp.fetch(url, { headers: hubstaffAuthHeaders_(), muteHttpExceptions: true });
+    if (resp.getResponseCode() !== 200) throw new Error('Hubstaff ' + path + ' failed (' + resp.getResponseCode() + '): ' + resp.getContentText());
+    var page = hubstaffFirstArray_(JSON.parse(resp.getContentText()));
+    out = out.concat(page);
+    if (page.length < limit) break;
+    // Not every list endpoint's records necessarily carry a usable top-level "id" (aggregated
+    // daily-activity rows in particular might not) -- if the cursor can't actually advance, stop
+    // here rather than silently re-requesting the same page or sending page_start_id=undefined.
+    var nextId = page[page.length - 1].id;
+    if (!nextId || nextId === startId) {
+      Logger.log('Hubstaff ' + path + ': pagination cursor did not advance past id ' + nextId + ' -- stopping (results from this call may be incomplete).');
+      break;
+    }
+    startId = nextId;
+  }
+  return out;
+}
+function hubstaffFetchOrgId_() {
+  var orgs = hubstaffPaginatedFetch_('/v2/organizations', '');
+  if (!orgs.length) throw new Error('No Hubstaff organizations found for this token.');
+  return orgs[0].id;
+}
+// {id, name} per member -- "name" prefers first_name+last_name (the non-deprecated fields) over
+// the deprecated top-level "name" field, matching Hubstaff's own current guidance.
+function hubstaffFetchMembers_(orgId) {
+  return hubstaffPaginatedFetch_('/v2/organizations/' + orgId + '/members', '').map(function (m) {
+    var name = (m.first_name || m.last_name) ? ((m.first_name || '') + ' ' + (m.last_name || '')).trim() : String(m.name || '').trim();
+    return { id: m.id, name: name };
+  });
+}
+// Daily tracked time (seconds -> hours) for just the Hubstaff members whose normalized name
+// matches someone in our own Mid-Ticket/PG1/Inbound Schedule roster -- not the whole org -- keyed
+// 'normalizedName|date' so it joins into buildPhoneRaw_ the same way Aloware's Connected Calls do.
+// Chunked into <=31-day windows (the API's own limit per call) across [minDate, maxDate].
+function hubstaffFetchTrackedHoursByNameDate_(orgId, members, minDate, maxDate) {
+  var idToName = {};
+  members.forEach(function (m) { idToName[m.id] = m.name; });
+  var userIds = members.map(function (m) { return m.id; });
+  if (!userIds.length) return {};
+  var userIdsParam = userIds.map(function (id) { return '&user_ids[]=' + id; }).join('');
+
+  var out = {};
+  var cursor = new Date(minDate + 'T00:00:00Z');
+  var end = new Date(maxDate + 'T00:00:00Z');
+  while (cursor <= end) {
+    var windowEnd = new Date(cursor.getTime());
+    windowEnd.setUTCDate(windowEnd.getUTCDate() + 30); // 31-day inclusive window
+    if (windowEnd > end) windowEnd = end;
+    var startStr = Utilities.formatDate(cursor, 'UTC', 'yyyy-MM-dd');
+    var stopStr = Utilities.formatDate(windowEnd, 'UTC', 'yyyy-MM-dd');
+    var rows = hubstaffPaginatedFetch_('/v2/organizations/' + orgId + '/activities/daily',
+      '&date[start]=' + startStr + '&date[stop]=' + stopStr + userIdsParam);
+    rows.forEach(function (r) {
+      var name = idToName[r.user_id];
+      if (!name || !r.date) return;
+      var key = phoneNormalizeName_(name) + '|' + String(r.date).slice(0, 10);
+      var hrs = (Number(r.tracked) || 0) / 3600;
+      out[key] = (out[key] || 0) + hrs;
+    });
+    cursor = new Date(windowEnd.getTime());
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return out;
+}
+// Cost-per-rep isn't wired into the dashboard yet -- team_payments' exact field names (period
+// boundaries, and whether "amount" already includes overtime or is base-only) can't be confirmed
+// without a live API response, and this is payroll data, not worth guessing at. This just logs a
+// couple of real records so the mapping can be confirmed and Cost added in a follow-up.
+function hubstaffLogSampleTeamPayments_(orgId) {
+  try {
+    var sample = hubstaffPaginatedFetch_('/v2/organizations/' + orgId + '/team_payments', '').slice(0, 2);
+    Logger.log('Hubstaff team_payments sample (for confirming field names before Cost is wired in): ' + JSON.stringify(sample));
+  } catch (e) {
+    Logger.log('Hubstaff team_payments sample fetch failed (non-fatal, Cost just stays unwired): ' + e);
+  }
+}
+
 // One row per (Name, Date) -- the same granularity RAW_SCHED uses for Setter/Closer, so the
 // dashboard's existing matchesTeamFilter()/matchesAgentFilter() pattern (and arbitrary
 // Date-Range sums) work on this data exactly the same way, instead of pre-aggregating away the
 // per-person detail Team/Agent filtering actually needs.
-function buildPhoneRaw_(scheduleRows, connectedByNameDate) {
+function buildPhoneRaw_(scheduleRows, connectedByNameDate, trackedHoursByNameDate) {
   return scheduleRows.map(function (r) {
-    // Connected Calls resolved by Schedule's Name, normalized the same way Aloware's side was
-    // keyed above -- see phoneNormalizeName_'s comment for why this is needed. r.name itself (not
-    // normalized) is still what's written into the row -- only the lookup key is normalized.
-    var connected = connectedByNameDate[phoneNormalizeName_(r.name) + '|' + r.date] || 0;
-    return [r.name, r.team, r.lob, r.date, r.clubs, r.pg1, r.upfrontRevenue, r.closedDeals, r.pg1Trial, r.pg1Upfront, connected];
+    // Connected Calls / Tracked Hours both resolved by Schedule's Name, normalized the same way
+    // each lookup's own keys were built -- see phoneNormalizeName_'s comment for why this is
+    // needed. r.name itself (not normalized) is still what's written into the row -- only the
+    // lookup key is normalized.
+    var normKey = phoneNormalizeName_(r.name) + '|' + r.date;
+    var connected = connectedByNameDate[normKey] || 0;
+    var trackedHrs = trackedHoursByNameDate ? phoneRound2_(trackedHoursByNameDate[normKey] || 0) : 0;
+    return [r.name, r.team, r.lob, r.date, r.clubs, r.pg1, r.upfrontRevenue, r.closedDeals, r.pg1Trial, r.pg1Upfront, connected, r.scheduledHrs, trackedHrs];
   });
 }
 
@@ -364,16 +498,21 @@ function splicePhoneHtml_(html, rawRows, nowIso) {
   if (PropertiesService.getScriptProperties().getProperty('PHONE_LAST_DATA_DIGEST') === digest) return null;
 
   // PHONE_RAW row shape: [name, team, lob, date, clubs, pg1, upfrontRevenue, closedDeals,
-  // pg1Trial, pg1Upfront, connectedCalls]. One row per (Name, Date) -- same granularity as
-  // RAW_SCHED, so Team/Agent/Date-Range filtering work the same way -- feeds the Mid-Ticket/PG1/
-  // Inbound tabs ONLY (Setter/Closer must never read this).
+  // pg1Trial, pg1Upfront, connectedCalls, scheduledHrs, trackedHrs]. One row per (Name, Date) --
+  // same granularity as RAW_SCHED, so Team/Agent/Date-Range filtering work the same way -- feeds
+  // the Mid-Ticket/PG1/Inbound tabs ONLY (Setter/Closer must never read this).
   var constDecl = '// Mid-Ticket/PG1/Inbound tabs ONLY -- one row per (Name, Date) from the\n' +
-    '// "Phone Team Sales Report 2026" Schedule tab + Aloware call logs (phoneRefreshAndPublish.gs).\n' +
-    '// Row shape: [name, team, lob, date, clubs, pg1, upfrontRevenue, closedDeals, pg1Trial, pg1Upfront, connectedCalls].\n' +
+    '// "Phone Team Sales Report 2026" Schedule tab + Aloware call logs + Hubstaff (phoneRefreshAndPublish.gs).\n' +
+    '// Row shape: [name, team, lob, date, clubs, pg1, upfrontRevenue, closedDeals, pg1Trial, pg1Upfront, connectedCalls, scheduledHrs, trackedHrs].\n' +
     '// Refreshed ' + nowIso + '. Never read by Setter/Closer code.\n' +
     'const PHONE_RAW = ' + rawJs + ';';
 
-  var out = phoneReplaceOnce_(html, /const PHONE_RAW = \[.*?\];/s, constDecl, true);
+  // Matches the const declaration AND every "//"-prefixed comment line directly above it (any
+  // number of them) -- not just the declaration alone. Without this, every successful publish was
+  // leaving the PREVIOUS run's 4-line comment block in place and stacking a fresh one on top of
+  // it, since the old regex only ever replaced the "const PHONE_RAW = [...]" line itself; that
+  // stale commentary has been accumulating, uncapped, since this pipeline's very first publish.
+  var out = phoneReplaceOnce_(html, /(?:\/\/[^\n]*\n)*const PHONE_RAW = \[.*?\];/s, constDecl, true);
   // Keep the dashboard's global "Data updated" banner honest for this pipeline too -- it was
   // previously only ever touched by claudeRefreshAndPublish.gs's spliceHtml_, so a Phone-only
   // refresh (Sched pipeline not having run) left the banner showing a stale, unrelated timestamp.
@@ -454,15 +593,26 @@ function publishPhoneToGitHub_(newContent, rawRows) {
 //    Add script property:
 //      Property: GITHUB_PAT
 //      Value:    <the token>
+// 4b. Hubstaff (optional -- Scheduled_Hrs still publishes without it, Tracked Hours just stays 0):
+//     Hubstaff web app -> Settings -> Organization -> Security & log in -> API access tokens ->
+//     Create token, assign it to an owner/manager (needs full visibility, not a restricted member),
+//     expiration "Never" is simplest. Copy the hsoat_... secret (shown once), then add it here as
+//     another script property:
+//       Property: HUBSTAFF_TOKEN
+//       Value:    hsoat_...
+//     No org ID needed -- hubstaffFetchOrgId_() looks it up from the token itself.
 // 5. Clock icon (Triggers) -> Add Trigger: function phoneRefreshAndPublish, event source
 //    "Time-driven", type "Hour timer", every hour (or whatever cadence makes sense once you see
 //    how big a single run is / how often Aloware adds new weekly files).
 // 6. Test it: select phoneRefreshAndPublish from the function dropdown, click Run. Authorize the
-//    new scopes it asks for (Spreadsheets, Drive, UrlFetch to github.com) when prompted. This
-//    first run reads ALL ~15,685 Schedule rows and processes ALOWARE_NEW_FILES_PER_RUN (default 2)
-//    Aloware files, newest-created first -- watch Executions (the play-button-with-a-clock icon)
-//    for how long it actually takes and whether it completes within the execution time limit; if
-//    it times out, lower ALOWARE_NEW_FILES_PER_RUN (or tell Claude) so each run's chunk is smaller.
+//    new scopes it asks for (Spreadsheets, Drive, UrlFetch to github.com AND api.hubstaff.com if
+//    HUBSTAFF_TOKEN is set) when prompted. This first run reads ALL ~15,685 Schedule rows and
+//    processes ALOWARE_NEW_FILES_PER_RUN (default 2) Aloware files, newest-created first -- watch
+//    Executions (the play-button-with-a-clock icon) for how long it actually takes and whether it
+//    completes within the execution time limit; if it times out, lower ALOWARE_NEW_FILES_PER_RUN
+//    (or tell Claude) so each run's chunk is smaller. If HUBSTAFF_TOKEN is set, also check
+//    Executions for a "Hubstaff team_payments sample ..." log line and share it with Claude --
+//    that's what's needed to confirm the exact field names before Cost can be added to the table.
 // 7. Check https://github.com/markdeguzman-png/pg-dashboard for a new commit adding a
 //    PHONE_RAW const to asr_closer_dashboard.html. Vercel auto-deploys from that push.
 //

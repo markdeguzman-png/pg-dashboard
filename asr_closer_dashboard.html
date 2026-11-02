@@ -911,6 +911,8 @@ document.addEventListener('click', (ev)=>{
 function fmtInt(n){ return Math.round(n).toLocaleString(); }
 function fmtMoney(n){ return '$' + Math.round(n).toLocaleString(); }
 function fmtPct(n){ return (Math.round(n*10)/10).toFixed(1) + '%'; }
+function fmtHours(n){ return (Math.round(n*10)/10).toFixed(1) + 'h'; }
+function fmtHoursSigned(n){ return (n>=0?'+':'') + fmtHours(n); }
 const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 // Monthly chart x-axis label, e.g. "2026-10" -> "Oct-2026". Shared by every Monthly chart trio.
 function fmtMonthLabel(monthStr){ return MONTH_ABBR[+monthStr.slice(5,7)-1] + '-' + monthStr.slice(0,4); }
@@ -2449,17 +2451,20 @@ function renderClosersMetric(){
 // PG1/Mid-Ticket/Inbound-tab ONLY data layer, sourced from PHONE_RAW (the "Phone Team Sales
 // Report 2026" Schedule tab + Aloware call logs, via phoneScheduleRefresh.gs) -- entirely separate
 // from RAW_SCHED/TREND_*, which stay Setter/Closer's own. PHONE_RAW row shape: [name, team, lob,
-// date, clubs, pg1, upfrontRevenue, closedDeals, pg1Trial, pg1Upfront, connectedCalls] -- one row
-// per (Name, Date), same granularity RAW_SCHED uses for Setter/Closer, so Team/Agent/Date-Range
-// filtering all apply here the same way they do there.
+// date, clubs, pg1, upfrontRevenue, closedDeals, pg1Trial, pg1Upfront, connectedCalls, scheduledHrs,
+// trackedHrs] -- one row per (Name, Date), same granularity RAW_SCHED uses for Setter/Closer, so
+// Team/Agent/Date-Range filtering all apply here the same way they do there. scheduledHrs is
+// Schedule's own Scheduled_Hrs column; trackedHrs is Hubstaff's daily tracked time for whichever
+// Hubstaff member matches that Schedule name (added 2026-11-02, phoneScheduleRefresh.gs).
 // The 3 Current LOB values sourced from PHONE_RAW -- matches MAIN_TABS[0..2].name exactly.
 const PHONE_TAB_LOBS = ['Mid-Ticket', 'PG1', 'Inbound'];
 function phoneBlankSums(){
-  return {clubs:0, pg1:0, upfrontRevenue:0, closedDeals:0, pg1Trial:0, pg1Upfront:0, connectedCalls:0};
+  return {clubs:0, pg1:0, upfrontRevenue:0, closedDeals:0, pg1Trial:0, pg1Upfront:0, connectedCalls:0, scheduledHrs:0, trackedHrs:0};
 }
 function phoneAddRawRow(o, r){
   o.clubs+=r[4]; o.pg1+=r[5]; o.upfrontRevenue+=r[6]; o.closedDeals+=r[7];
   o.pg1Trial+=r[8]; o.pg1Upfront+=r[9]; o.connectedCalls+=r[10];
+  o.scheduledHrs+=(r[11]||0); o.trackedHrs+=(r[12]||0);
 }
 // Every PHONE_RAW row matching this LOB plus the current Team/Agent filters -- NOT Date Range,
 // which each caller applies separately (same split as execChartRawAggBy() vs execCompanyTotals()).
@@ -2556,6 +2561,7 @@ function phoneWithDerived(row){
   return {...row,
     aov: row.closedDeals ? row.upfrontRevenue/row.closedDeals : 0,
     closeRate: row.connectedCalls ? row.closedDeals/row.connectedCalls*100 : 0,
+    hoursVariance: (row.trackedHrs||0) - (row.scheduledHrs||0),
   };
 }
 // Total/Trial/Upfront series for the PG1 chart trio -- same Total+breakdown pattern as
@@ -2652,7 +2658,7 @@ function renderPhoneMetric(cfg){
     <div class="note">Tiles: exact sums for ${state.start} → ${state.end} vs the equivalent prior period (${prevStart} → ${prevEnd}), computed from the Phone Team Sales Report's Schedule tab (Current LOB = ${lob}) -- Team and Agent filters do apply. Connected Calls are from Aloware call logs, matched by rep name/date, counting calls with ≥90 seconds talk time. AOV = Upfront Revenue ÷ Closed Deals. Close Rate = Closed Deals ÷ Connected Calls.</div>
     <div class="section-title">${tabLabel} Advisor detail</div>
     <div class="scope-banner">Showing Team: <b>${state.team.length ? state.team.join(', ') : 'All Teams'}</b> · LOB: <b>${lob}</b> (locked to this sub-tab)${state.agent.length ? ` · Agent: <b>${agentLabel()}</b>` : ''}</div>
-    <div class="note">Exact sums for ${state.start} → ${state.end} -- Team and Agent filters do apply (picking an Agent narrows this to their own row). Click a column header to sort.</div>
+    <div class="note">Exact sums for ${state.start} → ${state.end} -- Team and Agent filters do apply (picking an Agent narrows this to their own row). Scheduled Hrs is Schedule's own Scheduled_Hrs column; Tracked Hrs is Hubstaff's tracked time for that rep (0 if the rep isn't matched to a Hubstaff member, or until HUBSTAFF_TOKEN is set up). Hrs Variance = Tracked − Scheduled. Click a column header to sort.</div>
     <div class="table-section"><table><thead id="tbl-${idPrefix}-metric-head"></thead><tbody id="tbl-${idPrefix}-metric-body"></tbody></table></div>
   `;
   if(!sortState['tbl-'+idPrefix+'-metric']) sortState['tbl-'+idPrefix+'-metric'] = {col:'upfrontRevenue', dir:-1};
@@ -2667,6 +2673,9 @@ function renderPhoneMetric(cfg){
     {key:'closedDeals', label:'Closed Deals'},
     {key:'connectedCalls', label:'Connected Calls'},
     {key:'closeRate', label:'Close Rate %', fmt:fmtPct},
+    {key:'scheduledHrs', label:'Scheduled Hrs', fmt:fmtHours},
+    {key:'trackedHrs', label:'Tracked Hrs', fmt:fmtHours},
+    {key:'hoursVariance', label:'Hrs Variance', fmt:fmtHoursSigned},
   ]);
 }
 function renderMidTicketTrend(){ renderPhoneTrend({panelId:'panel-7', lob:'Mid-Ticket', idPrefix:'midticket', tabLabel:'Mid-Ticket'}); }

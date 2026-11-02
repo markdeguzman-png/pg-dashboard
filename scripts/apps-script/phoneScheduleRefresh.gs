@@ -127,7 +127,17 @@ function phoneRefreshAndPublish() {
     Logger.log('Hubstaff fetch failed (non-fatal, Tracked Hours stays 0 this run): ' + e);
   }
 
-  var rawRows = buildPhoneRaw_(scheduleRows, connectedByNameDate, trackedHoursByNameDate);
+  // Domo Contribution Profit is optional and additive, same pattern as Hubstaff above -- if the
+  // Drive folder domoMultiPosExport.gs writes to doesn't exist yet (or anything else goes wrong
+  // reading it), the 4 Contribution Profit columns just stay 0 rather than breaking the publish.
+  var contribProfitByNameDateGroup = {};
+  try {
+    contribProfitByNameDateGroup = domoReadContributionProfitByNameDateGroup_();
+  } catch (e) {
+    Logger.log('Domo Contribution Profit read failed (non-fatal, those columns stay 0 this run): ' + e);
+  }
+
+  var rawRows = buildPhoneRaw_(scheduleRows, connectedByNameDate, trackedHoursByNameDate, contribProfitByNameDateGroup);
   if (!rawRows.length) { Logger.log('No rows produced; aborting.'); return; }
 
   var nowIso = new Date().toISOString();
@@ -550,7 +560,7 @@ function hubstaffFetchTrackedHoursByNameDate_(orgId, members, minDate, maxDate) 
 // dashboard's existing matchesTeamFilter()/matchesAgentFilter() pattern (and arbitrary
 // Date-Range sums) work on this data exactly the same way, instead of pre-aggregating away the
 // per-person detail Team/Agent filtering actually needs.
-function buildPhoneRaw_(scheduleRows, connectedByNameDate, trackedHoursByNameDate) {
+function buildPhoneRaw_(scheduleRows, connectedByNameDate, trackedHoursByNameDate, contribProfitByNameDateGroup) {
   return scheduleRows.map(function (r) {
     // Connected Calls (Aloware) is keyed off Schedule's own Name, normalized -- unaffected by a
     // "Hubstaff Name" override, which only exists to steer Hubstaff matching specifically. Tracked
@@ -560,8 +570,68 @@ function buildPhoneRaw_(scheduleRows, connectedByNameDate, trackedHoursByNameDat
     var connected = connectedByNameDate[phoneNormalizeName_(r.name) + '|' + r.date] || 0;
     var hubstaffNormKey = r.hubstaffKey + '|' + r.date;
     var trackedHrs = trackedHoursByNameDate ? phoneRound2_(trackedHoursByNameDate[hubstaffNormKey] || 0) : 0;
-    return [r.name, r.team, r.lob, r.date, r.clubs, r.pg1, r.upfrontRevenue, r.closedDeals, r.pg1Trial, r.pg1Upfront, connected, r.scheduledHrs, trackedHrs];
+    // Contribution Profit (Domo) is keyed off the same normalized Name as Aloware -- sourceTitle in
+    // Domo's POS data is "who sold it", the same identity Aloware's call logs and Schedule's own
+    // Name column already share -- not r.hubstaffKey, which only steers Hubstaff's own matching.
+    var cpKeyBase = phoneNormalizeName_(r.name) + '|' + r.date + '|';
+    var cp = contribProfitByNameDateGroup || {};
+    var cpPG1 = phoneRound2_(cp[cpKeyBase + 'pg1'] || 0);
+    var cpPhysical = phoneRound2_(cp[cpKeyBase + 'physical'] || 0);
+    var cpDigitalOther = phoneRound2_(cp[cpKeyBase + 'digitalOther'] || 0);
+    var cpSupplements = phoneRound2_(cp[cpKeyBase + 'supplements'] || 0);
+    return [r.name, r.team, r.lob, r.date, r.clubs, r.pg1, r.upfrontRevenue, r.closedDeals, r.pg1Trial, r.pg1Upfront, connected, r.scheduledHrs, trackedHrs, cpPG1, cpPhysical, cpDigitalOther, cpSupplements];
   });
+}
+
+// ---- Domo Contribution Profit Rollup (written by domoMultiPosExport.gs, a separate Apps Script
+// project, into the same Drive) ----
+// That script owns all Domo auth/querying/classification (PG1 / Physical / Digital - Other /
+// Supplements -- High Ticket is explicitly out of scope, 2026-11-03) and writes small pre-aggregated
+// per-(rep, date, group) CSVs to "PGZ Multi POS Transactions/Contribution Profit Rollup/*.csv" in
+// Drive. This just reads them and joins onto the Schedule roster by name, the same way Aloware's
+// Connected Calls does -- kept in a separate script so Domo credentials only have to live in ONE
+// Apps Script project, not duplicated into this one. These files are tiny (pre-aggregated, not raw
+// transactions), so unlike Aloware there's no need for a persistent cross-run cache -- every run
+// just reads whatever month files currently exist.
+var DOMO_CP_ROOT_FOLDER_NAME = 'PGZ Multi POS Transactions';
+var DOMO_CP_SUBFOLDER_NAME = 'Contribution Profit Rollup';
+function domoReadContributionProfitByNameDateGroup_() {
+  var out = {}; // 'normalizedName|date|group' -> amount
+  var rootIt = DriveApp.getRootFolder().getFoldersByName(DOMO_CP_ROOT_FOLDER_NAME);
+  if (!rootIt.hasNext()) {
+    Logger.log('Domo Contribution Profit: "' + DOMO_CP_ROOT_FOLDER_NAME + '" folder not found in Drive -- skipping (those columns stay 0 this run).');
+    return out;
+  }
+  var subIt = rootIt.next().getFoldersByName(DOMO_CP_SUBFOLDER_NAME);
+  if (!subIt.hasNext()) {
+    Logger.log('Domo Contribution Profit: "' + DOMO_CP_SUBFOLDER_NAME + '" subfolder not found yet -- skipping (needs domoMultiPosExport.gs to have run at least once).');
+    return out;
+  }
+  var files = subIt.next().getFiles();
+  var fileCount = 0, rowCount = 0;
+  while (files.hasNext()) {
+    var f = files.next();
+    fileCount++;
+    var rows = Utilities.parseCsv(f.getBlob().getDataAsString());
+    if (!rows.length) continue;
+    var headers = rows[0];
+    var dateIdx = headers.indexOf('date'), nameIdx = headers.indexOf('sourceTitle'),
+      groupIdx = headers.indexOf('group'), amtIdx = headers.indexOf('contributionProfit');
+    if (dateIdx === -1 || nameIdx === -1 || groupIdx === -1 || amtIdx === -1) {
+      Logger.log('Domo Contribution Profit: unexpected CSV format in "' + f.getName() + '", skipping that file.');
+      continue;
+    }
+    for (var i = 1; i < rows.length; i++) {
+      var r = rows[i];
+      var name = r[nameIdx];
+      if (!name) continue;
+      var key = phoneNormalizeName_(name) + '|' + r[dateIdx] + '|' + r[groupIdx];
+      out[key] = (out[key] || 0) + (Number(r[amtIdx]) || 0);
+      rowCount++;
+    }
+  }
+  Logger.log('Domo Contribution Profit: read ' + rowCount + ' (rep, date, group) rows from ' + fileCount + ' rollup file(s).');
+  return out;
 }
 
 // ---- Splice PHONE_RAW into the dashboard HTML (own const, never touches RAW_SCHED/TREND_*) ----
@@ -587,12 +657,15 @@ function splicePhoneHtml_(html, rawRows, nowIso) {
   if (PropertiesService.getScriptProperties().getProperty('PHONE_LAST_DATA_DIGEST') === digest) return null;
 
   // PHONE_RAW row shape: [name, team, lob, date, clubs, pg1, upfrontRevenue, closedDeals,
-  // pg1Trial, pg1Upfront, connectedCalls, scheduledHrs, trackedHrs]. One row per (Name, Date) --
-  // same granularity as RAW_SCHED, so Team/Agent/Date-Range filtering work the same way -- feeds
-  // the Mid-Ticket/PG1/Inbound tabs ONLY (Setter/Closer must never read this).
+  // pg1Trial, pg1Upfront, connectedCalls, scheduledHrs, trackedHrs, cpPG1, cpPhysical,
+  // cpDigitalOther, cpSupplements]. One row per (Name, Date) -- same granularity as RAW_SCHED, so
+  // Team/Agent/Date-Range filtering work the same way -- feeds the Mid-Ticket/PG1/Inbound tabs
+  // ONLY (Setter/Closer must never read this). cpPG1/cpPhysical/cpDigitalOther/cpSupplements are
+  // Contribution Profit (Domo POS data, via domoMultiPosExport.gs -> Drive -> this script),
+  // grouped by product -- High Ticket is deliberately excluded, not one of the 4.
   var constDecl = '// Mid-Ticket/PG1/Inbound tabs ONLY -- one row per (Name, Date) from the\n' +
-    '// "Phone Team Sales Report 2026" Schedule tab + Aloware call logs + Hubstaff (phoneRefreshAndPublish.gs).\n' +
-    '// Row shape: [name, team, lob, date, clubs, pg1, upfrontRevenue, closedDeals, pg1Trial, pg1Upfront, connectedCalls, scheduledHrs, trackedHrs].\n' +
+    '// "Phone Team Sales Report 2026" Schedule tab + Aloware call logs + Hubstaff + Domo Contribution Profit (phoneRefreshAndPublish.gs).\n' +
+    '// Row shape: [name, team, lob, date, clubs, pg1, upfrontRevenue, closedDeals, pg1Trial, pg1Upfront, connectedCalls, scheduledHrs, trackedHrs, cpPG1, cpPhysical, cpDigitalOther, cpSupplements].\n' +
     '// Refreshed ' + nowIso + '. Never read by Setter/Closer code.\n' +
     'const PHONE_RAW = ' + rawJs + ';';
 
@@ -739,4 +812,13 @@ function publishPhoneToGitHub_(newContent, rawRows) {
 // This pipeline is intentionally independent of claudeRefreshAndPublish.gs -- different
 // spreadsheet, different Drive source, different const in the dashboard (PHONE_RAW vs
 // RAW_SCHED/TREND_*). Running both triggers hourly is fine; they never touch each other's data.
+//
+// ---- Domo Contribution Profit: no setup needed in THIS project ----
+// cpPG1/cpPhysical/cpDigitalOther/cpSupplements come from a SEPARATE Apps Script project
+// (domoMultiPosExport.gs, standalone, holds its own DOMO_CLIENT_ID/SECRET) that writes small CSVs
+// to "PGZ Multi POS Transactions/Contribution Profit Rollup/" in the same Google account's Drive.
+// This script just reads them (domoReadContributionProfitByNameDateGroup_) -- no extra script
+// property or permission setup needed here beyond the Drive scope already granted for Aloware.
+// Optional/additive like Hubstaff: if that folder doesn't exist yet (domoMultiPosExport.gs hasn't
+// run), those 4 columns just stay 0 rather than breaking this publish.
 // ============================================================================

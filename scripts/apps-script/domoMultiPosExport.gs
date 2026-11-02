@@ -1,10 +1,14 @@
 // ============================================================================
 // PGZ Multi POS Transactions export: Domo (the "PGZ | Abbreviated Multi POS
 // Transactions" card's underlying DataSet) -> Google Drive, one CSV per month.
-// Entirely independent of phoneScheduleRefresh.gs / claudeRefreshAndPublish.gs --
+// Runs independently of phoneScheduleRefresh.gs / claudeRefreshAndPublish.gs --
 // different data source (Domo, not Sheets/Drive-CSV/Hubstaff), different
-// destination (Drive folders, not the dashboard HTML), no shared state with
-// either of those pipelines.
+// destination (Drive folders, not the dashboard HTML directly). As of 2026-11-03
+// it also publishes a second, small rollup (Contribution Profit by rep/day/
+// product group -- see domoPublishContributionProfitRollup_ below) that
+// phoneScheduleRefresh.gs DOES read from Drive and join onto the Mid-Ticket/
+// PG1/Inbound tabs -- that's the only point of contact between this script and
+// the dashboard; everything else here stays Domo-credential-only.
 //
 // ONE-TIME SETUP:
 //   1. script.google.com -> New project. This does NOT need to be bound to any
@@ -27,7 +31,10 @@
 //      entirely (see domoFindDatasetId_ below).
 //   5. Check your Google Drive (My Drive root) for a new "PGZ Multi POS
 //      Transactions" folder with month subfolders (2026-06, 2026-07, ...)
-//      each containing one CSV.
+//      each containing one CSV, plus a "Contribution Profit Rollup" subfolder
+//      with its own small per-month CSVs (date, sourceTitle, group,
+//      contributionProfit) -- that second folder is what
+//      phoneScheduleRefresh.gs reads to populate the dashboard.
 //   6. Clock icon (Triggers) -> Add Trigger: function domoRefreshAndPublish,
 //      event source "Time-driven", type "Hour timer".
 //
@@ -83,6 +90,144 @@ function domoRefreshAndPublish() {
   var currentResult = domoQueryMonth_(authHeader, datasetId, currentMonth);
   domoWriteCsv_(currentFolder, currentFileName, currentResult);
   Logger.log('Domo: refreshed current month ' + currentMonth + ' -- ' + currentResult.rows.length + ' rows.');
+
+  domoPublishContributionProfitRollup_(authHeader, datasetId, rootFolder, allMonths, currentMonth);
+}
+
+// ============================================================================
+// Contribution Profit Rollup: PG1 / Physical / Digital - Other / Supplements, per rep per day.
+// Feeds asr_closer_dashboard.html's Mid-Ticket/PG1/Inbound Metric tabs via phoneScheduleRefresh.gs,
+// which reads these small CSVs from Drive and joins them onto the Schedule roster by name -- same
+// split as the Aloware integration (this script owns Domo auth/querying; phoneScheduleRefresh.gs
+// owns the roster join), decided 2026-11-03 so Domo credentials only need to live in ONE Apps
+// Script project.
+//
+// "Gross Profit" appears in this card's own column-filter list but is NOT a real dataset column --
+// SELECT * never returns it (confirmed 2026-11-03). It's a CARD-level Beast Mode calculation, and
+// this Domo account has no Data Center access to read its exact formula. Per explicit instruction,
+// this computes an equivalent from raw columns SELECT * DOES return: Gross - Total COGS - Merchant
+// Fees (Gross), net of Refunded/Chargedback principal AND their own Merchant Fees (Refunds)/
+// (Chargebacks) reversal amounts. All 7 of those columns are summed independently per (rep, day,
+// group) rather than assumed to live on the same row -- confirmed live 2026-11-03 that a SALE row
+// carries Gross/Total COGS/Merchant Fees (Gross) while a REFUND or CB (chargeback) row is a
+// SEPARATE line with Refunded/Chargedback + its own Merchant Fees column populated instead, Gross/
+// COGS blank on that row. No orderType/billingCycleNumber restriction here (unlike the archival
+// export above) -- Contribution Profit should reflect every realized dollar in the period,
+// including 3rd+ renewal cycles, not just first-sale/first-renewal.
+//
+// Grouping (per explicit instruction, 2026-11-03): ProductName containing "PG1" -> pg1, checked
+// FIRST -- PG1 is sold under Offer Type=Digital alongside several unrelated coaching programs
+// (Kinetic Movement Method, Senior Swing Distance Program, 300 Distance System, Pain-Free Distance
+// System, VIP Coaching, Scratch Club, Performance Golf Platform -- confirmed live by filtering
+// Offer Type=Digital and reading ProductName), so Offer Type alone can't isolate it. Then Offer
+// Type=Physical -> physical; Offer Type=Supplements -> supplements; Offer Type=Digital (non-PG1)
+// -> digitalOther. High Ticket (Offer Type=High Ticket, overwhelmingly "VIP Experience" products,
+// which the archival export above deliberately excludes) is explicitly OUT of scope for this
+// project (2026-11-03) -- any row that doesn't match one of the 4 groups is just not summed into
+// any bucket, not an error condition.
+// ============================================================================
+var DOMO_CP_SUBFOLDER_NAME = 'Contribution Profit Rollup';
+
+function domoClassifyGroup_(productName, offerType) {
+  var pn = String(productName || '').toUpperCase();
+  if (pn.indexOf('PG1') !== -1) return 'pg1';
+  var ot = String(offerType || '').trim();
+  if (ot === 'Physical') return 'physical';
+  if (ot === 'Supplements') return 'supplements';
+  if (ot === 'Digital') return 'digitalOther';
+  return null; // High Ticket / Affiliate - not set / blank -- not included in this project
+}
+
+// Column names with spaces/parens are double-quoted (Domo's Query API is ANSI-SQL-style) -- if this
+// ever errors with a parse failure, the Execution log shows the exact SQL and Domo's error text, so
+// check whether this account's engine wants backticks instead and tell Claude.
+function domoQueryContributionProfitMonth_(authHeader, datasetId, monthStr) {
+  var monthStart = monthStr + '-01';
+  var nextMonthStart = domoAddMonths_(monthStr, 1) + '-01';
+  var sql = 'SELECT sourceTitle, dateCreated, ProductName, "Offer Type", Gross, "Total COGS",' +
+    ' "Merchant Fees (Gross)", Refunded, "Merchant Fees (Refunds)", Chargedback, "Merchant Fees (Chargebacks)"' +
+    ' FROM table' +
+    " WHERE sourceTitle IS NOT NULL AND sourceTitle <> ''" +
+    " AND LOWER(ProductName) NOT LIKE '%shipping%'" +
+    " AND dateCreated >= '" + monthStart + "' AND dateCreated < '" + nextMonthStart + "'";
+  return domoExecuteQuery_(authHeader, datasetId, sql);
+}
+
+// Aggregates one month's query result into 'sourceTitle|date|group' -> contributionProfit, then
+// flattens to CSV rows [date, sourceTitle, group, contributionProfit].
+function domoBuildContributionProfitRollupRows_(result) {
+  var idx = {};
+  result.columns.forEach(function (c, i) { idx[c] = i; });
+  var need = ['sourceTitle', 'dateCreated', 'ProductName', 'Offer Type', 'Gross', 'Total COGS',
+    'Merchant Fees (Gross)', 'Refunded', 'Merchant Fees (Refunds)', 'Chargedback', 'Merchant Fees (Chargebacks)'];
+  need.forEach(function (c) {
+    if (!(c in idx)) throw new Error('Contribution Profit query missing expected column "' + c + '" -- Domo\'s column set may have changed.');
+  });
+
+  var sums = {}; // 'sourceTitle|date|group' -> amount
+  result.rows.forEach(function (row) {
+    var sourceTitle = String(row[idx['sourceTitle']] || '').trim();
+    if (!sourceTitle) return;
+    var dateStr = String(row[idx['dateCreated']] || '').slice(0, 10);
+    if (!dateStr) return;
+    var group = domoClassifyGroup_(row[idx['ProductName']], row[idx['Offer Type']]);
+    if (!group) return;
+    var num = function (c) { var v = row[idx[c]]; return (v === '' || v === null || v === undefined) ? 0 : (Number(v) || 0); };
+    var profit = num('Gross') - num('Total COGS') - num('Merchant Fees (Gross)')
+      - num('Refunded') - num('Merchant Fees (Refunds)')
+      - num('Chargedback') - num('Merchant Fees (Chargebacks)');
+    var key = sourceTitle + '|' + dateStr + '|' + group;
+    sums[key] = (sums[key] || 0) + profit;
+  });
+
+  var out = [];
+  Object.keys(sums).forEach(function (key) {
+    var parts = key.split('|');
+    out.push([parts[1], parts[0], parts[2], Math.round(sums[key] * 100) / 100]); // [date, sourceTitle, group, contributionProfit]
+  });
+  return out;
+}
+
+function domoWriteContributionProfitCsv_(folder, fileName, rows) {
+  var lines = [domoCsvRow_(['date', 'sourceTitle', 'group', 'contributionProfit'])];
+  rows.forEach(function (r) { lines.push(domoCsvRow_(r)); });
+  var content = lines.join('\n');
+  var existing = folder.getFilesByName(fileName);
+  if (existing.hasNext()) {
+    var first = existing.next();
+    first.setContent(content);
+    while (existing.hasNext()) existing.next().setTrashed(true);
+  } else {
+    folder.createFile(fileName, content, MimeType.CSV);
+  }
+}
+
+// Same backfill/current-month split as the archival export above (past months finalized once
+// written and never re-queried; current month always refreshed), but with its OWN independent
+// DOMO_BACKFILL_MONTHS_PER_RUN counter -- this query is much narrower (11 columns vs SELECT *'s
+// 288) and the aggregation is cheap in-memory work, so running it alongside the archival export in
+// the same execution is fine.
+function domoPublishContributionProfitRollup_(authHeader, datasetId, rootFolder, allMonths, currentMonth) {
+  var cpRoot = domoGetOrCreateFolder_(rootFolder, DOMO_CP_SUBFOLDER_NAME);
+  var pastMonths = allMonths.filter(function (m) { return m !== currentMonth; });
+
+  var backfilled = 0;
+  pastMonths.forEach(function (monthStr) {
+    if (backfilled >= DOMO_BACKFILL_MONTHS_PER_RUN) return;
+    var fileName = 'Contribution Profit Rollup - ' + monthStr + '.csv';
+    if (cpRoot.getFilesByName(fileName).hasNext()) return; // already finalized
+    Logger.log('Domo Contribution Profit: backfilling ' + monthStr + '...');
+    var result = domoQueryContributionProfitMonth_(authHeader, datasetId, monthStr);
+    var rows = domoBuildContributionProfitRollupRows_(result);
+    domoWriteContributionProfitCsv_(cpRoot, fileName, rows);
+    Logger.log('Domo Contribution Profit: backfilled ' + monthStr + ' -- ' + rows.length + ' (rep, date, group) rows from ' + result.rows.length + ' transaction lines.');
+    backfilled++;
+  });
+
+  var currentResult = domoQueryContributionProfitMonth_(authHeader, datasetId, currentMonth);
+  var currentRows = domoBuildContributionProfitRollupRows_(currentResult);
+  domoWriteContributionProfitCsv_(cpRoot, 'Contribution Profit Rollup - ' + currentMonth + '.csv', currentRows);
+  Logger.log('Domo Contribution Profit: refreshed current month ' + currentMonth + ' -- ' + currentRows.length + ' (rep, date, group) rows from ' + currentResult.rows.length + ' transaction lines.');
 }
 
 // ---- Auth ----

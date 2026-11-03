@@ -69,6 +69,16 @@ function phoneRefreshAndPublish() {
   var scheduleRows = extractScheduleRows_(scheduleValues);
   if (!scheduleRows.length) { Logger.log('No active Schedule rows extracted; aborting.'); return; }
 
+  // Read once, used by BOTH the Hubstaff alias fallback below and the Domo Contribution Profit
+  // join further down -- a "names_lookup" read failure degrades both gracefully (each still works
+  // off Schedule's own Name column) rather than failing the whole publish.
+  var domoAliasKeysByName = {};
+  try {
+    domoAliasKeysByName = buildDomoAliasKeysByName_(ss);
+  } catch (e) {
+    Logger.log('names_lookup read failed (non-fatal, Hubstaff/Domo alias matching both fall back to Name-column-only): ' + e);
+  }
+
   var connectedByNameDate = buildConnectedByNameDate_();
 
   // Hubstaff is optional and additive -- if HUBSTAFF_TOKEN isn't set yet, or the API call fails for
@@ -82,13 +92,24 @@ function phoneRefreshAndPublish() {
   try {
     if (PropertiesService.getScriptProperties().getProperty('HUBSTAFF_TOKEN')) {
       var orgId = hubstaffFetchOrgId_();
-      // Keyed by hubstaffKey (the optional "Hubstaff Name" override when a Schedule row has one,
-      // else the normalized Name column -- see extractScheduleRows_) so a manually-entered override
-      // actually changes which Hubstaff member this roster matches to, not just cosmetic Schedule
-      // display text.
+      var allMembers = hubstaffFetchMembers_(orgId);
+      var memberNameSet = {};
+      allMembers.forEach(function (m) { memberNameSet[phoneNormalizeName_(m.name)] = true; });
+      // Best-effort cross-system reuse of the SAME "names_lookup" aliases the Domo Contribution
+      // Profit join uses (added 2026-11-04): if a rep's current hubstaffKey (Hubstaff Name override,
+      // else Schedule's own Name) doesn't match any real fetched member, try each names_lookup
+      // Domo_name alias for them too -- a nickname/legal-name alias that resolves a Domo mismatch
+      // (e.g. "Jobelle Diaz" for "Belle Diaz") is quite likely the SAME account name Hubstaff uses,
+      // since it's probably the person's actual name. Every candidate is checked against the real
+      // fetched member list before being used, never guessed blindly, and an already-working match
+      // is never touched.
+      refineHubstaffKeysWithDomoAliases_(scheduleRows, memberNameSet, domoAliasKeysByName);
+
+      // Keyed by hubstaffKey (now possibly alias-refined above) so a manually-entered override, or
+      // a resolved names_lookup alias, actually changes which Hubstaff member this roster matches
+      // to, not just cosmetic Schedule display text.
       var scheduleNames = {};
       scheduleRows.forEach(function (r) { scheduleNames[r.hubstaffKey] = true; });
-      var allMembers = hubstaffFetchMembers_(orgId);
       var ourMembers = allMembers.filter(function (m) { return scheduleNames[phoneNormalizeName_(m.name)]; });
       // Diagnostic logging while this integration is still being verified -- cheap (a handful of
       // Logger.log calls), and tells us immediately whether a 0-everywhere result is a
@@ -104,8 +125,10 @@ function phoneRefreshAndPublish() {
       Logger.log('Hubstaff: tracked-hours lookup has ' + Object.keys(trackedHoursByNameDate).length + ' (name, date) entries for window ' + minDate + ' to ' + maxDate + '.');
 
       // Per-rep diagnostic: who's still coming up empty, and why. "Never matched" means no
-      // Hubstaff member's name (normalized) equals this rep's hubstaffKey at all -- fixable by
-      // filling in a "Hubstaff Name" column value for them in Schedule. "Matched but zero
+      // Hubstaff member's name (normalized) equals this rep's hubstaffKey at all, even after the
+      // Hubstaff Name override and names_lookup alias attempts above -- fixable by adding a
+      // names_lookup row for them (if their Domo alias IS their Hubstaff name too) or a "Hubstaff
+      // Name" column value (if Hubstaff uses yet another, different spelling). "Matched but zero
       // activity" means a Hubstaff member WAS found, but Hubstaff has no tracked time for them in
       // this whole window -- that's not a naming problem, likely means they don't use Hubstaff
       // time tracking (or use it under a project/account this token can't see).
@@ -131,11 +154,10 @@ function phoneRefreshAndPublish() {
   // Domo Contribution Profit is optional and additive, same pattern as Hubstaff above -- if the
   // Drive folder domoMultiPosExport.gs writes to doesn't exist yet (or anything else goes wrong
   // reading it), the 4 Contribution Profit columns just stay 0 rather than breaking the publish.
+  // domoAliasKeysByName was already read above (shared with the Hubstaff block).
   var contribProfitByNameDateGroup = {};
-  var domoAliasKeysByName = {};
   try {
     contribProfitByNameDateGroup = domoReadContributionProfitByNameDateGroup_();
-    domoAliasKeysByName = buildDomoAliasKeysByName_(ss);
   } catch (e) {
     Logger.log('Domo Contribution Profit read failed (non-fatal, those columns stay 0 this run): ' + e);
   }
@@ -559,6 +581,23 @@ function hubstaffFetchTrackedHoursByNameDate_(orgId, members, minDate, maxDate) 
   }
   return out;
 }
+// Mutates each row's hubstaffKey IN PLACE when it currently matches no real Hubstaff member but a
+// names_lookup Domo_name alias for that person does -- see the call site's comment above for why
+// this cross-system reuse is reasonable (not guessed: every candidate is checked against
+// memberNameSet, the REAL fetched member list, before being used). Never touches a row whose
+// current key already resolves.
+function refineHubstaffKeysWithDomoAliases_(scheduleRows, memberNameSet, domoAliasKeysByName) {
+  var refinedCount = 0;
+  scheduleRows.forEach(function (r) {
+    if (memberNameSet[r.hubstaffKey]) return; // already resolves to a real member, leave alone
+    var aliases = domoAliasKeysByName[r.name];
+    if (!aliases) return;
+    for (var i = 0; i < aliases.length; i++) {
+      if (memberNameSet[aliases[i]]) { r.hubstaffKey = aliases[i]; refinedCount++; return; }
+    }
+  });
+  if (refinedCount) Logger.log('Hubstaff: ' + refinedCount + ' Schedule row(s) matched via a names_lookup Domo_name alias instead of their Name/Hubstaff Name column.');
+}
 // One row per (Name, Date) -- the same granularity RAW_SCHED uses for Setter/Closer, so the
 // dashboard's existing matchesTeamFilter()/matchesAgentFilter() pattern (and arbitrary
 // Date-Range sums) work on this data exactly the same way, instead of pre-aggregating away the
@@ -831,9 +870,15 @@ function publishPhoneToGitHub_(newContent, rawRows) {
 //    share the "Hubstaff raw member sample ..." log line with Claude so the name-field mapping can
 //    be corrected for your account's response shape.
 // 6b. Fixing individual reps whose Tracked Hours stays 0: every run logs "Hubstaff: N Schedule
-//     reps never matched a Hubstaff member" with the list of names. For each of those, add a
-//     "Hubstaff Name" column to the Schedule tab (any column name exactly "Hubstaff Name" -- the
-//     script looks it up by header, works whichever position it's in) and put that rep's actual
+//     reps never matched a Hubstaff member" with the list of names -- but first, every run ALSO
+//     automatically tries each person's "names_lookup" Domo_name alias(es) against the real
+//     Hubstaff member list before giving up (added 2026-11-04 -- see refineHubstaffKeysWithDomoAliases_
+//     above and the "Hubstaff: N Schedule row(s) matched via a names_lookup Domo_name alias" log
+//     line), since a Domo alias is often the person's actual/legal name, which Hubstaff tends to
+//     use too. So check that log line and the names_lookup tab FIRST -- if the person already has
+//     a names_lookup row and it still didn't resolve, or they have no names_lookup row at all, THEN
+//     add a "Hubstaff Name" column to the Schedule tab (any column name exactly "Hubstaff Name" --
+//     the script looks it up by header, works whichever position it's in) and put that rep's actual
 //     Hubstaff display name in it, on any row(s) for them -- the script reads whichever value it
 //     finds, doesn't need every row filled in. That value is what gets matched to Hubstaff instead
 //     of the Name column, for that rep only. A SEPARATE log line, "Hubstaff: N reps matched a

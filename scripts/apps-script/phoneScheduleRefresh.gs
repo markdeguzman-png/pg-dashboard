@@ -612,27 +612,33 @@ function buildPhoneRaw_(scheduleRows, connectedByNameDate, trackedHoursByNameDat
     var connected = connectedByNameDate[phoneNormalizeName_(r.name) + '|' + r.date] || 0;
     var hubstaffNormKey = r.hubstaffKey + '|' + r.date;
     var trackedHrs = trackedHoursByNameDate ? phoneRound2_(trackedHoursByNameDate[hubstaffNormKey] || 0) : 0;
-    // Contribution Profit (Domo) sums across EVERY normalized alias the "names_lookup" tab lists
-    // for this exact Schedule Name (see buildDomoAliasKeysByName_ below) -- not a single swap like
-    // Hubstaff's override, because Domo's own sourceTitle data has been seen using more than one
-    // spelling for the same real person within the same month (confirmed 2026-11-03: Belle Diaz
-    // $3,588 vs Jobelle Diaz $174,769, same person). The Name column's own normalized form is
-    // always included even if the lookup tab has no row for this person (or that tab is missing),
-    // so Contribution Profit never silently drops to 0 for someone not yet in the lookup tab.
-    var cp = contribProfitByNameDateGroup || {};
+    // Contribution Profit AND Net Revenue (Domo) both sum across EVERY normalized alias the
+    // "names_lookup" tab lists for this exact Schedule Name (see buildDomoAliasKeysByName_ below)
+    // -- not a single swap like Hubstaff's override, because Domo's own sourceTitle data has been
+    // seen using more than one spelling for the same real person within the same month (confirmed
+    // 2026-11-03: Belle Diaz $3,588 vs Jobelle Diaz $174,769, same person). The Name column's own
+    // normalized form is always included even if the lookup tab has no row for this person (or that
+    // tab is missing), so neither figure silently drops to 0 for someone not yet in the lookup tab.
+    var cpMap = (contribProfitByNameDateGroup && contribProfitByNameDateGroup.cp) || {};
+    var netMap = (contribProfitByNameDateGroup && contribProfitByNameDateGroup.net) || {};
     var primaryNorm = phoneNormalizeName_(r.name);
     var aliasKeys = (domoAliasKeysByName && domoAliasKeysByName[r.name]) ? domoAliasKeysByName[r.name].slice() : [];
     if (aliasKeys.indexOf(primaryNorm) === -1) aliasKeys.push(primaryNorm);
-    var cpSum = function (group) {
+    var sumAcrossAliases = function (map, group) {
       var total = 0;
-      aliasKeys.forEach(function (key) { total += cp[key + '|' + r.date + '|' + group] || 0; });
+      aliasKeys.forEach(function (key) { total += map[key + '|' + r.date + '|' + group] || 0; });
       return total;
     };
-    var cpPG1 = phoneRound2_(cpSum('pg1'));
-    var cpPhysical = phoneRound2_(cpSum('physical'));
-    var cpDigitalOther = phoneRound2_(cpSum('digitalOther'));
-    var cpSupplements = phoneRound2_(cpSum('supplements'));
-    return [r.name, r.team, r.lob, r.date, r.clubs, r.pg1, r.upfrontRevenue, r.closedDeals, r.pg1Trial, r.pg1Upfront, connected, r.scheduledHrs, trackedHrs, cpPG1, cpPhysical, cpDigitalOther, cpSupplements];
+    var cpPG1 = phoneRound2_(sumAcrossAliases(cpMap, 'pg1'));
+    var cpPhysical = phoneRound2_(sumAcrossAliases(cpMap, 'physical'));
+    var cpDigitalOther = phoneRound2_(sumAcrossAliases(cpMap, 'digitalOther'));
+    var cpSupplements = phoneRound2_(sumAcrossAliases(cpMap, 'supplements'));
+    // Net Revenue is published as a single combined total (not split by product group like
+    // Contribution Profit) -- High Ticket stays excluded since domoClassifyGroup_ never assigns it
+    // one of the 4 groups summed here, same as Contribution Profit.
+    var netRevenue = phoneRound2_(['pg1', 'physical', 'digitalOther', 'supplements']
+      .reduce(function (sum, group) { return sum + sumAcrossAliases(netMap, group); }, 0));
+    return [r.name, r.team, r.lob, r.date, r.clubs, r.pg1, r.upfrontRevenue, r.closedDeals, r.pg1Trial, r.pg1Upfront, connected, r.scheduledHrs, trackedHrs, cpPG1, cpPhysical, cpDigitalOther, cpSupplements, netRevenue];
   });
 }
 
@@ -648,20 +654,26 @@ function buildPhoneRaw_(scheduleRows, connectedByNameDate, trackedHoursByNameDat
 // just reads whatever month files currently exist.
 var DOMO_CP_ROOT_FOLDER_NAME = 'PGZ Multi POS Transactions';
 var DOMO_CP_SUBFOLDER_NAME = 'Contribution Profit Rollup';
+// Returns { cp: {...}, net: {...} }, both keyed 'normalizedName|date|group' -> amount. `net` is Net
+// Revenue (Gross - Refunded only, added 2026-11-04) -- a separate, simpler figure from Contribution
+// Profit, not a component of it. A rollup CSV written before 2026-11-04 won't have a 'netRevenue'
+// column yet -- that's not an error, its rows just contribute 0 to `net` (contributionProfit still
+// reads fine from the same file) until domoForceRewriteRollupWithNetRevenue upgrades it, same
+// backfill-on-demand pattern as the archival export's Contribution Profit column.
 function domoReadContributionProfitByNameDateGroup_() {
-  var out = {}; // 'normalizedName|date|group' -> amount
+  var cp = {}, net = {}; // 'normalizedName|date|group' -> amount
   var rootIt = DriveApp.getRootFolder().getFoldersByName(DOMO_CP_ROOT_FOLDER_NAME);
   if (!rootIt.hasNext()) {
     Logger.log('Domo Contribution Profit: "' + DOMO_CP_ROOT_FOLDER_NAME + '" folder not found in Drive -- skipping (those columns stay 0 this run).');
-    return out;
+    return { cp: cp, net: net };
   }
   var subIt = rootIt.next().getFoldersByName(DOMO_CP_SUBFOLDER_NAME);
   if (!subIt.hasNext()) {
     Logger.log('Domo Contribution Profit: "' + DOMO_CP_SUBFOLDER_NAME + '" subfolder not found yet -- skipping (needs domoMultiPosExport.gs to have run at least once).');
-    return out;
+    return { cp: cp, net: net };
   }
   var files = subIt.next().getFiles();
-  var fileCount = 0, rowCount = 0;
+  var fileCount = 0, rowCount = 0, filesWithoutNet = 0;
   while (files.hasNext()) {
     var f = files.next();
     fileCount++;
@@ -669,22 +681,26 @@ function domoReadContributionProfitByNameDateGroup_() {
     if (!rows.length) continue;
     var headers = rows[0];
     var dateIdx = headers.indexOf('date'), nameIdx = headers.indexOf('sourceTitle'),
-      groupIdx = headers.indexOf('group'), amtIdx = headers.indexOf('contributionProfit');
-    if (dateIdx === -1 || nameIdx === -1 || groupIdx === -1 || amtIdx === -1) {
+      groupIdx = headers.indexOf('group'), cpIdx = headers.indexOf('contributionProfit'),
+      netIdx = headers.indexOf('netRevenue');
+    if (dateIdx === -1 || nameIdx === -1 || groupIdx === -1 || cpIdx === -1) {
       Logger.log('Domo Contribution Profit: unexpected CSV format in "' + f.getName() + '", skipping that file.');
       continue;
     }
+    if (netIdx === -1) filesWithoutNet++;
     for (var i = 1; i < rows.length; i++) {
       var r = rows[i];
       var name = r[nameIdx];
       if (!name) continue;
       var key = phoneNormalizeName_(name) + '|' + r[dateIdx] + '|' + r[groupIdx];
-      out[key] = (out[key] || 0) + (Number(r[amtIdx]) || 0);
+      cp[key] = (cp[key] || 0) + (Number(r[cpIdx]) || 0);
+      if (netIdx > -1) net[key] = (net[key] || 0) + (Number(r[netIdx]) || 0);
       rowCount++;
     }
   }
-  Logger.log('Domo Contribution Profit: read ' + rowCount + ' (rep, date, group) rows from ' + fileCount + ' rollup file(s).');
-  return out;
+  Logger.log('Domo Contribution Profit: read ' + rowCount + ' (rep, date, group) rows from ' + fileCount + ' rollup file(s)'
+    + (filesWithoutNet ? ' (' + filesWithoutNet + ' file(s) predate Net Revenue -- run domoForceRewriteRollupWithNetRevenue to backfill)' : '') + '.');
+  return { cp: cp, net: net };
 }
 
 // ---- Domo name aliases (user-maintained "names_lookup" tab in the same spreadsheet) ----
@@ -751,14 +767,16 @@ function splicePhoneHtml_(html, rawRows, nowIso) {
 
   // PHONE_RAW row shape: [name, team, lob, date, clubs, pg1, upfrontRevenue, closedDeals,
   // pg1Trial, pg1Upfront, connectedCalls, scheduledHrs, trackedHrs, cpPG1, cpPhysical,
-  // cpDigitalOther, cpSupplements]. One row per (Name, Date) -- same granularity as RAW_SCHED, so
-  // Team/Agent/Date-Range filtering work the same way -- feeds the Mid-Ticket/PG1/Inbound tabs
-  // ONLY (Setter/Closer must never read this). cpPG1/cpPhysical/cpDigitalOther/cpSupplements are
-  // Contribution Profit (Domo POS data, via domoMultiPosExport.gs -> Drive -> this script),
-  // grouped by product -- High Ticket is deliberately excluded, not one of the 4.
+  // cpDigitalOther, cpSupplements, netRevenue]. One row per (Name, Date) -- same granularity as
+  // RAW_SCHED, so Team/Agent/Date-Range filtering work the same way -- feeds the Mid-Ticket/PG1/
+  // Inbound tabs ONLY (Setter/Closer must never read this). cpPG1/cpPhysical/cpDigitalOther/
+  // cpSupplements are Contribution Profit (Domo POS data, via domoMultiPosExport.gs -> Drive ->
+  // this script), grouped by product -- High Ticket is deliberately excluded, not one of the 4.
+  // netRevenue (added 2026-11-04) is a separate, simpler Domo figure -- Gross - Refunded ONLY,
+  // published as one combined total rather than split by product group.
   var constDecl = '// Mid-Ticket/PG1/Inbound tabs ONLY -- one row per (Name, Date) from the\n' +
-    '// "Phone Team Sales Report 2026" Schedule tab + Aloware call logs + Hubstaff + Domo Contribution Profit (phoneRefreshAndPublish.gs).\n' +
-    '// Row shape: [name, team, lob, date, clubs, pg1, upfrontRevenue, closedDeals, pg1Trial, pg1Upfront, connectedCalls, scheduledHrs, trackedHrs, cpPG1, cpPhysical, cpDigitalOther, cpSupplements].\n' +
+    '// "Phone Team Sales Report 2026" Schedule tab + Aloware call logs + Hubstaff + Domo Contribution Profit/Net Revenue (phoneRefreshAndPublish.gs).\n' +
+    '// Row shape: [name, team, lob, date, clubs, pg1, upfrontRevenue, closedDeals, pg1Trial, pg1Upfront, connectedCalls, scheduledHrs, trackedHrs, cpPG1, cpPhysical, cpDigitalOther, cpSupplements, netRevenue].\n' +
     '// Refreshed ' + nowIso + '. Never read by Setter/Closer code.\n' +
     'const PHONE_RAW = ' + rawJs + ';';
 

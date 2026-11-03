@@ -176,6 +176,8 @@ function domoAppendContributionProfitColumn_(result) {
 
 // ============================================================================
 // Contribution Profit Rollup: PG1 / Physical / Digital - Other / Supplements, per rep per day.
+// Also carries Net Revenue (added 2026-11-04) -- a separate, simpler figure (Gross - Refunded
+// ONLY, see domoBuildContributionProfitRollupRows_ below), NOT a component of Contribution Profit.
 // Feeds pg_dashboard.html's Mid-Ticket/PG1/Inbound Metric tabs via phoneScheduleRefresh.gs,
 // which reads these small CSVs from Drive and joins them onto the Schedule roster by name -- same
 // split as the Aloware integration (this script owns Domo auth/querying; phoneScheduleRefresh.gs
@@ -233,8 +235,14 @@ function domoQueryContributionProfitMonth_(authHeader, datasetId, monthStr) {
   return domoExecuteQuery_(authHeader, datasetId, sql);
 }
 
-// Aggregates one month's query result into 'sourceTitle|date|group' -> contributionProfit, then
-// flattens to CSV rows [date, sourceTitle, group, contributionProfit].
+// Aggregates one month's query result into 'sourceTitle|date|group' -> {cp, net}, then flattens to
+// CSV rows [date, sourceTitle, group, contributionProfit, netRevenue]. netRevenue = Gross - Refunded
+// ONLY (added 2026-11-04, per explicit instruction) -- a simpler, separate figure from
+// Contribution Profit, not a component of it. Confirmed via direct inspection of real export data
+// that Refunded is always stored as a POSITIVE magnitude (never negative), and that Gross is blank
+// on the refund's own row (refunds are logged as a separate transaction line, not a modification of
+// the original sale row) -- so this sums Gross and Refunded independently per row, same as the
+// Contribution Profit formula below already does, rather than assuming they coexist on one row.
 function domoBuildContributionProfitRollupRows_(result) {
   var idx = {};
   result.columns.forEach(function (c, i) { idx[c] = i; });
@@ -244,7 +252,7 @@ function domoBuildContributionProfitRollupRows_(result) {
     if (!(c in idx)) throw new Error('Contribution Profit query missing expected column "' + c + '" -- Domo\'s column set may have changed.');
   });
 
-  var sums = {}; // 'sourceTitle|date|group' -> amount
+  var sums = {}; // 'sourceTitle|date|group' -> {cp: amount, net: amount}
   result.rows.forEach(function (row) {
     var sourceTitle = String(row[idx['sourceTitle']] || '').trim();
     if (!sourceTitle) return;
@@ -253,23 +261,27 @@ function domoBuildContributionProfitRollupRows_(result) {
     var group = domoClassifyGroup_(row[idx['ProductName']], row[idx['Offer Type']]);
     if (!group) return;
     var num = function (c) { var v = row[idx[c]]; return (v === '' || v === null || v === undefined) ? 0 : (Number(v) || 0); };
-    var profit = num('Gross') - num('Total COGS') - num('Merchant Fees (Gross)')
-      - num('Refunded') - num('Merchant Fees (Refunds)')
+    var gross = num('Gross'), refunded = num('Refunded');
+    var cpDelta = gross - num('Total COGS') - num('Merchant Fees (Gross)')
+      - refunded - num('Merchant Fees (Refunds)')
       - num('Chargedback') - num('Merchant Fees (Chargebacks)');
+    var netDelta = gross - refunded;
     var key = sourceTitle + '|' + dateStr + '|' + group;
-    sums[key] = (sums[key] || 0) + profit;
+    if (!sums[key]) sums[key] = { cp: 0, net: 0 };
+    sums[key].cp += cpDelta;
+    sums[key].net += netDelta;
   });
 
   var out = [];
   Object.keys(sums).forEach(function (key) {
     var parts = key.split('|');
-    out.push([parts[1], parts[0], parts[2], Math.round(sums[key] * 100) / 100]); // [date, sourceTitle, group, contributionProfit]
+    out.push([parts[1], parts[0], parts[2], Math.round(sums[key].cp * 100) / 100, Math.round(sums[key].net * 100) / 100]); // [date, sourceTitle, group, contributionProfit, netRevenue]
   });
   return out;
 }
 
 function domoWriteContributionProfitCsv_(folder, fileName, rows) {
-  var lines = [domoCsvRow_(['date', 'sourceTitle', 'group', 'contributionProfit'])];
+  var lines = [domoCsvRow_(['date', 'sourceTitle', 'group', 'contributionProfit', 'netRevenue'])];
   rows.forEach(function (r) { lines.push(domoCsvRow_(r)); });
   var content = lines.join('\n');
   var existing = folder.getFilesByName(fileName);
@@ -308,6 +320,47 @@ function domoPublishContributionProfitRollup_(authHeader, datasetId, rootFolder,
   var currentRows = domoBuildContributionProfitRollupRows_(currentResult);
   domoWriteContributionProfitCsv_(cpRoot, 'Contribution Profit Rollup - ' + currentMonth + '.csv', currentRows);
   Logger.log('Domo Contribution Profit: refreshed current month ' + currentMonth + ' -- ' + currentRows.length + ' (rep, date, group) rows from ' + currentResult.rows.length + ' transaction lines.');
+}
+
+// One-off: upgrades already-finalized PAST months' rollup CSVs to carry the netRevenue column
+// (added 2026-11-04 -- domoBuildContributionProfitRollupRows_ above). Those files were written
+// before that column existed, and domoPublishContributionProfitRollup_'s normal "already finalized,
+// never re-queried" rule would never touch them again -- the current month always picks it up
+// automatically on every refresh, so this only ever has work to do on past months. Run manually
+// (function dropdown -> domoForceRewriteRollupWithNetRevenue -> Run) as many times as it takes to
+// clear the backlog: processes up to DOMO_BACKFILL_MONTHS_PER_RUN not-yet-upgraded months per call
+// (same cap the regular backfill uses) and is safe to re-run -- it checks each file's own header
+// first and skips any month that already has the column. Mirrors
+// domoForceRewriteArchiveWithContributionProfit's pattern exactly, just for the rollup instead of
+// the archival export.
+function domoForceRewriteRollupWithNetRevenue() {
+  var authHeader = domoAuthHeader_();
+  var datasetId = domoFindDatasetId_(authHeader);
+  var rootFolder = domoGetOrCreateFolder_(DriveApp.getRootFolder(), DRIVE_ROOT_FOLDER_NAME);
+  var cpRoot = domoGetOrCreateFolder_(rootFolder, DOMO_CP_SUBFOLDER_NAME);
+  var currentMonth = Utilities.formatDate(new Date(), 'America/New_York', 'yyyy-MM');
+  var pastMonths = domoListMonthsBetween_(EXTRACT_START_MONTH, currentMonth)
+    .filter(function (m) { return m !== currentMonth; });
+
+  var upgraded = 0;
+  pastMonths.forEach(function (monthStr) {
+    if (upgraded >= DOMO_BACKFILL_MONTHS_PER_RUN) return;
+    var fileName = 'Contribution Profit Rollup - ' + monthStr + '.csv';
+    var existingIt = cpRoot.getFilesByName(fileName);
+    if (existingIt.hasNext()) {
+      var text = existingIt.next().getBlob().getDataAsString();
+      var headerEnd = text.indexOf('\n');
+      var header = headerEnd > -1 ? text.slice(0, headerEnd) : text;
+      if (header.indexOf('netRevenue') !== -1) return; // already upgraded, skip
+    }
+    Logger.log('Domo Contribution Profit: force-rewriting rollup ' + monthStr + ' to add netRevenue...');
+    var result = domoQueryContributionProfitMonth_(authHeader, datasetId, monthStr);
+    var rows = domoBuildContributionProfitRollupRows_(result);
+    domoWriteContributionProfitCsv_(cpRoot, fileName, rows);
+    Logger.log('Domo Contribution Profit: force-rewrote rollup ' + monthStr + ' -- ' + rows.length + ' (rep, date, group) rows.');
+    upgraded++;
+  });
+  if (!upgraded) Logger.log('Domo Contribution Profit: every past month\'s rollup already has netRevenue -- nothing left to do, this function can be ignored/deleted now.');
 }
 
 // ---- Auth ----

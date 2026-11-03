@@ -2351,7 +2351,7 @@ function renderClosersMetric(){
 // Report 2026" Schedule tab + Aloware call logs, via phoneScheduleRefresh.gs) -- entirely separate
 // from RAW_SCHED/TREND_*, which stay Setter/Closer's own. PHONE_RAW row shape: [name, team, lob,
 // date, clubs, pg1, upfrontRevenue, closedDeals, pg1Trial, pg1Upfront, connectedCalls, scheduledHrs,
-// trackedHrs, cpPG1, cpPhysical, cpDigitalOther, cpSupplements] -- one row per (Name, Date), same
+// trackedHrs, cpPG1, cpPhysical, cpDigitalOther, cpSupplements, netRevenue] -- one row per (Name, Date), same
 // granularity RAW_SCHED uses for Setter/Closer, so Team/Agent/Date-Range filtering all apply here
 // the same way they do there. scheduledHrs is Schedule's own Scheduled_Hrs column; trackedHrs is
 // Hubstaff's daily tracked time for whichever Hubstaff member matches that Schedule name (added
@@ -2367,16 +2367,19 @@ function renderClosersMetric(){
 // it's a card-only Beast Mode calc this account can't read the formula for), so Contribution
 // Profit here is computed from raw components instead: Gross - Total COGS - Merchant Fees (Gross),
 // net of Refunded/Chargedback and their own merchant-fee reversal amounts. See
-// domoMultiPosExport.gs for the exact query/classification/formula.
+// domoMultiPosExport.gs for the exact query/classification/formula. netRevenue (added 2026-11-04)
+// is a separate, simpler Domo figure -- Gross - Refunded ONLY (not COGS/fees/chargebacks, not a
+// component of Contribution Profit) -- published as one combined total, not split by product group.
 function phoneBlankSums(){
   return {clubs:0, pg1:0, upfrontRevenue:0, closedDeals:0, pg1Trial:0, pg1Upfront:0, connectedCalls:0, scheduledHrs:0, trackedHrs:0,
-    cpPG1:0, cpPhysical:0, cpDigitalOther:0, cpSupplements:0};
+    cpPG1:0, cpPhysical:0, cpDigitalOther:0, cpSupplements:0, netRevenue:0};
 }
 function phoneAddRawRow(o, r){
   o.clubs+=r[4]; o.pg1+=r[5]; o.upfrontRevenue+=r[6]; o.closedDeals+=r[7];
   o.pg1Trial+=r[8]; o.pg1Upfront+=r[9]; o.connectedCalls+=r[10];
   o.scheduledHrs+=(r[11]||0); o.trackedHrs+=(r[12]||0);
   o.cpPG1+=(r[13]||0); o.cpPhysical+=(r[14]||0); o.cpDigitalOther+=(r[15]||0); o.cpSupplements+=(r[16]||0);
+  o.netRevenue+=(r[17]||0);
 }
 // Every PHONE_RAW row matching this LOB plus the current Team/Agent filters -- NOT Date Range,
 // which each caller applies separately (same split as execChartRawAggBy() vs execCompanyTotals()).
@@ -2463,6 +2466,7 @@ function phoneKpiTilesHtml(lob){
   return `
     <div class="metrics-container">
       ${kpiTile('Upfront Revenue', fmtMoney(cur.upfrontRevenue), deltaSub(cur.upfrontRevenue, prev.upfrontRevenue, fmtMoney))}
+      ${kpiTile('Net Revenue', fmtMoney(cur.netRevenue), deltaSub(cur.netRevenue, prev.netRevenue, fmtMoney))}
       ${kpiTile('PG1', fmtInt(cur.pg1), `Trial ${fmtInt(cur.pg1Trial)} · Upfront ${fmtInt(cur.pg1Upfront)}<br>${deltaSub(cur.pg1, prev.pg1)}`)}
       ${kpiTile('Clubs', fmtInt(cur.clubs), deltaSub(cur.clubs, prev.clubs))}
       ${kpiTile('AOV $', fmtMoney(curAov), deltaSub(curAov, prevAov, fmtMoney))}
@@ -2578,7 +2582,7 @@ function renderPhoneMetric(cfg){
     <div class="note">Tiles: exact sums for ${state.start} → ${state.end} vs the equivalent prior period (${prevStart} → ${prevEnd}), computed from the Phone Team Sales Report's Schedule tab (Current LOB = ${lob}) -- Team and Agent filters do apply. Connected Calls are from Aloware call logs, matched by rep name/date, counting calls with ≥90 seconds talk time. AOV = Upfront Revenue ÷ Closed Deals. Close Rate = Closed Deals ÷ Connected Calls.</div>
     <div class="section-title">${tabLabel} Advisor detail</div>
     <div class="scope-banner">Showing Team: <b>${state.team.length ? state.team.join(', ') : 'All Teams'}</b> · LOB: <b>${lob}</b> (locked to this sub-tab)${state.agent.length ? ` · Agent: <b>${agentLabel()}</b>` : ''}</div>
-    <div class="note">Exact sums for ${state.start} → ${state.end} -- Team and Agent filters do apply (picking an Agent narrows this to their own row). Scheduled Hrs is Schedule's own Scheduled_Hrs column; Tracked Hrs is from Hubstaff for that rep (0 if the rep isn't matched to a Hubstaff member, or until HUBSTAFF_TOKEN is set up). Hrs Variance = Tracked − Scheduled. Contribution Profit (PG1/Physical/Digital/Supplements/Total) is Domo POS data attributed to that rep, approximately Gross − COGS − merchant fees net of refunds/chargebacks (Domo's own "Gross Profit" formula isn't readable with this account's access, so this is a close equivalent built from raw components -- see domoMultiPosExport.gs); High Ticket (VIP Experience) product sales are intentionally excluded. Click a column header to sort.</div>
+    <div class="note">Exact sums for ${state.start} → ${state.end} -- Team and Agent filters do apply (picking an Agent narrows this to their own row). Scheduled Hrs is Schedule's own Scheduled_Hrs column; Tracked Hrs is from Hubstaff for that rep (0 if the rep isn't matched to a Hubstaff member, or until HUBSTAFF_TOKEN is set up). Hrs Variance = Tracked − Scheduled. Contribution Profit (PG1/Physical/Digital/Supplements/Total) is Domo POS data attributed to that rep, approximately Gross − COGS − merchant fees net of refunds/chargebacks (Domo's own "Gross Profit" formula isn't readable with this account's access, so this is a close equivalent built from raw components -- see domoMultiPosExport.gs); High Ticket (VIP Experience) product sales are intentionally excluded. Net Revenue is a separate, simpler Domo figure -- Gross − Refunded only, not a component of Contribution Profit. Click a column header to sort.</div>
     <div class="table-section"><table><thead id="tbl-${idPrefix}-metric-head"></thead><tbody id="tbl-${idPrefix}-metric-body"></tbody></table></div>
   `;
   if(!sortState['tbl-'+idPrefix+'-metric']) sortState['tbl-'+idPrefix+'-metric'] = {col:'upfrontRevenue', dir:-1};
@@ -2590,7 +2594,7 @@ function renderPhoneMetric(cfg){
   const gtScheduledHrs = sum(rows,'scheduledHrs'), gtTrackedHrs = sum(rows,'trackedHrs');
   const grandTotal = {
     team:'', name:'Grand Total',
-    upfrontRevenue: gtUpfrontRevenue, cpTotal: sum(rows,'cpTotal'),
+    upfrontRevenue: gtUpfrontRevenue, netRevenue: sum(rows,'netRevenue'), cpTotal: sum(rows,'cpTotal'),
     pg1: sum(rows,'pg1'), pg1Trial: sum(rows,'pg1Trial'), pg1Upfront: sum(rows,'pg1Upfront'),
     clubs: sum(rows,'clubs'),
     aov: gtClosedDeals ? gtUpfrontRevenue/gtClosedDeals : 0,
@@ -2602,6 +2606,7 @@ function renderPhoneMetric(cfg){
   renderTable('tbl-'+idPrefix+'-metric', rows, [
     {key:'team', label:'Team'}, {key:'name', label:'Name'},
     {key:'upfrontRevenue', label:'Upfront Revenue', fmt:fmtMoney},
+    {key:'netRevenue', label:'Net Revenue', fmt:fmtMoney},
     {key:'cpTotal', label:'CP $ Total', fmt:fmtMoney},
     {key:'pg1', label:'PG1'},
     {key:'pg1Trial', label:'PG1 Trial'},
@@ -2671,6 +2676,7 @@ function executiveKpiTilesHtml(){
   return `
     <div class="metrics-container">
       ${kpiTile('Upfront Revenue', fmtMoney(cur.upfrontRevenue), `${breakdown(s=>s.upfrontRevenue, fmtMoney)}<br>${deltaSub(cur.upfrontRevenue, prev.upfrontRevenue, fmtMoney)}`)}
+      ${kpiTile('Net Revenue', fmtMoney(cur.netRevenue), `${breakdown(s=>s.netRevenue, fmtMoney)}<br>${deltaSub(cur.netRevenue, prev.netRevenue, fmtMoney)}`)}
       ${kpiTile('PG1', fmtInt(cur.pg1), `${breakdown(s=>s.pg1)}<br>${deltaSub(cur.pg1, prev.pg1)}`)}
       ${kpiTile('Clubs', fmtInt(cur.clubs), `${breakdown(s=>s.clubs)}<br>${deltaSub(cur.clubs, prev.clubs)}`)}
       ${kpiTile('AOV $', fmtMoney(curAov), `${breakdown(s=>ratio(s,'upfrontRevenue','closedDeals'), fmtMoney)}<br>${deltaSub(curAov, prevAov, fmtMoney)}`)}
@@ -2826,7 +2832,7 @@ function renderExecutiveMetric(){
     <div class="note">Tiles: exact sums for ${state.start} → ${state.end} vs the equivalent prior period (${prevStart} → ${prevEnd}), combined across Mid-Ticket + PG1 + Inbound${state.lob ? ` (narrowed to ${state.lob} via the LOB filter)` : ''} -- Team and Agent filters do apply.</div>
     <div class="section-title">Executive Advisor detail</div>
     <div class="scope-banner">Showing Team: <b>${state.team.length ? state.team.join(', ') : 'All Teams'}</b> · Division: <b>${state.lob || 'Mid-Ticket + PG1 + Inbound'}</b>${state.agent.length ? ` · Agent: <b>${agentLabel()}</b>` : ''}</div>
-    <div class="note">Exact sums for ${state.start} → ${state.end} -- Team, Division (LOB), and Agent filters all apply (picking an Agent narrows this to their own row(s) -- more than one if they show up under multiple Divisions). One row per (Division, Name). Scheduled Hrs/Tracked Hrs/Hrs Variance are from Hubstaff. Contribution Profit is Domo POS data (High Ticket intentionally excluded). Click a column header to sort.</div>
+    <div class="note">Exact sums for ${state.start} → ${state.end} -- Team, Division (LOB), and Agent filters all apply (picking an Agent narrows this to their own row(s) -- more than one if they show up under multiple Divisions). One row per (Division, Name). Scheduled Hrs/Tracked Hrs/Hrs Variance are from Hubstaff. Contribution Profit is Domo POS data (High Ticket intentionally excluded). Net Revenue is a separate, simpler Domo figure -- Gross − Refunded only, not a component of Contribution Profit. Click a column header to sort.</div>
     <div class="table-section"><table><thead id="tbl-execall-metric-head"></thead><tbody id="tbl-execall-metric-body"></tbody></table></div>
   `;
   if(!sortState['tbl-execall-metric']) sortState['tbl-execall-metric'] = {col:'upfrontRevenue', dir:-1};
@@ -2838,7 +2844,7 @@ function renderExecutiveMetric(){
   const gtScheduledHrs = sum(rows,'scheduledHrs'), gtTrackedHrs = sum(rows,'trackedHrs');
   const grandTotal = {
     lob:'', team:'', name:'Grand Total',
-    upfrontRevenue: gtUpfrontRevenue, cpTotal: sum(rows,'cpTotal'),
+    upfrontRevenue: gtUpfrontRevenue, netRevenue: sum(rows,'netRevenue'), cpTotal: sum(rows,'cpTotal'),
     pg1: sum(rows,'pg1'), pg1Trial: sum(rows,'pg1Trial'), pg1Upfront: sum(rows,'pg1Upfront'),
     clubs: sum(rows,'clubs'),
     aov: gtClosedDeals ? gtUpfrontRevenue/gtClosedDeals : 0,
@@ -2850,6 +2856,7 @@ function renderExecutiveMetric(){
   renderTable('tbl-execall-metric', rows, [
     {key:'lob', label:'Division'}, {key:'team', label:'Team'}, {key:'name', label:'Name'},
     {key:'upfrontRevenue', label:'Upfront Revenue', fmt:fmtMoney},
+    {key:'netRevenue', label:'Net Revenue', fmt:fmtMoney},
     {key:'cpTotal', label:'CP $ Total', fmt:fmtMoney},
     {key:'pg1', label:'PG1'},
     {key:'pg1Trial', label:'PG1 Trial'},

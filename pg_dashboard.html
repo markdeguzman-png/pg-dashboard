@@ -2465,15 +2465,15 @@ function phoneKpiTilesHtml(lob){
   const prevCpTotal = prev.cpPG1 + prev.cpPhysical + prev.cpDigitalOther + prev.cpSupplements;
   return `
     <div class="metrics-container">
-      ${kpiTile('Upfront Revenue', fmtMoney(cur.upfrontRevenue), deltaSub(cur.upfrontRevenue, prev.upfrontRevenue, fmtMoney))}
+      ${kpiTile('Contribution Profit', fmtMoney(curCpTotal), `PG1 ${fmtMoney(cur.cpPG1)} · Physical ${fmtMoney(cur.cpPhysical)} · Digital ${fmtMoney(cur.cpDigitalOther)} · Supp ${fmtMoney(cur.cpSupplements)}<br>${deltaSub(curCpTotal, prevCpTotal, fmtMoney)}`)}
       ${kpiTile('Net Revenue', fmtMoney(cur.netRevenue), deltaSub(cur.netRevenue, prev.netRevenue, fmtMoney))}
+      ${kpiTile('Upfront Revenue', fmtMoney(cur.upfrontRevenue), deltaSub(cur.upfrontRevenue, prev.upfrontRevenue, fmtMoney))}
       ${kpiTile('PG1', fmtInt(cur.pg1), `Trial ${fmtInt(cur.pg1Trial)} · Upfront ${fmtInt(cur.pg1Upfront)}<br>${deltaSub(cur.pg1, prev.pg1)}`)}
       ${kpiTile('Clubs', fmtInt(cur.clubs), deltaSub(cur.clubs, prev.clubs))}
       ${kpiTile('AOV $', fmtMoney(curAov), deltaSub(curAov, prevAov, fmtMoney))}
       ${kpiTile('Closed Deals', fmtInt(cur.closedDeals), deltaSub(cur.closedDeals, prev.closedDeals))}
       ${kpiTile('Connected Calls', fmtInt(cur.connectedCalls), deltaSub(cur.connectedCalls, prev.connectedCalls))}
       ${kpiTile('Close Rate %', fmtPct(curCloseRate), deltaSub(curCloseRate, prevCloseRate, fmtPct))}
-      ${kpiTile('Contribution Profit', fmtMoney(curCpTotal), `PG1 ${fmtMoney(cur.cpPG1)} · Physical ${fmtMoney(cur.cpPhysical)} · Digital ${fmtMoney(cur.cpDigitalOther)} · Supp ${fmtMoney(cur.cpSupplements)}<br>${deltaSub(curCpTotal, prevCpTotal, fmtMoney)}`)}
     </div>
   `;
 }
@@ -2501,6 +2501,7 @@ function phonePg1MetricSeries(fmt){
 }
 // The metrics charted as Monthly/Weekly/Daily trios on each Phone-sourced Trend View tab.
 const PHONE_CHART_METRICS = [
+  {id:'cp', key:'cpTotal', label:'Contribution Profit', fmt:fmtMoney},
   {id:'revenue', key:'upfrontRevenue', label:'Upfront Revenue', fmt:fmtMoney},
   {id:'pg1', key:'pg1', label:'PG1', fmt:fmtInt, breakdown:true},
   {id:'clubs', key:'clubs', label:'Clubs', fmt:fmtInt},
@@ -2514,8 +2515,8 @@ function renderPhoneTrend(cfg){
   p.innerHTML = `
     ${phoneKpiTilesHtml(lob)}
     <div class="note">Tiles: exact sums for ${state.start} → ${state.end} vs the equivalent prior period (${prevStart} → ${prevEnd}), computed from the Phone Team Sales Report's Schedule tab (Current LOB = ${lob}) -- Team and Agent filters do apply. Connected Calls are from Aloware call logs, matched by rep name/date, counting calls with ≥90 seconds talk time. AOV = Upfront Revenue ÷ Closed Deals. Close Rate = Closed Deals ÷ Connected Calls.</div>
-    <div class="section-title">Upfront Revenue, PG1, Clubs, Close Rate % — Monthly / Weekly / Daily</div>
-    <div class="note">These 9 charts are NOT affected by the Date Range filter above -- they always show the latest 3 months / 6 weeks / 30 days. Team and Agent filters do apply.</div>
+    <div class="section-title">Contribution Profit, Upfront Revenue, PG1, Clubs, Close Rate % — Monthly / Weekly / Daily</div>
+    <div class="note">These charts are NOT affected by the Date Range filter above -- they always show the latest 3 months / 6 weeks / 30 days. Team and Agent filters do apply.</div>
     ${PHONE_CHART_METRICS.map(m => { const legend = m.breakdown
         ? `<span><i style="background:var(--s-orange)"></i>Total</span><span><i style="background:var(--s-blue)"></i>Trial</span><span><i style="background:var(--s-aqua)"></i>Upfront</span>`
         : `<span><i style="background:var(--s-orange)"></i>${m.label}</span>`;
@@ -2556,6 +2557,8 @@ function renderPhoneTrend(cfg){
   if(!sortState['tbl-'+idPrefix+'-period']) sortState['tbl-'+idPrefix+'-period'] = {col:'date', dir:-1};
   renderTable('tbl-'+idPrefix+'-period', chartDaily, [
     {key:'date', label:'Date'},
+    {key:'cpTotal', label:'Contribution Profit', fmt:fmtMoney},
+    {key:'netRevenue', label:'Net Revenue', fmt:fmtMoney},
     {key:'upfrontRevenue', label:'Upfront Revenue', fmt:fmtMoney},
     {key:'pg1', label:'PG1'},
     {key:'pg1Trial', label:'PG1 Trial'},
@@ -2605,9 +2608,9 @@ function renderPhoneMetric(cfg){
   };
   renderTable('tbl-'+idPrefix+'-metric', rows, [
     {key:'team', label:'Team'}, {key:'name', label:'Name'},
-    {key:'upfrontRevenue', label:'Upfront Revenue', fmt:fmtMoney},
-    {key:'netRevenue', label:'Net Revenue', fmt:fmtMoney},
     {key:'cpTotal', label:'CP $ Total', fmt:fmtMoney},
+    {key:'netRevenue', label:'Net Revenue', fmt:fmtMoney},
+    {key:'upfrontRevenue', label:'Upfront Revenue', fmt:fmtMoney},
     {key:'pg1', label:'PG1'},
     {key:'pg1Trial', label:'PG1 Trial'},
     {key:'pg1Upfront', label:'PG1 Upfront'},
@@ -2675,15 +2678,15 @@ function executiveKpiTilesHtml(){
   const breakdown = (fn, fmt=fmtInt) => lobs.map(l => `${l} ${fmt(fn(curByLob[l]))}`).join(' · ');
   return `
     <div class="metrics-container">
-      ${kpiTile('Upfront Revenue', fmtMoney(cur.upfrontRevenue), `${breakdown(s=>s.upfrontRevenue, fmtMoney)}<br>${deltaSub(cur.upfrontRevenue, prev.upfrontRevenue, fmtMoney)}`)}
+      ${kpiTile('Contribution Profit', fmtMoney(curCp), `${breakdown(cpOf, fmtMoney)}<br>${deltaSub(curCp, prevCp, fmtMoney)}`)}
       ${kpiTile('Net Revenue', fmtMoney(cur.netRevenue), `${breakdown(s=>s.netRevenue, fmtMoney)}<br>${deltaSub(cur.netRevenue, prev.netRevenue, fmtMoney)}`)}
+      ${kpiTile('Upfront Revenue', fmtMoney(cur.upfrontRevenue), `${breakdown(s=>s.upfrontRevenue, fmtMoney)}<br>${deltaSub(cur.upfrontRevenue, prev.upfrontRevenue, fmtMoney)}`)}
       ${kpiTile('PG1', fmtInt(cur.pg1), `${breakdown(s=>s.pg1)}<br>${deltaSub(cur.pg1, prev.pg1)}`)}
       ${kpiTile('Clubs', fmtInt(cur.clubs), `${breakdown(s=>s.clubs)}<br>${deltaSub(cur.clubs, prev.clubs)}`)}
       ${kpiTile('AOV $', fmtMoney(curAov), `${breakdown(s=>ratio(s,'upfrontRevenue','closedDeals'), fmtMoney)}<br>${deltaSub(curAov, prevAov, fmtMoney)}`)}
       ${kpiTile('Closed Deals', fmtInt(cur.closedDeals), `${breakdown(s=>s.closedDeals)}<br>${deltaSub(cur.closedDeals, prev.closedDeals)}`)}
       ${kpiTile('Connected Calls', fmtInt(cur.connectedCalls), `${breakdown(s=>s.connectedCalls)}<br>${deltaSub(cur.connectedCalls, prev.connectedCalls)}`)}
       ${kpiTile('Close Rate %', fmtPct(curCloseRate), `${breakdown(s=>ratio(s,'closedDeals','connectedCalls')*100, fmtPct)}<br>${deltaSub(curCloseRate, prevCloseRate, fmtPct)}`)}
-      ${kpiTile('Contribution Profit', fmtMoney(curCp), `${breakdown(cpOf, fmtMoney)}<br>${deltaSub(curCp, prevCp, fmtMoney)}`)}
     </div>
   `;
 }
@@ -2743,11 +2746,11 @@ function executiveMetricSeries(baseKey, fmt, lobs){
   return series;
 }
 const EXECUTIVE_CHART_METRICS = [
+  {id:'cp', key:'cpTotal', label:'Contribution Profit', fmt:fmtMoney},
   {id:'revenue', key:'upfrontRevenue', label:'Upfront Revenue', fmt:fmtMoney},
   {id:'pg1', key:'pg1', label:'PG1', fmt:fmtInt},
   {id:'clubs', key:'clubs', label:'Clubs', fmt:fmtInt},
   {id:'closerate', key:'closeRate', label:'Close Rate %', fmt:fmtPct},
-  {id:'cp', key:'cpTotal', label:'Contribution Profit', fmt:fmtMoney},
 ];
 function renderExecutiveTrend(){
   const p = document.getElementById('panel-13');
@@ -2756,7 +2759,7 @@ function renderExecutiveTrend(){
   p.innerHTML = `
     ${executiveKpiTilesHtml()}
     <div class="note">Tiles: exact sums for ${state.start} → ${state.end} vs the equivalent prior period (${prevStart} → ${prevEnd}), combined across Mid-Ticket + PG1 + Inbound${state.lob ? ` (narrowed to ${state.lob} via the LOB filter)` : ''} -- Team and Agent filters do apply. Connected Calls are from Aloware call logs, matched by rep name/date, counting calls with ≥90 seconds talk time. AOV = Upfront Revenue ÷ Closed Deals. Close Rate = Closed Deals ÷ Connected Calls. Contribution Profit is Domo POS data (PG1/Physical/Digital/Supplements combined; High Ticket is intentionally excluded).</div>
-    <div class="section-title">Upfront Revenue, PG1, Clubs, Close Rate %, Contribution Profit — Total + Division Breakdown — Monthly / Weekly / Daily</div>
+    <div class="section-title">Contribution Profit, Upfront Revenue, PG1, Clubs, Close Rate % — Total + Division Breakdown — Monthly / Weekly / Daily</div>
     <div class="note">These charts are NOT affected by the Date Range filter above -- they always show the latest 3 months / 6 weeks / 30 days. Team and Agent filters do apply.</div>
     ${EXECUTIVE_CHART_METRICS.map(m => {
       const legend = `<span><i style="background:var(--s-orange)"></i>Total</span>` + lobs.map(l=>`<span><i style="background:var(${EXEC_LOB_COLOR[l]})"></i>${l}</span>`).join('');
@@ -2797,13 +2800,14 @@ function renderExecutiveTrend(){
   if(!sortState['tbl-execall-period']) sortState['tbl-execall-period'] = {col:'date', dir:-1};
   renderTable('tbl-execall-period', chartDaily, [
     {key:'date', label:'Date'},
+    {key:'cpTotal', label:'Contribution Profit', fmt:fmtMoney},
+    {key:'netRevenue', label:'Net Revenue', fmt:fmtMoney},
     {key:'upfrontRevenue', label:'Upfront Revenue', fmt:fmtMoney},
     {key:'pg1', label:'PG1'},
     {key:'clubs', label:'Clubs'},
     {key:'closedDeals', label:'Closed Deals'},
     {key:'connectedCalls', label:'Connected Calls'},
     {key:'closeRate', label:'Close Rate %', fmt:fmtPct},
-    {key:'cpTotal', label:'Contribution Profit', fmt:fmtMoney},
   ]);
 }
 // One row per (Division, Name) -- the extra Division dimension (vs the 3 individual tabs' plain
@@ -2855,9 +2859,9 @@ function renderExecutiveMetric(){
   };
   renderTable('tbl-execall-metric', rows, [
     {key:'lob', label:'Division'}, {key:'team', label:'Team'}, {key:'name', label:'Name'},
-    {key:'upfrontRevenue', label:'Upfront Revenue', fmt:fmtMoney},
-    {key:'netRevenue', label:'Net Revenue', fmt:fmtMoney},
     {key:'cpTotal', label:'CP $ Total', fmt:fmtMoney},
+    {key:'netRevenue', label:'Net Revenue', fmt:fmtMoney},
+    {key:'upfrontRevenue', label:'Upfront Revenue', fmt:fmtMoney},
     {key:'pg1', label:'PG1'},
     {key:'pg1Trial', label:'PG1 Trial'},
     {key:'pg1Upfront', label:'PG1 Upfront'},

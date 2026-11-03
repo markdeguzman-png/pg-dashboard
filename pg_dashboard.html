@@ -51,6 +51,14 @@
   .header p{ font-size:13px; color:var(--gray); text-transform:uppercase; letter-spacing:1px; }
   .header .asof{ font-size:12px; color:var(--light-gray); text-align:right; }
   .header .asof b{ color:var(--white); }
+  .freshness{ margin-top:6px; font-size:11px; }
+  .freshness summary{ cursor:pointer; color:var(--light-gray); text-decoration:underline dotted; list-style:none; }
+  .freshness summary::-webkit-details-marker{ display:none; }
+  .freshness table{ margin-top:6px; margin-left:auto; border-collapse:collapse; text-align:left; }
+  .freshness td{ padding:2px 0 2px 14px; white-space:nowrap; }
+  .freshness td:first-child{ color:var(--light-gray); padding-left:0; }
+  .freshness td:last-child{ color:var(--white); }
+  .freshness .grp td{ padding-top:8px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--light-gray); }
 
   .filters{
     background:var(--panel);
@@ -310,6 +318,7 @@
       <p>Operations Dashboard</p>
     </div>
     <div class="asof">Source data as of <b id="asofLabel">—</b><br>Data updated <span id="dataUpdatedHeader">—</span>
+      <details class="freshness"><summary>All data timestamps</summary><table id="freshnessTable"></table></details>
       <br><div class="theme-toggle" id="themeToggle"><button data-t="dark">DARK</button><button data-t="light">LIGHT</button></div>
     </div>
   </div>
@@ -389,6 +398,10 @@ const ASOF = (() => {
 // When RAW_SCHED/TREND_* were actually pulled from Sched_Snapshot (its Drive modifiedTime at pull
 // time) -- a fixed historical fact, not something to recompute live. Update this ISO string each
 // time the embedded data is refreshed from a new pull. Displayed in EDT for consistency with ASOF.
+// Per-source freshness, spliced by phoneScheduleRefresh.gs (buildSourceTimes_) -- ISO strings are real
+// clock times, *Date fields are the latest DATA date a source holds. Must stay ONE line (the splice
+// regex matches a single line). null = not reported yet / not available.
+const DATA_SOURCE_TIMES = {"publishedAt":null,"scheduleLatestDate":null,"alowareLatestDate":null,"hubstaffLatestDate":null,"domoExportedAt":null,"domoDatasetRefreshedAt":null,"domoLatestTxnDate":null};
 const DATA_UPDATED_AT_ISO = "2026-11-03T21:35:21.682Z";
 const DATA_UPDATED_AT = new Intl.DateTimeFormat('en-US', {
   timeZone: 'America/New_York', dateStyle: 'medium', timeStyle: 'short'
@@ -1945,6 +1958,28 @@ function buildTabBar(){
   document.getElementById('panel-'+indices[0]).classList.add('active');
 }
 
+function renderFreshness(){
+  const el = document.getElementById('freshnessTable');
+  if(!el) return;
+  const fmtTs = iso => iso ? new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',dateStyle:'medium',timeStyle:'short'}).format(new Date(iso))+' ET' : '—';
+  const fmtDay = d => d || '—';
+  const t = DATA_SOURCE_TIMES;
+  const rows = [
+    ['grp','Phone tabs (Executive / Mid-Ticket / PG1 / Inbound)'],
+    ['Last published', fmtTs(t.publishedAt)],
+    ['Schedule sales through', fmtDay(t.scheduleLatestDate)],
+    ['Aloware calls through', fmtDay(t.alowareLatestDate)],
+    ['Hubstaff hours through', fmtDay(t.hubstaffLatestDate)],
+    ['grp','Domo (Contribution Profit, Net Revenue)'],
+    ['Domo dataset last refreshed', fmtTs(t.domoDatasetRefreshedAt)],
+    ['Export to Drive last written', fmtTs(t.domoExportedAt)],
+    ['Transactions through', fmtDay(t.domoLatestTxnDate)],
+    ['grp','Setter / Closer'],
+    ['Sched data through', fmtDay(typeof RAW_SCHED_MAX_DATE!=='undefined' ? RAW_SCHED_MAX_DATE : null)],
+  ];
+  el.innerHTML = rows.map(r => r[0]==='grp' ? `<tr class="grp"><td colspan="2">${r[1]}</td></tr>` : `<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('');
+}
+
 function renderAll(){
   const t = trendForRange();
   document.getElementById('granNote').textContent = t.noDataYet
@@ -1956,6 +1991,7 @@ function renderAll(){
       : ' — falling back to a broader bucket for this range.');
   document.getElementById('dataUpdatedFooter').textContent = DATA_UPDATED_AT;
   document.getElementById('dataUpdatedHeader').textContent = DATA_UPDATED_AT;
+  renderFreshness();
 
   renderExecSummary(t);
   renderASRDailyMetric();

@@ -320,6 +320,36 @@ function domoPublishContributionProfitRollup_(authHeader, datasetId, rootFolder,
   var currentRows = domoBuildContributionProfitRollupRows_(currentResult);
   domoWriteContributionProfitCsv_(cpRoot, 'Contribution Profit Rollup - ' + currentMonth + '.csv', currentRows);
   Logger.log('Domo Contribution Profit: refreshed current month ' + currentMonth + ' -- ' + currentRows.length + ' (rep, date, group) rows from ' + currentResult.rows.length + ' transaction lines.');
+  domoWriteFreshnessMeta_(authHeader, datasetId, cpRoot);
+}
+
+// Writes domo_meta.json next to the rollup CSVs so phoneScheduleRefresh.gs can show Domo's own
+// freshness on the dashboard (added 2026-11-04): when THIS export ran (writtenAt) and when Domo says
+// the dataset itself last refreshed. Domo's GET /v1/datasets/{id} returns updatedAt (metadata/data
+// change) and, on newer API versions, dataCurrentAt (last data refresh) -- the raw field names are
+// logged so the Execution log shows which this account actually returns; dataCurrentAt wins when
+// present since updatedAt can also move on a schema edit. Non-fatal: a failure here must never break
+// the rollup export itself.
+function domoWriteFreshnessMeta_(authHeader, datasetId, cpRoot) {
+  var meta = { writtenAt: new Date().toISOString(), datasetRefreshedAt: null, datasetField: null, datasetRows: null };
+  try {
+    var resp = UrlFetchApp.fetch(DOMO_API_BASE + '/v1/datasets/' + datasetId, { headers: { Authorization: authHeader }, muteHttpExceptions: true });
+    if (resp.getResponseCode() === 200) {
+      var body = JSON.parse(resp.getContentText());
+      Logger.log('Domo dataset metadata timestamps: ' + JSON.stringify({ dataCurrentAt: body.dataCurrentAt, updatedAt: body.updatedAt, createdAt: body.createdAt, rows: body.rows }));
+      if (body.dataCurrentAt) { meta.datasetRefreshedAt = body.dataCurrentAt; meta.datasetField = 'dataCurrentAt'; }
+      else if (body.updatedAt) { meta.datasetRefreshedAt = body.updatedAt; meta.datasetField = 'updatedAt'; }
+      meta.datasetRows = body.rows || null;
+    } else {
+      Logger.log('Domo dataset metadata fetch failed (' + resp.getResponseCode() + '): ' + resp.getContentText());
+    }
+  } catch (e) {
+    Logger.log('Domo dataset metadata fetch failed (non-fatal): ' + e);
+  }
+  var content = JSON.stringify(meta);
+  var existing = cpRoot.getFilesByName('domo_meta.json');
+  if (existing.hasNext()) existing.next().setContent(content);
+  else cpRoot.createFile('domo_meta.json', content, MimeType.PLAIN_TEXT);
 }
 
 // One-off: upgrades already-finalized PAST months' rollup CSVs to carry the netRevenue column

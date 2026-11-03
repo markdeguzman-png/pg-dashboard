@@ -166,11 +166,12 @@ function phoneRefreshAndPublish() {
   if (!rawRows.length) { Logger.log('No rows produced; aborting.'); return; }
 
   var nowIso = new Date().toISOString();
+  var sourceTimes = buildSourceTimes_(scheduleRows, connectedByNameDate, trackedHoursByNameDate, contribProfitByNameDateGroup.meta, nowIso);
   var htmlResp = UrlFetchApp.fetch(PHONE_RAW_URL, { muteHttpExceptions: true });
   if (htmlResp.getResponseCode() !== 200) {
     throw new Error('Could not fetch current dashboard HTML from GitHub: ' + htmlResp.getResponseCode());
   }
-  var result = splicePhoneHtml_(htmlResp.getContentText(), rawRows, nowIso);
+  var result = splicePhoneHtml_(htmlResp.getContentText(), rawRows, nowIso, sourceTimes);
   if (result === null) { Logger.log('No change in underlying Phone/Aloware data; skipping publish.'); return; }
 
   publishPhoneToGitHub_(result.content, rawRows);
@@ -672,11 +673,15 @@ function domoReadContributionProfitByNameDateGroup_() {
     Logger.log('Domo Contribution Profit: "' + DOMO_CP_SUBFOLDER_NAME + '" subfolder not found yet -- skipping (needs domoMultiPosExport.gs to have run at least once).');
     return { cp: cp, net: net };
   }
-  var files = subIt.next().getFiles();
+  var folder = subIt.next();
+  var files = folder.getFiles();
   var fileCount = 0, rowCount = 0, filesWithoutNet = 0;
+  var latestDate = '', newestFileMs = 0;
   while (files.hasNext()) {
     var f = files.next();
+    if (!/\.csv$/i.test(f.getName())) continue; // domo_meta.json lives here too
     fileCount++;
+    if (f.getLastUpdated().getTime() > newestFileMs) newestFileMs = f.getLastUpdated().getTime();
     var rows = Utilities.parseCsv(f.getBlob().getDataAsString());
     if (!rows.length) continue;
     var headers = rows[0];
@@ -693,6 +698,7 @@ function domoReadContributionProfitByNameDateGroup_() {
       var name = r[nameIdx];
       if (!name) continue;
       var key = phoneNormalizeName_(name) + '|' + r[dateIdx] + '|' + r[groupIdx];
+      if (r[dateIdx] > latestDate) latestDate = r[dateIdx];
       cp[key] = (cp[key] || 0) + (Number(r[cpIdx]) || 0);
       if (netIdx > -1) net[key] = (net[key] || 0) + (Number(r[netIdx]) || 0);
       rowCount++;
@@ -700,7 +706,18 @@ function domoReadContributionProfitByNameDateGroup_() {
   }
   Logger.log('Domo Contribution Profit: read ' + rowCount + ' (rep, date, group) rows from ' + fileCount + ' rollup file(s)'
     + (filesWithoutNet ? ' (' + filesWithoutNet + ' file(s) predate Net Revenue -- run domoForceRewriteRollupWithNetRevenue to backfill)' : '') + '.');
-  return { cp: cp, net: net };
+  var meta = { latestTxnDate: latestDate || null, exportedAt: null, datasetRefreshedAt: null, datasetField: null };
+  var metaIt = folder.getFilesByName('domo_meta.json');
+  if (metaIt.hasNext()) {
+    try {
+      var m = JSON.parse(metaIt.next().getBlob().getDataAsString());
+      meta.exportedAt = m.writtenAt || null;
+      meta.datasetRefreshedAt = m.datasetRefreshedAt || null;
+      meta.datasetField = m.datasetField || null;
+    } catch (e) { Logger.log('domo_meta.json unreadable (non-fatal): ' + e); }
+  }
+  if (!meta.exportedAt && newestFileMs) meta.exportedAt = new Date(newestFileMs).toISOString();
+  return { cp: cp, net: net, meta: meta };
 }
 
 // ---- Domo name aliases (user-maintained "names_lookup" tab in the same spreadsheet) ----
@@ -743,6 +760,34 @@ function buildDomoAliasKeysByName_(ss) {
   return map;
 }
 
+// ---- Per-source data timestamps shown in the dashboard header's "All data timestamps" panel ----
+// Added 2026-11-04. Each entry is either a real clock time (ISO, shown in ET) or the latest DATA
+// date a source actually contains -- the second kind is what answers "is this source current?",
+// since a pipeline can run on time and still be handed stale data. Schedule's latest date only
+// counts rows with real sales activity, not merely scheduled shifts (Schedule carries future-dated
+// shifts, which would otherwise make it look current when it isn't).
+function buildSourceTimes_(scheduleRows, connectedByNameDate, trackedHoursByNameDate, domoMeta, nowIso) {
+  var maxDateOfKeys = function (obj) {
+    var best = '';
+    Object.keys(obj || {}).forEach(function (k) { var d = k.split('|')[1]; if (d && d > best) best = d; });
+    return best || null;
+  };
+  var schedLatest = '';
+  scheduleRows.forEach(function (r) {
+    if ((r.upfrontRevenue || r.closedDeals || r.clubs || r.pg1) && r.date > schedLatest) schedLatest = r.date;
+  });
+  domoMeta = domoMeta || {};
+  return {
+    publishedAt: nowIso,
+    scheduleLatestDate: schedLatest || null,
+    alowareLatestDate: maxDateOfKeys(connectedByNameDate),
+    hubstaffLatestDate: maxDateOfKeys(trackedHoursByNameDate),
+    domoExportedAt: domoMeta.exportedAt || null,
+    domoDatasetRefreshedAt: domoMeta.datasetRefreshedAt || null,
+    domoLatestTxnDate: domoMeta.latestTxnDate || null
+  };
+}
+
 // ---- Splice PHONE_RAW into the dashboard HTML (own const, never touches RAW_SCHED/TREND_*) ----
 function phoneMd5Hex_(s) {
   return Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, s)
@@ -760,9 +805,15 @@ function phoneReplaceOnce_(str, regex, replacement, insertFallback) {
   return str.replace('// ===== end inlined data =====', replacement + '\n// ===== end inlined data =====');
 }
 
-function splicePhoneHtml_(html, rawRows, nowIso) {
+function splicePhoneHtml_(html, rawRows, nowIso, sourceTimes) {
   var rawJs = JSON.stringify(rawRows);
-  var digest = phoneMd5Hex_(rawJs);
+  // The digest covers PHONE_RAW plus the per-source DATA dates and Domo's own dataset-refresh time,
+  // but deliberately NOT the run clock times (publishedAt, domoExportedAt) -- those move every hourly
+  // run even when nothing changed, which would otherwise force a GitHub commit + Vercel deploy every
+  // hour. Trade-off: those two show the last publish where data actually changed, not the last
+  // no-op run; the data-date rows are what say whether a source is current.
+  var stable = {}; for (var k in sourceTimes) { if (k !== 'publishedAt' && k !== 'domoExportedAt') stable[k] = sourceTimes[k]; }
+  var digest = phoneMd5Hex_(rawJs + JSON.stringify(stable));
   if (PropertiesService.getScriptProperties().getProperty('PHONE_LAST_DATA_DIGEST') === digest) return null;
 
   // PHONE_RAW row shape: [name, team, lob, date, clubs, pg1, upfrontRevenue, closedDeals,
@@ -789,6 +840,9 @@ function splicePhoneHtml_(html, rawRows, nowIso) {
   // Keep the dashboard's global "Data updated" banner honest for this pipeline too -- it was
   // previously only ever touched by claudeRefreshAndPublish.gs's spliceHtml_, so a Phone-only
   // refresh (Sched pipeline not having run) left the banner showing a stale, unrelated timestamp.
+  // Single-line const so a plain non-greedy line match can never run past it. Seeded in the
+  // dashboard HTML itself, so this is a replace, not a first-run insert.
+  out = phoneReplaceOnce_(out, /const DATA_SOURCE_TIMES = \{[^\n]*\};/, 'const DATA_SOURCE_TIMES = ' + JSON.stringify(sourceTimes) + ';', false);
   out = phoneReplaceOnce_(out, /const DATA_UPDATED_AT_ISO = "[^"]*";/, 'const DATA_UPDATED_AT_ISO = "' + nowIso + '";', false);
   return { content: out, digest: digest };
 }

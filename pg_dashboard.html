@@ -1826,6 +1826,12 @@ function renderTable(tableId, rows, cols, opts){
   if(opts.footerRow){
     tbody.innerHTML += `<tr class="subtotal">` + cols.map(c=> `<td${c.sticky?' class="sticky-col"':''}>${c.fmt ? c.fmt(opts.footerRow[c.key], opts.footerRow) : (opts.footerRow[c.key] ?? '')}</td>`).join('') + '</tr>';
   }
+  // Same idea as footerRow but pinned at the TOP (first row right below the header) instead of the
+  // bottom -- prepended straight into the DOM, never part of the `sorted` array, so a sort click
+  // can't shuffle it down into the data either.
+  if(opts.leadRow){
+    tbody.innerHTML = `<tr class="subtotal">` + cols.map(c=> `<td${c.sticky?' class="sticky-col"':''}>${c.fmt ? c.fmt(opts.leadRow[c.key], opts.leadRow) : (opts.leadRow[c.key] ?? '')}</td>`).join('') + '</tr>' + tbody.innerHTML;
+  }
 
   // Frozen columns: left-offset uses each column's declared `width` (c.width, default 130px),
   // NOT a measured getBoundingClientRect() -- this dashboard pre-renders every tab's table while
@@ -2576,6 +2582,23 @@ function renderPhoneMetric(cfg){
     <div class="table-section"><table><thead id="tbl-${idPrefix}-metric-head"></thead><tbody id="tbl-${idPrefix}-metric-body"></tbody></table></div>
   `;
   if(!sortState['tbl-'+idPrefix+'-metric']) sortState['tbl-'+idPrefix+'-metric'] = {col:'upfrontRevenue', dir:-1};
+  // Grand Total: ratio fields (AOV, Close Rate, Hrs Variance) recomputed as true ratios/differences
+  // of the summed raw components -- not an average of each rep's own ratio, which would misweight
+  // reps with very different volumes (same approach the BR % per Call Source table's Grand Total
+  // uses).
+  const gtUpfrontRevenue = sum(rows,'upfrontRevenue'), gtClosedDeals = sum(rows,'closedDeals'), gtConnectedCalls = sum(rows,'connectedCalls');
+  const gtScheduledHrs = sum(rows,'scheduledHrs'), gtTrackedHrs = sum(rows,'trackedHrs');
+  const grandTotal = {
+    team:'', name:'Grand Total',
+    upfrontRevenue: gtUpfrontRevenue, cpTotal: sum(rows,'cpTotal'),
+    pg1: sum(rows,'pg1'), pg1Trial: sum(rows,'pg1Trial'), pg1Upfront: sum(rows,'pg1Upfront'),
+    clubs: sum(rows,'clubs'),
+    aov: gtClosedDeals ? gtUpfrontRevenue/gtClosedDeals : 0,
+    closedDeals: gtClosedDeals, connectedCalls: gtConnectedCalls,
+    closeRate: gtConnectedCalls ? gtClosedDeals/gtConnectedCalls*100 : 0,
+    scheduledHrs: gtScheduledHrs, trackedHrs: gtTrackedHrs, hoursVariance: gtTrackedHrs - gtScheduledHrs,
+    cpPG1: sum(rows,'cpPG1'), cpPhysical: sum(rows,'cpPhysical'), cpDigitalOther: sum(rows,'cpDigitalOther'), cpSupplements: sum(rows,'cpSupplements'),
+  };
   renderTable('tbl-'+idPrefix+'-metric', rows, [
     {key:'team', label:'Team'}, {key:'name', label:'Name'},
     {key:'upfrontRevenue', label:'Upfront Revenue', fmt:fmtMoney},
@@ -2595,7 +2618,7 @@ function renderPhoneMetric(cfg){
     {key:'cpPhysical', label:'CP $ Physical', fmt:fmtMoney},
     {key:'cpDigitalOther', label:'CP $ Digital', fmt:fmtMoney},
     {key:'cpSupplements', label:'CP $ Supplements', fmt:fmtMoney},
-  ]);
+  ], { leadRow: grandTotal });
 }
 
 // ============================================================================
@@ -2807,6 +2830,23 @@ function renderExecutiveMetric(){
     <div class="table-section"><table><thead id="tbl-execall-metric-head"></thead><tbody id="tbl-execall-metric-body"></tbody></table></div>
   `;
   if(!sortState['tbl-execall-metric']) sortState['tbl-execall-metric'] = {col:'upfrontRevenue', dir:-1};
+  // Grand Total: ratio fields (AOV, Close Rate, Hrs Variance) recomputed as true ratios/differences
+  // of the summed raw components -- not an average of each row's own ratio, which would misweight
+  // rows with very different volumes (same approach the BR % per Call Source table's Grand Total
+  // uses).
+  const gtUpfrontRevenue = sum(rows,'upfrontRevenue'), gtClosedDeals = sum(rows,'closedDeals'), gtConnectedCalls = sum(rows,'connectedCalls');
+  const gtScheduledHrs = sum(rows,'scheduledHrs'), gtTrackedHrs = sum(rows,'trackedHrs');
+  const grandTotal = {
+    lob:'', team:'', name:'Grand Total',
+    upfrontRevenue: gtUpfrontRevenue, cpTotal: sum(rows,'cpTotal'),
+    pg1: sum(rows,'pg1'), pg1Trial: sum(rows,'pg1Trial'), pg1Upfront: sum(rows,'pg1Upfront'),
+    clubs: sum(rows,'clubs'),
+    aov: gtClosedDeals ? gtUpfrontRevenue/gtClosedDeals : 0,
+    closedDeals: gtClosedDeals, connectedCalls: gtConnectedCalls,
+    closeRate: gtConnectedCalls ? gtClosedDeals/gtConnectedCalls*100 : 0,
+    scheduledHrs: gtScheduledHrs, trackedHrs: gtTrackedHrs, hoursVariance: gtTrackedHrs - gtScheduledHrs,
+    cpPG1: sum(rows,'cpPG1'), cpPhysical: sum(rows,'cpPhysical'), cpDigitalOther: sum(rows,'cpDigitalOther'), cpSupplements: sum(rows,'cpSupplements'),
+  };
   renderTable('tbl-execall-metric', rows, [
     {key:'lob', label:'Division'}, {key:'team', label:'Team'}, {key:'name', label:'Name'},
     {key:'upfrontRevenue', label:'Upfront Revenue', fmt:fmtMoney},
@@ -2826,7 +2866,7 @@ function renderExecutiveMetric(){
     {key:'cpPhysical', label:'CP $ Physical', fmt:fmtMoney},
     {key:'cpDigitalOther', label:'CP $ Digital', fmt:fmtMoney},
     {key:'cpSupplements', label:'CP $ Supplements', fmt:fmtMoney},
-  ]);
+  ], { leadRow: grandTotal });
 }
 
 function renderMidTicketTrend(){ renderPhoneTrend({panelId:'panel-7', lob:'Mid-Ticket', idPrefix:'midticket', tabLabel:'Mid-Ticket'}); }

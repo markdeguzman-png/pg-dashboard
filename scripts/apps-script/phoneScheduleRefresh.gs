@@ -167,7 +167,14 @@ function phoneRefreshAndPublish() {
 
   var nowIso = new Date().toISOString();
   var sourceTimes = buildSourceTimes_(scheduleRows, connectedByNameDate, trackedHoursByNameDate, contribProfitByNameDateGroup.meta, nowIso);
-  var htmlResp = UrlFetchApp.fetch(PHONE_RAW_URL, { muteHttpExceptions: true });
+  // Read the current HTML through the GitHub contents API, NOT raw.githubusercontent.com: the raw
+  // CDN caches for a few minutes, and splicing into a stale copy then committing the whole file
+  // silently reverts whatever landed in between (seen 2026-11-04: a second publish 20s after the
+  // first reset DATA_SOURCE_TIMES to null). The API read is uncached.
+  var htmlResp = UrlFetchApp.fetch('https://api.github.com/repos/' + PHONE_GITHUB_OWNER + '/' + PHONE_GITHUB_REPO +
+    '/contents/' + PHONE_DASHBOARD_PATH + '?ref=' + PHONE_GITHUB_BRANCH, {
+    headers: { Authorization: 'Bearer ' + PropertiesService.getScriptProperties().getProperty('GITHUB_PAT'), Accept: 'application/vnd.github.raw+json', 'X-GitHub-Api-Version': '2022-11-28' },
+    muteHttpExceptions: true });
   if (htmlResp.getResponseCode() !== 200) {
     throw new Error('Could not fetch current dashboard HTML from GitHub: ' + htmlResp.getResponseCode());
   }
@@ -769,7 +776,9 @@ function buildDomoAliasKeysByName_(ss) {
 function buildSourceTimes_(scheduleRows, connectedByNameDate, trackedHoursByNameDate, domoMeta, nowIso) {
   var maxDateOfKeys = function (obj) {
     var best = '';
-    Object.keys(obj || {}).forEach(function (k) { var d = k.split('|')[1]; if (d && d > best) best = d; });
+    // ISO dates only: an Aloware row whose "Started At" isn't ISO (seen: "9/9/2026 9...") would
+    // otherwise win the string comparison and show up as the "latest" date.
+    Object.keys(obj || {}).forEach(function (k) { var d = k.split('|')[1]; if (d && /^\d{4}-\d{2}-\d{2}$/.test(d) && d > best) best = d; });
     return best || null;
   };
   var schedLatest = '';

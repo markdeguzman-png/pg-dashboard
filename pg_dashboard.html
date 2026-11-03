@@ -2579,6 +2579,7 @@ function renderPhoneMetric(cfg){
   renderTable('tbl-'+idPrefix+'-metric', rows, [
     {key:'team', label:'Team'}, {key:'name', label:'Name'},
     {key:'upfrontRevenue', label:'Upfront Revenue', fmt:fmtMoney},
+    {key:'cpTotal', label:'CP $ Total', fmt:fmtMoney},
     {key:'pg1', label:'PG1'},
     {key:'pg1Trial', label:'PG1 Trial'},
     {key:'pg1Upfront', label:'PG1 Upfront'},
@@ -2594,7 +2595,6 @@ function renderPhoneMetric(cfg){
     {key:'cpPhysical', label:'CP $ Physical', fmt:fmtMoney},
     {key:'cpDigitalOther', label:'CP $ Digital', fmt:fmtMoney},
     {key:'cpSupplements', label:'CP $ Supplements', fmt:fmtMoney},
-    {key:'cpTotal', label:'CP $ Total', fmt:fmtMoney},
   ]);
 }
 
@@ -2810,6 +2810,7 @@ function renderExecutiveMetric(){
   renderTable('tbl-execall-metric', rows, [
     {key:'lob', label:'Division'}, {key:'team', label:'Team'}, {key:'name', label:'Name'},
     {key:'upfrontRevenue', label:'Upfront Revenue', fmt:fmtMoney},
+    {key:'cpTotal', label:'CP $ Total', fmt:fmtMoney},
     {key:'pg1', label:'PG1'},
     {key:'pg1Trial', label:'PG1 Trial'},
     {key:'pg1Upfront', label:'PG1 Upfront'},
@@ -2825,7 +2826,6 @@ function renderExecutiveMetric(){
     {key:'cpPhysical', label:'CP $ Physical', fmt:fmtMoney},
     {key:'cpDigitalOther', label:'CP $ Digital', fmt:fmtMoney},
     {key:'cpSupplements', label:'CP $ Supplements', fmt:fmtMoney},
-    {key:'cpTotal', label:'CP $ Total', fmt:fmtMoney},
   ]);
 }
 

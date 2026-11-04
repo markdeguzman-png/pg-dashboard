@@ -163,11 +163,11 @@
   .note{ font-size:11px; color:var(--gray); margin-bottom:14px; font-style:italic; }
   /* CP $ on Focus: ranked pace list */
   .cpf-wrap{ overflow-x:auto; }
-  .cpf-list{ min-width:680px; }
+  .cpf-list{ min-width:800px; }
   .cpf-head{ display:flex; justify-content:space-between; align-items:baseline; margin:4px 2px 12px; gap:12px; flex-wrap:wrap; }
   .cpf-head .cpf-sub{ font-size:13px; color:var(--gray); }
   .cpf-head .cpf-through{ font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; letter-spacing:1.5px; color:var(--gray); text-transform:uppercase; }
-  .cpf-row{ display:grid; grid-template-columns:64px minmax(150px,1.3fr) minmax(110px,1fr) 110px 120px 104px; align-items:center; column-gap:12px; padding:0 14px 0 0; }
+  .cpf-row{ display:grid; grid-template-columns:64px minmax(150px,1.3fr) minmax(110px,1fr) 104px 112px 112px 104px; align-items:center; column-gap:12px; padding:0 14px 0 0; }
   .cpf-cols{ font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11px; letter-spacing:1.2px; color:var(--gray); text-transform:uppercase; padding-bottom:8px; }
   .cpf-cols .r, .cpf-card .r{ text-align:right; }
   .cpf-card{ position:relative; background:var(--panel); border:1px solid var(--line); border-radius:10px; margin-bottom:8px; min-height:56px; }
@@ -176,7 +176,7 @@
   .cpf-medal{ width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; color:#4a3a14; background:var(--cpf-medal); box-shadow:inset 0 0 0 3px rgba(255,255,255,0.35); }
   .cpf-name{ font-size:15px; color:var(--white); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   /* CP $ on Focus: team progress table + roster footer */
-  .cpf-trow{ display:grid; grid-template-columns:minmax(120px,1fr) 52px 96px 104px 104px 92px minmax(200px,1.7fr); align-items:center; column-gap:12px; padding:12px 14px; }
+  .cpf-trow{ display:grid; grid-template-columns:minmax(120px,1fr) 52px 96px 104px 112px 112px 92px minmax(200px,1.7fr); align-items:center; column-gap:12px; padding:12px 14px; }
   .cpf-trow.cpf-cols{ padding:0 14px 8px; }
   .cpf-trow.total{ border-color:var(--orange); }
   .cpf-trow .cpf-tname{ font-size:15px; font-weight:700; color:var(--white); }
@@ -3043,7 +3043,7 @@ function cpFocusData(){
     if(o) phoneAddRawRow(o, r);
   });
   const reps = Array.from(current.values()).map(phoneWithDerived);
-  reps.forEach(r=>{ r.pace = r.expected > 0 ? (r.cpTotal / r.expected - 1) * 100 : null; });
+  reps.forEach(r=>{ r.pace = r.expected > 0 ? (r.cpTotal / r.expected - 1) * 100 : null; r.projected = r.expected > 0 ? r.cpTotal * r.target / r.expected : null; });
   reps.sort((a,b)=>{
     if(a.pace == null && b.pace == null) return b.cpTotal - a.cpTotal;
     if(a.pace == null) return 1;
@@ -3064,7 +3064,8 @@ function cpFocusData(){
   });
   removed.sort((a,b)=>a.lastDate < b.lastDate ? -1 : a.lastDate > b.lastDate ? 1 : a.name.localeCompare(b.name));
   return {monthKey, monthStart, dim, elapsed, through, asOf, reps, joiners, removed, teamActual, teamExpected,
-          teamPace: teamExpected > 0 ? (teamActual / teamExpected - 1) * 100 : null};
+          teamPace: teamExpected > 0 ? (teamActual / teamExpected - 1) * 100 : null,
+          teamProjected: teamExpected > 0 ? teamActual * CP_FOCUS_MONTHLY_TARGET / teamExpected : null};
 }
 function cpFocusPaceCell(pace){
   if(pace == null) return '<span class="cpf-pace na">—</span>';
@@ -3085,6 +3086,7 @@ function renderCpFocus(){
       <div class="cpf-name">${cpFocusEsc(r.name)}${r.start > d.monthStart ? `<span class="cpf-join">joins ${cpFocusEsc(new Date(r.start+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}))}</span>` : ''}</div>
       <div class="cpf-team">${cpFocusEsc(r.team)}</div>
       <div class="cpf-money r">${fmtMoneyK(r.cpTotal)}</div>
+      <div class="cpf-money r">${r.projected == null ? '<span style="color:var(--gray)">\u2014</span>' : fmtMoneyK(r.projected)}</div>
       <div class="cpf-target r">${fmtMoneyK(r.target)}</div>
       <div class="r">${cpFocusPaceCell(r.pace)}</div>
     </div>`;
@@ -3109,6 +3111,7 @@ function renderCpFocus(){
     return pb - pa;
   });
   const total = {team:`${CP_FOCUS_LOB} total`, n:d.reps.length, actual:d.teamActual, expected:d.teamExpected, target:CP_FOCUS_MONTHLY_TARGET};
+  const projOf = t => t.expected > 0 ? t.actual * t.target / t.expected : null;
   const teamRow = (t, isTotal) => {
     const pace = paceOf(t);
     const fillPct = t.target > 0 ? Math.max(0, Math.min(100, t.actual / t.target * 100)) : 0;
@@ -3120,6 +3123,7 @@ function renderCpFocus(){
       <div class="cpf-n">${t.n}</div>
       <div class="cpf-tnum">${fmtMoney(t.actual)}</div>
       <div class="cpf-tnum dim">${fmtMoney(t.expected)}</div>
+      <div class="cpf-tnum">${projOf(t) == null ? '<span style="color:var(--gray)">\u2014</span>' : fmtMoney(projOf(t))}</div>
       <div class="cpf-tnum dim">${fmtMoney(t.target)}</div>
       <div class="r">${cpFocusPaceCell(pace)}</div>
       <div>
@@ -3128,8 +3132,8 @@ function renderCpFocus(){
       </div>
     </div>`;
   };
-  const teamTableHtml = `<div class="cpf-wrap"><div class="cpf-list" style="min-width:860px">
-      <div class="cpf-trow cpf-cols"><div>Team</div><div class="r">Reps</div><div class="r">MTD Actual</div><div class="r">Expected</div><div class="r">Monthly Target</div><div class="r">Pace</div><div>Progress to monthly target</div></div>
+  const teamTableHtml = `<div class="cpf-wrap"><div class="cpf-list" style="min-width:980px">
+      <div class="cpf-trow cpf-cols"><div>Team</div><div class="r">Reps</div><div class="r">MTD Actual</div><div class="r">Expected</div><div class="r">Projected EOM</div><div class="r">Monthly Target</div><div class="r">Pace</div><div>Progress to monthly target</div></div>
       ${teamRow(total, true)}
       ${teams.map(t=>teamRow(t,false)).join('')}
     </div></div>`;
@@ -3151,6 +3155,7 @@ function renderCpFocus(){
           <li>Current reps only: a rep counts if their latest schedule row (as of ${d.asOf}) is ${CP_FOCUS_LOB} and falls within the last 3 days. Reps who moved to another division or stopped appearing on the schedule drop off. Support team excluded.</li>
           <li>Each day's $${Math.round(CP_FOCUS_MONTHLY_TARGET/d.dim).toLocaleString()} share (${fmtMoney(CP_FOCUS_MONTHLY_TARGET)} ÷ ${d.dim} days) is split evenly across the reps on the roster that day, so Monthly Target is the sum of those daily shares, and the team targets always add up to ${fmtMoney(CP_FOCUS_MONTHLY_TARGET)}.</li>
           <li>Pace = MTD actual ÷ expected − 1, where expected is the target share accrued through ${d.through || '—'} (calendar days).</li>
+          <li>Projected EOM = Monthly Target × (1 + Pace), i.e. each row's MTD pace held flat through month end (it's MTD actual ÷ the share of target accrued so far). It's a straight-line run rate, so expect it to swing a lot early in the month and when a single big deal lands; it doesn't model weekends or seasonality. Reps who haven't started yet show —.</li>
         </ul>
       </div>
       <div>
@@ -3167,6 +3172,7 @@ function renderCpFocus(){
       ${kpiTile('Team CP $ MTD', fmtMoney(d.teamActual), `${monthLabel}, through ${d.through || '—'}`)}
       ${kpiTile('Monthly Target', fmtMoney(CP_FOCUS_MONTHLY_TARGET), `split across ${d.reps.length} current ${CP_FOCUS_LOB} reps${d.joiners.length ? `, ${d.joiners.length} joining mid-month` : ''}`)}
       ${kpiTile('Expected by now', fmtMoney(d.teamExpected), `${d.elapsed} of ${d.dim} days`)}
+      ${kpiTile('Projected EOM', d.teamProjected == null ? '\u2014' : fmtMoney(d.teamProjected), `at current pace vs ${fmtMoney(CP_FOCUS_MONTHLY_TARGET)} target`)}
       ${kpiTile('Team Pace', d.teamPace == null ? '—' : (d.teamPace >= 0 ? '+' : '−') + Math.abs(Math.round(d.teamPace)) + '%', 'vs month-to-date pace')}
     </div>
     <div class="section-title">${CP_FOCUS_LOB} progress by team</div>
@@ -3174,7 +3180,7 @@ function renderCpFocus(){
     <div class="section-title">CP $ on Focus · by rep</div>
     <div class="cpf-wrap"><div class="cpf-list">
       <div class="cpf-head"><span class="cpf-sub">Ranked by percentage above or below month-to-date pace</span><span class="cpf-through">Through ${cpFocusEsc(throughLabel)}</span></div>
-      <div class="cpf-row cpf-cols"><div style="text-align:center">Rank</div><div>Rep</div><div>Team</div><div class="r">MTD Actual</div><div class="r">Monthly Target</div><div class="r">Pace</div></div>
+      <div class="cpf-row cpf-cols"><div style="text-align:center">Rank</div><div>Rep</div><div>Team</div><div class="r">MTD Actual</div><div class="r">Projected EOM</div><div class="r">Monthly Target</div><div class="r">Pace</div></div>
       ${rowsHtml || '<div class="note">No Mid-Ticket reps found for this month.</div>'}
     </div></div>
     ${footHtml}`;

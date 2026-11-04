@@ -161,6 +161,51 @@
 
   .section-title{ font-size:14px; color:var(--light-gray); text-transform:uppercase; letter-spacing:0.5px; margin:26px 0 12px; font-weight:700; }
   .note{ font-size:11px; color:var(--gray); margin-bottom:14px; font-style:italic; }
+  /* CP $ on Focus: ranked pace list */
+  .cpf-wrap{ overflow-x:auto; }
+  .cpf-list{ min-width:680px; }
+  .cpf-head{ display:flex; justify-content:space-between; align-items:baseline; margin:4px 2px 12px; gap:12px; flex-wrap:wrap; }
+  .cpf-head .cpf-sub{ font-size:13px; color:var(--gray); }
+  .cpf-head .cpf-through{ font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; letter-spacing:1.5px; color:var(--gray); text-transform:uppercase; }
+  .cpf-row{ display:grid; grid-template-columns:64px minmax(150px,1.3fr) minmax(110px,1fr) 110px 120px 104px; align-items:center; column-gap:12px; padding:0 14px 0 0; }
+  .cpf-cols{ font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11px; letter-spacing:1.2px; color:var(--gray); text-transform:uppercase; padding-bottom:8px; }
+  .cpf-cols .r, .cpf-card .r{ text-align:right; }
+  .cpf-card{ position:relative; background:var(--panel); border:1px solid var(--line); border-radius:10px; margin-bottom:8px; min-height:56px; }
+  .cpf-card.top::before{ content:''; position:absolute; left:0; top:8px; bottom:8px; width:3px; border-radius:0 3px 3px 0; background:var(--cpf-medal); }
+  .cpf-rank{ display:flex; justify-content:center; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:14px; color:var(--gray); }
+  .cpf-medal{ width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; color:#4a3a14; background:var(--cpf-medal); box-shadow:inset 0 0 0 3px rgba(255,255,255,0.35); }
+  .cpf-name{ font-size:15px; color:var(--white); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  /* CP $ on Focus: team progress table + roster footer */
+  .cpf-trow{ display:grid; grid-template-columns:minmax(120px,1fr) 52px 96px 104px 104px 92px minmax(200px,1.7fr); align-items:center; column-gap:12px; padding:12px 14px; }
+  .cpf-trow.cpf-cols{ padding:0 14px 8px; }
+  .cpf-trow.total{ border-color:var(--orange); }
+  .cpf-trow .cpf-tname{ font-size:15px; font-weight:700; color:var(--white); }
+  .cpf-trow .cpf-n{ font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:14px; color:var(--gray); text-align:right; }
+  .cpf-trow .cpf-tnum{ font-size:15px; color:var(--white); text-align:right; }
+  .cpf-trow .cpf-tnum.dim{ color:var(--gray); }
+  .cpf-trow .r{ text-align:right; }
+  .cpf-bar{ position:relative; height:10px; border-radius:5px; background:var(--line); margin:2px 0 6px; }
+  .cpf-bar .fill{ position:absolute; left:0; top:0; bottom:0; border-radius:5px; background:var(--good); }
+  .cpf-bar .fill.behind{ background:var(--bad); }
+  .cpf-bar .mark{ position:absolute; top:-4px; bottom:-4px; width:2px; background:var(--white); opacity:0.85; border-radius:1px; }
+  .cpf-bar-cap{ font-size:11px; color:var(--gray); display:flex; justify-content:space-between; gap:8px; }
+  .cpf-foot{ margin-top:22px; padding:12px 16px; border:1px solid var(--line); border-radius:8px; font-size:11.5px; line-height:1.55; color:var(--gray); }
+  .cpf-foot-title{ font-size:11px; letter-spacing:1px; text-transform:uppercase; font-weight:700; color:var(--light-gray); margin-bottom:8px; }
+  .cpf-foot-grid{ display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); gap:24px; }
+  @media (max-width:760px){ .cpf-foot-grid{ grid-template-columns:1fr; gap:12px; } }
+  .cpf-foot h4{ font-size:12px; color:var(--white); margin-bottom:4px; }
+  .cpf-foot ul{ margin:0 0 0 16px; padding:0; }
+  .cpf-foot li{ margin-bottom:3px; }
+  .cpf-foot .chg{ margin-bottom:6px; }
+  .cpf-foot .chg b{ color:var(--white); }
+  .cpf-join{ margin-left:8px; font-size:11px; color:var(--gray); font-style:italic; }
+  .cpf-team{ font-size:15px; font-weight:700; color:var(--white); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cpf-money{ font-size:17px; color:var(--white); }
+  .cpf-target{ font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:15px; color:var(--gray); }
+  .cpf-pace{ display:inline-block; min-width:84px; text-align:center; padding:9px 10px; border-radius:6px; font-weight:700; font-size:16px; }
+  .cpf-pace.up{ background:rgba(76,175,80,0.18); color:var(--good); }
+  .cpf-pace.down{ background:rgba(227,73,72,0.16); color:var(--bad); }
+  .cpf-pace.na{ background:transparent; color:var(--gray); font-weight:400; }
   .scope-banner{
     background:rgba(253,51,0,0.08); border:1px solid rgba(253,51,0,0.35); border-radius:6px;
     padding:10px 14px; font-size:12px; color:var(--light-gray); margin-bottom:16px;
@@ -620,7 +665,7 @@ const TABS = [
   "CLOSER Trend View","Closers Metric",
   "Mid-Ticket Trend View","Mid-Ticket Metric","PG1 Trend View","PG1 Metric",
   "Inbound Trend View","Inbound Daily Metric",
-  "Executive Trend View","Executive Metric"
+  "Executive Trend View","Executive Metric","CP $ on Focus"
 ];
 // Two top-level groups -- SETTER-side tabs vs CLOSER-side tabs -- selected above the date filter,
 // with the existing sub-tab bar scoped to whichever group is active.
@@ -668,7 +713,7 @@ const MAIN_TABS = [
   // Leftmost/default tab (2026-11-03): combines Mid-Ticket + PG1 + Inbound. Its own `lobs` is
   // PHONE_TAB_LOBS (all 3) rather than a single-value array like the 3 tabs below -- that's what
   // lets its LOB dropdown actually narrow to one division instead of being a locked no-op.
-  { name: 'Executive', tabIndices: [13,14], lobs: PHONE_TAB_LOBS },
+  { name: 'Executive', tabIndices: [13,14,15], lobs: PHONE_TAB_LOBS },
   { name: 'Mid-Ticket', tabIndices: [7,8], lobs: MIDTICKET_LOBS },
   { name: 'PG1', tabIndices: [9,10], lobs: PG1_TAB_LOBS },
   { name: 'Inbound', tabIndices: [11,12], lobs: INBOUND_LOBS },
@@ -2006,6 +2051,7 @@ function renderAll(){
   renderInboundDaily();
   renderExecutiveTrend();
   renderExecutiveMetric();
+  renderCpFocus();
 }
 
 // full 23-metric column set, shared by Executive Summary Trend & ASR Trend View team tables
@@ -2914,6 +2960,224 @@ function renderExecutiveMetric(){
     {key:'cpDigitalOther', label:'CP $ Digital', fmt:fmtMoney},
     {key:'cpSupplements', label:'CP $ Supplements', fmt:fmtMoney},
   ], { leadRow: grandTotal });
+}
+
+// ===== CP $ on Focus =====
+// Monthly Contribution Profit target split evenly across the Mid-Ticket roster. Roster = every
+// distinct rep with a Mid-Ticket row anywhere in the month (even a zero-CP / scheduled-only one),
+// so a rep who hasn't produced yet still dilutes the per-rep target the way the team really is.
+// Pace = MTD actual / (per-rep target x calendar days elapsed / days in month) - 1. "Through" is
+// the latest date Domo has actually posted CP for (Domo lags Schedule by a day or two), so a
+// stale Domo feed doesn't make everyone look behind pace.
+const CP_FOCUS_MONTHLY_TARGET = 300000;
+const CP_FOCUS_LOB = 'Mid-Ticket';
+function cpFocusEsc(v){ return String(v==null?'':v).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function fmtMoneyK(n){
+  const a = Math.abs(n), sign = n < 0 ? '−' : '';
+  if(a >= 1000) return sign + '$' + (Math.round(a/100)/10).toFixed(1).replace(/\.0$/,'') + 'K';
+  return sign + '$' + Math.round(a).toLocaleString();
+}
+function cpFocusData(){
+  const monthKey = state.end.slice(0,7);
+  const [yy, mm] = monthKey.split('-').map(Number);
+  const dim = new Date(yy, mm, 0).getDate();
+  const monthStart = monthKey + '-01', monthEnd = monthKey + '-' + String(dim).padStart(2,'0');
+  let through = state.end < monthEnd ? state.end : monthEnd;
+  const domoLatest = (typeof DATA_SOURCE_TIMES !== 'undefined' && DATA_SOURCE_TIMES.domoLatestTxnDate) || '';
+  if(domoLatest && domoLatest < through) through = domoLatest;
+  const elapsed = through < monthStart ? 0 : Number(through.slice(8,10));
+
+  // Roster snapshot date: the latest day of this month we have schedule data for.
+  let maxDate = '';
+  PHONE_RAW.forEach(r=>{ if(r[3] <= monthEnd && r[3] > maxDate) maxDate = r[3]; });
+  const asOf = maxDate || monthEnd;
+  const staleCutoff = addDaysStr(asOf, -3);
+  // Each rep's most recent row (any LOB) on/before asOf, plus first Mid-Ticket day within the month.
+  const last = new Map(), firstMT = new Map(), lastMT = new Map();
+  let rosterFirst = '';
+  PHONE_RAW.forEach(r=>{
+    if(r[3] > asOf) return;
+    const l = last.get(r[0]);
+    if(!l || r[3] > l.date || (r[3] === l.date && r[2] === CP_FOCUS_LOB)) last.set(r[0], {date:r[3], lob:r[2], team:r[1]});
+    if(r[2] === CP_FOCUS_LOB && r[3] >= monthStart){
+      if(!firstMT.has(r[0]) || r[3] < firstMT.get(r[0])) firstMT.set(r[0], r[3]);
+      if(!rosterFirst || r[3] < rosterFirst) rosterFirst = r[3];
+      const lm = lastMT.get(r[0]);
+      if(!lm || r[3] >= lm.date) lastMT.set(r[0], {date:r[3], team:r[1]});
+    }
+  });
+  // "Current" = still on Mid-Ticket as of the snapshot (latest row is Mid-Ticket and not stale), and
+  // not on the Support team. Reps who moved to another LOB / left / are Support drop out entirely.
+  const isSupport = t => String(t||'').trim().toLowerCase() === 'support';
+  const current = new Map();
+  last.forEach((l, name)=>{
+    if(l.lob === CP_FOCUS_LOB && l.date >= staleCutoff && !isSupport(l.team) && firstMT.has(name)) current.set(name, {name, team:l.team});
+  });
+  // A rep who first shows up on Mid-Ticket on the roster's first day counts for the whole month;
+  // anyone appearing later is a joiner and only earns a target from their start date.
+  // "Typical" start = median first-Mid-Ticket day across the current roster (robust to a lone rep
+  // with a Sunday/weekend row, or a rep who was simply off on day 1). A first row more than 2 days
+  // after that is treated as a genuine mid-month joiner.
+  const firsts = Array.from(current.keys()).map(n=>firstMT.get(n)).sort();
+  const baseline = firsts.length ? firsts[Math.floor(firsts.length/2)] : monthStart;
+  const joinCutoff = addDaysStr(baseline, 2);
+  current.forEach((o, name)=>{
+    const f = firstMT.get(name);
+    o.start = f <= joinCutoff ? monthStart : f;
+    o.target = 0; o.expected = 0;
+    Object.assign(o, phoneBlankSums());
+  });
+  // Daily pool = monthly target / days in month, split evenly across whoever is on the (current)
+  // roster that day, so a joiner dilutes everyone from their start date onward, not retroactively.
+  for(let day = 1; day <= dim; day++){
+    const ds = monthKey + '-' + String(day).padStart(2,'0');
+    const active = [];
+    current.forEach(o=>{ if(o.start <= ds) active.push(o); });
+    if(!active.length) continue;
+    const share = CP_FOCUS_MONTHLY_TARGET / dim / active.length;
+    active.forEach(o=>{ o.target += share; if(ds <= through) o.expected += share; });
+  }
+  PHONE_RAW.forEach(r=>{
+    if(r[2] !== CP_FOCUS_LOB || r[3] < monthStart || r[3] > through) return;
+    const o = current.get(r[0]);
+    if(o) phoneAddRawRow(o, r);
+  });
+  const reps = Array.from(current.values()).map(phoneWithDerived);
+  reps.forEach(r=>{ r.pace = r.expected > 0 ? (r.cpTotal / r.expected - 1) * 100 : null; });
+  reps.sort((a,b)=>{
+    if(a.pace == null && b.pace == null) return b.cpTotal - a.cpTotal;
+    if(a.pace == null) return 1;
+    if(b.pace == null) return -1;
+    return b.pace - a.pace || b.cpTotal - a.cpTotal;
+  });
+  const teamActual = reps.reduce((s,r)=>s+r.cpTotal,0);
+  const teamExpected = reps.reduce((s,r)=>s+r.expected,0);
+  const joiners = reps.filter(r=>r.start > monthStart);
+  // Reps who had Mid-Ticket rows this month but are no longer current (moved to another division,
+  // or stopped appearing on the schedule). Support-team reps are excluded from the whole tab.
+  const removed = [];
+  firstMT.forEach((f, name)=>{
+    if(current.has(name)) return;
+    const lm = lastMT.get(name), l = last.get(name);
+    if(isSupport(lm && lm.team) || isSupport(l && l.team)) return;
+    removed.push({name, team: lm ? lm.team : '', lastDate: lm ? lm.date : f, movedTo: l && l.lob !== CP_FOCUS_LOB ? l.lob : null});
+  });
+  removed.sort((a,b)=>a.lastDate < b.lastDate ? -1 : a.lastDate > b.lastDate ? 1 : a.name.localeCompare(b.name));
+  return {monthKey, monthStart, dim, elapsed, through, asOf, reps, joiners, removed, teamActual, teamExpected,
+          teamPace: teamExpected > 0 ? (teamActual / teamExpected - 1) * 100 : null};
+}
+function cpFocusPaceCell(pace){
+  if(pace == null) return '<span class="cpf-pace na">—</span>';
+  const r = Math.round(pace);
+  const cls = r >= 0 ? 'up' : 'down';
+  return `<span class="cpf-pace ${cls}">${r >= 0 ? '+' : '−'}${Math.abs(r)}%</span>`;
+}
+function renderCpFocus(){
+  const p = document.getElementById('panel-15');
+  if(!p) return;
+  const d = cpFocusData();
+  const throughLabel = d.through ? new Date(d.through+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'2-digit'}) : '';
+  const medals = ['#e2b94a','#aab4c0','#c58b5d'];
+  const rowsHtml = d.reps.map((r,i)=>{
+    const top = i < 3 && r.pace != null;
+    return `<div class="cpf-row cpf-card${top?' top':''}" ${top?`style="--cpf-medal:${medals[i]}"`:''}>
+      <div class="cpf-rank">${top?`<span class="cpf-medal">${i+1}</span>`:String(i+1).padStart(2,'0')}</div>
+      <div class="cpf-name">${cpFocusEsc(r.name)}${r.start > d.monthStart ? `<span class="cpf-join">joins ${cpFocusEsc(new Date(r.start+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}))}</span>` : ''}</div>
+      <div class="cpf-team">${cpFocusEsc(r.team)}</div>
+      <div class="cpf-money r">${fmtMoneyK(r.cpTotal)}</div>
+      <div class="cpf-target r">${fmtMoneyK(r.target)}</div>
+      <div class="r">${cpFocusPaceCell(r.pace)}</div>
+    </div>`;
+  }).join('');
+  const monthLabel = new Date(d.monthKey+'-01T00:00:00').toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  const shortDay = ds => new Date(ds+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+
+  // ---- per-team progress table ----
+  const teamMap = new Map();
+  d.reps.forEach(r=>{
+    const k = r.team || '(no team)';
+    if(!teamMap.has(k)) teamMap.set(k, {team:k, n:0, actual:0, expected:0, target:0});
+    const t = teamMap.get(k);
+    t.n++; t.actual += r.cpTotal; t.expected += r.expected; t.target += r.target;
+  });
+  const paceOf = t => t.expected > 0 ? (t.actual / t.expected - 1) * 100 : null;
+  const teams = Array.from(teamMap.values()).sort((a,b)=>{
+    const pa = paceOf(a), pb = paceOf(b);
+    if(pa == null && pb == null) return b.actual - a.actual;
+    if(pa == null) return 1;
+    if(pb == null) return -1;
+    return pb - pa;
+  });
+  const total = {team:`${CP_FOCUS_LOB} total`, n:d.reps.length, actual:d.teamActual, expected:d.teamExpected, target:CP_FOCUS_MONTHLY_TARGET};
+  const teamRow = (t, isTotal) => {
+    const pace = paceOf(t);
+    const fillPct = t.target > 0 ? Math.max(0, Math.min(100, t.actual / t.target * 100)) : 0;
+    const markPct = t.target > 0 ? Math.max(0, Math.min(100, t.expected / t.target * 100)) : 0;
+    const behind = pace != null && pace < 0;
+    const ofTarget = t.target > 0 ? Math.round(t.actual / t.target * 100) : 0;
+    return `<div class="cpf-card cpf-trow${isTotal?' total':''}">
+      <div class="cpf-tname">${cpFocusEsc(t.team)}</div>
+      <div class="cpf-n">${t.n}</div>
+      <div class="cpf-tnum">${fmtMoney(t.actual)}</div>
+      <div class="cpf-tnum dim">${fmtMoney(t.expected)}</div>
+      <div class="cpf-tnum dim">${fmtMoney(t.target)}</div>
+      <div class="r">${cpFocusPaceCell(pace)}</div>
+      <div>
+        <div class="cpf-bar" title="${ofTarget}% of monthly target; marker = where pace says we should be"><div class="fill${behind?' behind':''}" style="width:${fillPct.toFixed(1)}%"></div><div class="mark" style="left:calc(${markPct.toFixed(1)}% - 1px)"></div></div>
+        <div class="cpf-bar-cap"><span>${ofTarget}% of target</span><span>pace marker ${t.target > 0 ? Math.round(t.expected / t.target * 100) : 0}%</span></div>
+      </div>
+    </div>`;
+  };
+  const teamTableHtml = `<div class="cpf-wrap"><div class="cpf-list" style="min-width:860px">
+      <div class="cpf-trow cpf-cols"><div>Team</div><div class="r">Reps</div><div class="r">MTD Actual</div><div class="r">Expected</div><div class="r">Monthly Target</div><div class="r">Pace</div><div>Progress to monthly target</div></div>
+      ${teamRow(total, true)}
+      ${teams.map(t=>teamRow(t,false)).join('')}
+    </div></div>`;
+
+  // ---- roster / mid-month changes footer ----
+  const addedHtml = d.joiners.length
+    ? d.joiners.map(r=>`${cpFocusEsc(r.name)} (${cpFocusEsc(r.team)}, from ${shortDay(r.start)})`).join('; ')
+    : 'None this month';
+  const removedHtml = d.removed.length
+    ? d.removed.map(r=>`${cpFocusEsc(r.name)} (${cpFocusEsc(r.team)}, ${r.movedTo ? `moved to ${cpFocusEsc(r.movedTo)} after` : 'no longer scheduled after'} ${shortDay(r.lastDate)})`).join('; ')
+    : 'None this month';
+  const footHtml = `<div class="cpf-foot">
+    <div class="cpf-foot-title">Roster rules &amp; mid-month changes</div>
+    <div class="cpf-foot-grid">
+      <div>
+        <h4>Roster rules</h4>
+        <ul>
+          <li>Month is taken from the end of the selected date range. CP $ is ${CP_FOCUS_LOB} only (CP $ Total, from Domo), counted through the latest day Domo has posted (${d.through || '—'}). Team / Agent / LOB filters don't apply here.</li>
+          <li>Current reps only: a rep counts if their latest schedule row (as of ${d.asOf}) is ${CP_FOCUS_LOB} and falls within the last 3 days. Reps who moved to another division or stopped appearing on the schedule drop off. Support team excluded.</li>
+          <li>Each day's $${Math.round(CP_FOCUS_MONTHLY_TARGET/d.dim).toLocaleString()} share (${fmtMoney(CP_FOCUS_MONTHLY_TARGET)} ÷ ${d.dim} days) is split evenly across the reps on the roster that day, so Monthly Target is the sum of those daily shares, and the team targets always add up to ${fmtMoney(CP_FOCUS_MONTHLY_TARGET)}.</li>
+          <li>Pace = MTD actual ÷ expected − 1, where expected is the target share accrued through ${d.through || '—'} (calendar days).</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Mid-month adds &amp; removals · ${monthLabel}</h4>
+        <div class="chg"><b>Added:</b> ${addedHtml}</div>
+        <div class="chg"><b>Removed:</b> ${removedHtml}</div>
+        <div>A rep who joins mid-month only earns target from their start date and lowers everyone else's daily share from that day on (not retroactively). A rep who leaves stops counting; their past days are re-split among the reps still on the roster.</div>
+      </div>
+    </div>
+  </div>`;
+
+  p.innerHTML = `
+    <div class="metrics-container">
+      ${kpiTile('Team CP $ MTD', fmtMoney(d.teamActual), `${monthLabel}, through ${d.through || '—'}`)}
+      ${kpiTile('Monthly Target', fmtMoney(CP_FOCUS_MONTHLY_TARGET), `split across ${d.reps.length} current ${CP_FOCUS_LOB} reps${d.joiners.length ? `, ${d.joiners.length} joining mid-month` : ''}`)}
+      ${kpiTile('Expected by now', fmtMoney(d.teamExpected), `${d.elapsed} of ${d.dim} days`)}
+      ${kpiTile('Team Pace', d.teamPace == null ? '—' : (d.teamPace >= 0 ? '+' : '−') + Math.abs(Math.round(d.teamPace)) + '%', 'vs month-to-date pace')}
+    </div>
+    <div class="section-title">${CP_FOCUS_LOB} progress by team</div>
+    ${teamTableHtml}
+    <div class="section-title">CP $ on Focus · by rep</div>
+    <div class="cpf-wrap"><div class="cpf-list">
+      <div class="cpf-head"><span class="cpf-sub">Ranked by percentage above or below month-to-date pace</span><span class="cpf-through">Through ${cpFocusEsc(throughLabel)}</span></div>
+      <div class="cpf-row cpf-cols"><div style="text-align:center">Rank</div><div>Rep</div><div>Team</div><div class="r">MTD Actual</div><div class="r">Monthly Target</div><div class="r">Pace</div></div>
+      ${rowsHtml || '<div class="note">No Mid-Ticket reps found for this month.</div>'}
+    </div></div>
+    ${footHtml}`;
 }
 
 function renderMidTicketTrend(){ renderPhoneTrend({panelId:'panel-7', lob:'Mid-Ticket', idPrefix:'midticket', tabLabel:'Mid-Ticket'}); }
